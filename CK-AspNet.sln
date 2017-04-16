@@ -19,7 +19,9 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CodeCakeBuilder", "CodeCake
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CK.AspNet.Tester", "CK.AspNet.Tester\CK.AspNet.Tester.csproj", "{87577DD0-98DF-4109-9B4B-4D24385071D0}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CK.AspNet", "CK.AspNet\CK.AspNet.csproj", "{4780D989-B430-427E-96F3-2E16BB687523}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CK.AspNet", "CK.AspNet\CK.AspNet.csproj", "{4780D989-B430-427E-96F3-2E16BB687523}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CK.AspNet.Tester.Tests", "Tests\CK.AspNet.Tester.Tests\CK.AspNet.Tester.Tests.csproj", "{29BB9615-4CA6-4FE7-9D83-E1A2375E596D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -39,8 +41,15 @@ Global
 		{4780D989-B430-427E-96F3-2E16BB687523}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{4780D989-B430-427E-96F3-2E16BB687523}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{4780D989-B430-427E-96F3-2E16BB687523}.Release|Any CPU.Build.0 = Release|Any CPU
+		{29BB9615-4CA6-4FE7-9D83-E1A2375E596D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{29BB9615-4CA6-4FE7-9D83-E1A2375E596D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{29BB9615-4CA6-4FE7-9D83-E1A2375E596D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{29BB9615-4CA6-4FE7-9D83-E1A2375E596D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{29BB9615-4CA6-4FE7-9D83-E1A2375E596D} = {1A7E3E39-6483-4802-8B27-C4D245D35D09}
 	EndGlobalSection
 EndGlobal
