@@ -4,6 +4,7 @@
 
   <PropertyGroup>
     <TargetFrameworks>netstandard1.3;net451</TargetFrameworks>
+    <Description>Helpers for AspNet Core applications. Currently offers only replacement methods for services in IServiceCollection.</Description>
   </PropertyGroup>
 
   <ItemGroup>
