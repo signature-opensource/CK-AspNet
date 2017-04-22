@@ -8,8 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="CK.StObj.Model" Version="5.0.0-a46" />
-    <PackageReference Include="Microsoft.AspNetCore.Http.Abstractions" Version="1.1.1" />
+    <PackageReference Include="CK.SqlServer.Setup.Model" Version="5.0.0-a47" />
     <ProjectReference Include="..\CK.AspNet\CK.AspNet.csproj" />
   </ItemGroup>
 
