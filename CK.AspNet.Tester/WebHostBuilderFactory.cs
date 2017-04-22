@@ -11,8 +11,19 @@ using System.Diagnostics;
 namespace CK.AspNet.Tester
 {
 
+    /// <summary>
+    /// Sets of helpers tho build a <see cref="IWebHostBuilder"/>.
+    /// </summary>
     public static class WebHostBuilderFactory
     {
+        /// <summary>
+        /// Creates a web host builder.
+        /// </summary>
+        /// <param name="startupType">Optional type of the startup ovject. Can be null.</param>
+        /// <param name="contentRoot">Optional path of the content root. Can be null.</param>
+        /// <param name="configureServices">Optional service configurator. Can be null.</param>
+        /// <param name="configureApplication">Optional application configurator. Can be null.</param>
+        /// <returns>The web host builder.</returns>
         public static IWebHostBuilder Create(
             Type startupType,
             string contentRoot,
@@ -22,6 +33,14 @@ namespace CK.AspNet.Tester
             return Create(startupType, contentRoot, new[] { configureServices }, new[] { configureApplication });
         }
 
+        /// <summary>
+        /// Creates a web host builder with multiple service and application configurators.
+        /// </summary>
+        /// <param name="startupType">Optional type of the startup ovject. Can be null.</param>
+        /// <param name="contentRoot">Optional path of the content root. Can be null.</param>
+        /// <param name="configureServices">Optional service configurators. Can be null.</param>
+        /// <param name="configureApplication">Optional application configurators. Can be null.</param>
+        /// <returns>The web host builder.</returns>
         public static IWebHostBuilder Create(
             Type startupType,
             string contentRoot,

@@ -7,6 +7,9 @@ using CK.Core;
 
 namespace CK.AspNet
 {
+    /// <summary>
+    /// Handles monitor creation associated to the context.
+    /// </summary>
     public class RequestMonitorMiddleware
     {
         readonly RequestDelegate _next;
@@ -15,6 +18,11 @@ namespace CK.AspNet
         readonly Action<HttpContext, IActivityMonitor> _onEndRequest;
         readonly Action<HttpContext, IActivityMonitor, Exception> _onRequestError;
 
+        /// <summary>
+        /// Initializes a new <see cref="RequestMonitorMiddleware"/>.
+        /// </summary>
+        /// <param name="next">Next middleware.</param>
+        /// <param name="options">Options.</param>
         public RequestMonitorMiddleware( RequestDelegate next, RequestMonitorMiddlewareOptions options )
         {
             _next = next;
@@ -24,9 +32,13 @@ namespace CK.AspNet
             _onRequestError = _options.OnRequestError ?? DefaultOnRequestError;
         }
 
+        /// <summary>
+        /// Creates and configures the monitor.
+        /// </summary>
+        /// <param name="ctx"></param>
+        /// <returns></returns>
         public Task Invoke( HttpContext ctx )
         {
-
             IActivityMonitor m = new ActivityMonitor();
             ctx.Items.Add(typeof(IActivityMonitor), m);
             _onStartRequest.Invoke(ctx, m);

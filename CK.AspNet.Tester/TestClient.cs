@@ -7,13 +7,21 @@ using Microsoft.Net.Http.Headers;
 
 namespace CK.AspNet.Tester
 {
+    /// <summary>
+    /// Client helper.
+    /// </summary>
     public class TestClient
     {
         readonly TestServer _testServer;
         string _token;
 
+        /// <summary>
+        /// Initializes a new client for a <see cref="TestServer"/>.
+        /// </summary>
+        /// <param name="testServer">The test server.</param>
         public TestClient(TestServer testServer)
         {
+            if (testServer == null) throw new ArgumentNullException(nameof(Tester));
             _testServer = testServer;
             Cookies = new CookieContainer();
         }
@@ -102,7 +110,7 @@ namespace CK.AspNet.Tester
         /// Issues a POST request to the relative url on <see cref="TestServer.BaseAddress"/> with an <see cref="HttpContent"/>.
         /// </summary>
         /// <param name="relativeUrl">The relative url.</param>
-        /// <param name="json">The json content.</param>
+        /// <param name="content">The content.</param>
         /// <returns>The response.</returns>
         public HttpResponseMessage Post(Uri relativeUrl, HttpContent content)
         {
