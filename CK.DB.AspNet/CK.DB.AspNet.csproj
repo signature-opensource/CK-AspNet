@@ -8,7 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="CK.SqlServer.Setup.Model" Version="5.0.0-a47" />
+    <PackageReference Include="CK.SqlServer.Setup.Model" Version="$(CKDatabaseVersion)" />
     <ProjectReference Include="..\CK.AspNet\CK.AspNet.csproj" />
   </ItemGroup>
 
