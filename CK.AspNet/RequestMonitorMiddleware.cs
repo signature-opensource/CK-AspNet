@@ -69,7 +69,7 @@ namespace CK.AspNet
 
         void DefaultOnEndRequest(HttpContext ctx, IActivityMonitor m)
         {
-            m.CloseGroup();
+            m.MonitorEnd();
         }
     }
 }

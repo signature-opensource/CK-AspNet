@@ -12,11 +12,11 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
-
   <PropertyGroup>
     <!-- Centralized dependencies versions. -->
-    <CKDatabaseVersion>5.0.0-a48</CKDatabaseVersion>
-    <CKCoreVersion>6.0.0</CKCoreVersion>
+    <CKDatabaseVersion>5.0.0-a49</CKDatabaseVersion>
+    <CKCoreVersion>7.0.0</CKCoreVersion>
+    <CKActivityMonitorVersion>7.0.0</CKActivityMonitorVersion>
   </PropertyGroup>
   
   <!-- 
