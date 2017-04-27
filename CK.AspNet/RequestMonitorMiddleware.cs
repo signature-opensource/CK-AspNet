@@ -15,7 +15,7 @@ namespace CK.AspNet
         readonly RequestDelegate _next;
         readonly RequestMonitorMiddlewareOptions _options;
         readonly Action<HttpContext, IActivityMonitor> _onStartRequest;
-        readonly Action<HttpContext, IActivityMonitor> _onEndRequest;
+        readonly Action<HttpContext, IActivityMonitor, bool> _onEndRequest;
         readonly Action<HttpContext, IActivityMonitor, Exception> _onRequestError;
 
         /// <summary>
@@ -41,6 +41,7 @@ namespace CK.AspNet
         {
             IActivityMonitor m = new ActivityMonitor();
             ctx.Items.Add(typeof(IActivityMonitor), m);
+            bool error = false;
             _onStartRequest.Invoke(ctx, m);
             try
             {
@@ -49,11 +50,14 @@ namespace CK.AspNet
             catch( Exception ex )
             {
                 _onRequestError(ctx, m, ex);
-                throw;
+                error = true;
+                if( _options.RethrowError ) throw;
+                // Should be Task.CompletedTask (but not available on NET451).
+                return Task.FromResult(0);
             }
             finally
             {
-                _onEndRequest.Invoke(ctx, m);
+                _onEndRequest.Invoke(ctx, m, error);
             }
         }
 
@@ -67,7 +71,7 @@ namespace CK.AspNet
             m.UnfilteredOpenGroup(null, LogLevel.Info, null, ctx.Request.QueryString.ToString(), m.NextLogTime(), null);
         }
 
-        void DefaultOnEndRequest(HttpContext ctx, IActivityMonitor m)
+        void DefaultOnEndRequest(HttpContext ctx, IActivityMonitor m, bool onError)
         {
             m.MonitorEnd();
         }
