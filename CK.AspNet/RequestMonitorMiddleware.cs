@@ -63,7 +63,8 @@ namespace CK.AspNet
 
         void DefaultOnRequestError(HttpContext ctx, IActivityMonitor m, Exception ex)
         {
-            m.UnfilteredLog(null, LogLevel.Error, ex.Message, m.NextLogTime(), ex);
+            m.UnfilteredLog(null, LogLevel.Fatal, ex.Message, m.NextLogTime(), ex);
+            ctx.Response.StatusCode = StatusCodes.Status500InternalServerError;
         }
 
         void DefaultOnStartRequest(HttpContext ctx, IActivityMonitor m)

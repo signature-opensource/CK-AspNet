@@ -29,7 +29,8 @@ namespace CK.AspNet
         /// <summary>
         /// Gets or sets a replacement of the request error action.
         /// By default, exceptions triggered by the next middlewares in the pipeline are logged as 
-        /// errors in the monitor.
+        /// <see cref="LogLevel.Fatal"/> errors in the monitor and the response Http status 
+        /// is set to <see cref="StatusCodes.Status500InternalServerError"/>.
         /// </summary>
         public Action<HttpContext, IActivityMonitor, Exception> OnRequestError { get; set; }
 
