@@ -27,15 +27,13 @@ namespace CK.AspNet.Tester
 
         /// <summary>
         /// Gets or sets the authorization header (defaults to "Authorization").
-        /// When <see cref="SetToken"/> is called with a non null token, 
-        /// requests have the 'AuthorizationHeaderName Bearer token" added.
+        /// When <see cref="Token"/> is non null requests have the 'AuthorizationHeaderName Bearer token" added.
         /// </summary>
         public string AuthorizationHeaderName { get; set; } = "Authorization";
 
         /// <summary>
         /// Sets the authorization token or clears it (by setting it to null).
         /// </summary>
-        /// <param name="token">The authorization token that will be sent with each request.</param>
         public string Token { get; set; }
 
         /// <summary>

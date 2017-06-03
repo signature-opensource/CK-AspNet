@@ -14,7 +14,7 @@ namespace CK.AspNet
     {
         /// <summary>
         /// Gets or sets a replacement of the request start action.
-        /// By default, a <see cref="LogLevel.Info"/> with the request string is logged.
+        /// By default, a <see cref="CK.Core.LogLevel.Info"/> with the request string is logged.
         /// </summary>
         public Action<HttpContext,IActivityMonitor> OnStartRequest { get; set; }
 
@@ -29,7 +29,7 @@ namespace CK.AspNet
         /// <summary>
         /// Gets or sets a replacement of the request error action.
         /// By default, exceptions triggered by the next middlewares in the pipeline are logged as 
-        /// <see cref="LogLevel.Fatal"/> errors in the monitor and the response Http status 
+        /// <see cref="CK.Core.LogLevel.Fatal"/> errors in the monitor and the response Http status 
         /// is set to <see cref="StatusCodes.Status500InternalServerError"/>.
         /// </summary>
         public Action<HttpContext, IActivityMonitor, Exception> OnRequestError { get; set; }
