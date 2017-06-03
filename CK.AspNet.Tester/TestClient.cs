@@ -13,7 +13,6 @@ namespace CK.AspNet.Tester
     public class TestClient
     {
         readonly TestServer _testServer;
-        string _token;
 
         /// <summary>
         /// Initializes a new client for a <see cref="TestServer"/>.
@@ -37,7 +36,7 @@ namespace CK.AspNet.Tester
         /// Sets the authorization token or clears it (by setting it to null).
         /// </summary>
         /// <param name="token">The authorization token that will be sent with each request.</param>
-        public void SetToken(string token) => _token = token;
+        public string Token { get; set; }
 
         /// <summary>
         /// Gets the <see cref="CookieContainer"/>.
@@ -149,9 +148,9 @@ namespace CK.AspNet.Tester
 
         void AddToken(RequestBuilder requestBuilder)
         {
-            if(_token != null)
+            if(Token != null)
             {
-                requestBuilder.AddHeader(AuthorizationHeaderName, "Bearer " + _token );
+                requestBuilder.AddHeader(AuthorizationHeaderName, "Bearer " + Token );
             }
         }
 
