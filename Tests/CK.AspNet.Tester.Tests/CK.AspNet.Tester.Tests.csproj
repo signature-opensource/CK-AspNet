@@ -3,7 +3,10 @@
   <Import Project="..\..\Common\Shared.props" />
   
   <PropertyGroup>
-    <TargetFramework>net451</TargetFramework>
+    <TargetFramework>net461</TargetFramework>
+    <!-- Fix required: see https://github.com/aspnet/Hosting/issues/926 -->
+    <GenerateBindingRedirectsOutputType>true</GenerateBindingRedirectsOutputType>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
   </PropertyGroup>
 
   <ItemGroup>

@@ -3,7 +3,7 @@
   <Import Project="..\Common\Shared.props" />
 
   <PropertyGroup>
-    <TargetFrameworks>netstandard1.3;net451</TargetFrameworks>
+    <TargetFrameworks>netstandard1.3;net461</TargetFrameworks>
     <Description>Helpers for AspNet Core applications.</Description>
   </PropertyGroup>
 

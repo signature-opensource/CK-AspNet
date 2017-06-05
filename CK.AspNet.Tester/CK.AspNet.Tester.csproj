@@ -3,7 +3,7 @@
   <Import Project="..\Common\Shared.props" />
 
   <PropertyGroup>
-    <TargetFrameworks>netstandard1.3;net451</TargetFrameworks>
+    <TargetFrameworks>netstandard1.3;net461</TargetFrameworks>
     <Description>AspNet Core integration test tools like WebHostBuilderFactory and TestClient.</Description>
   </PropertyGroup>
 

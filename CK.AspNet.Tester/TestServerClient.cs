@@ -10,7 +10,7 @@ namespace CK.AspNet.Tester
     /// <summary>
     /// Client helper.
     /// </summary>
-    public class TestClient
+    public class TestServerClient
     {
         readonly TestServer _testServer;
 
@@ -18,7 +18,7 @@ namespace CK.AspNet.Tester
         /// Initializes a new client for a <see cref="TestServer"/>.
         /// </summary>
         /// <param name="testServer">The test server.</param>
-        public TestClient(TestServer testServer)
+        public TestServerClient(TestServer testServer)
         {
             if (testServer == null) throw new ArgumentNullException(nameof(Tester));
             _testServer = testServer;
@@ -136,10 +136,10 @@ namespace CK.AspNet.Tester
             {
                 return response;
             }
-            var redirectUrl = new Uri(response.Headers.Location.ToString(), UriKind.RelativeOrAbsolute);
-            if (redirectUrl.IsAbsoluteUri)
+            var redirectUrl = response.Headers.Location;
+            if (!redirectUrl.IsAbsoluteUri)
             {
-                redirectUrl = new Uri(redirectUrl.PathAndQuery, UriKind.Relative);
+                redirectUrl = new Uri(response.RequestMessage.RequestUri, redirectUrl);
             }
             return Get(redirectUrl);
         }

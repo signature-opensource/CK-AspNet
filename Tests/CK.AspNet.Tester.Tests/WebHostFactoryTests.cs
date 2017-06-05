@@ -54,7 +54,7 @@ namespace CK.AspNet.Tester.Tests
                     app.UseMiddleware<StupidMiddleware>();
                 });
             var server = new TestServer(b);
-            var client = new TestClient(server);
+            var client = new TestServerClient(server);
 
             HttpResponseMessage notFound = client.Get("other");
             Assert.That(notFound.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
