@@ -2,6 +2,8 @@
 using Microsoft.Extensions.DependencyInjection;
 using System;
 using CK.SqlServer.Setup;
+using System.Reflection;
+using System.IO;
 
 namespace CK.AspNet
 {
@@ -21,7 +23,8 @@ namespace CK.AspNet
         /// <returns>This services collection.</returns>
         public static IServiceCollection AddDefaultStObjMap(this IServiceCollection services, string assemblyName, string defaultConnectionString = null)
         {
-            var map = StObjContextRoot.Load(assemblyName);
+            var a = LoadAssemblyFromAppContextBaseDirectory(assemblyName);
+            var map = StObjContextRoot.Load(a);
             if (map == null)
                 throw new ArgumentException($"The assembly {assemblyName} was not found or is not a valid StObj map assembly");
 
@@ -31,6 +34,21 @@ namespace CK.AspNet
                 db.ConnectionString = defaultConnectionString;
             }
             return AddStObjMap(services, map.Default);
+        }
+
+        /// <summary>
+        /// Loads an assembly that must be in probe paths in .Net framework and in
+        /// AppContext.BaseDirectory in .Net Core.
+        /// </summary>
+        /// <param name="assemblyName">Name of the assembly to load (without any .dll suffix).</param>
+        /// <returns>The loaded assembly.</returns>
+        static Assembly LoadAssemblyFromAppContextBaseDirectory(string assemblyName)
+        {
+#if NET461
+            return Assembly.Load( new AssemblyName( assemblyName ) );
+#else
+            return System.Runtime.Loader.AssemblyLoadContext.Default.LoadFromAssemblyPath(Path.Combine(AppContext.BaseDirectory, assemblyName + ".dll"));
+#endif
         }
 
         /// <summary>

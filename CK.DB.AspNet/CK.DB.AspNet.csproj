@@ -12,5 +12,8 @@
     <ProjectReference Include="..\CK.AspNet\CK.AspNet.csproj" />
   </ItemGroup>
 
+  <ItemGroup Condition=" '$(TargetFramework)' == 'netstandard1.6' " >
+    <PackageReference Include="System.Runtime.Loader" Version="4.3.0" />
+  </ItemGroup>
 
 </Project>
