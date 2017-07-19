@@ -14,9 +14,9 @@
 
   <PropertyGroup>
     <!-- Centralized dependencies versions. -->
-    <CKDatabaseVersion>5.0.0-a54</CKDatabaseVersion>
-    <CKCoreVersion>7.0.0</CKCoreVersion>
-    <CKActivityMonitorVersion>7.0.1</CKActivityMonitorVersion>
+    <CKDatabaseVersion>5.0.0-b02</CKDatabaseVersion>
+    <CKCoreVersion>7.0.1</CKCoreVersion>
+    <CKActivityMonitorVersion>8.0.0</CKActivityMonitorVersion>
   </PropertyGroup>
   
   <!-- 
