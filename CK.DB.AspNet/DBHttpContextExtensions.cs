@@ -19,13 +19,13 @@ namespace CK.AspNet
         /// </summary>
         /// <param name="this"></param>
         /// <returns></returns>
-        public static ISqlCallContext GetSqlCallContext(this HttpContext @this)
+        public static ISqlCallContext GetSqlCallContext( this HttpContext @this )
         {
-            object o = @this.Items[typeof(ISqlCallContext)];
-            if (o != null) return (ISqlCallContext)o;
-            var c = new SqlStandardCallContext(@this.GetRequestMonitor());
-            @this.Items.Add(typeof(ISqlCallContext), c);
-            @this.Response.RegisterForDispose(c);
+            object o = @this.Items[typeof( ISqlCallContext )];
+            if( o != null ) return (ISqlCallContext)o;
+            var c = new SqlStandardCallContext( @this.GetRequestMonitor() );
+            @this.Items.Add( typeof( ISqlCallContext ), c );
+            @this.Response.RegisterForDispose( c );
             return c;
         }
 

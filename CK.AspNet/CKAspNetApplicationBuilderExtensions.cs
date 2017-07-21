@@ -17,11 +17,13 @@ namespace CK.AspNet
         /// to each request.
         /// </summary>
         /// <param name="this">This application builder.</param>
-        /// <param name="options">Options.</param>
+        /// <param name="options">Optional configuration.</param>
         /// <returns>The application builder.</returns>
-        public static IApplicationBuilder UseRequestMonitor(this IApplicationBuilder @this, RequestMonitorMiddlewareOptions options)
+        public static IApplicationBuilder UseRequestMonitor( this IApplicationBuilder @this, RequestMonitorMiddlewareOptions options = null )
         {
-            return @this.UseMiddleware<RequestMonitorMiddleware>(options);
+            return options != null 
+                    ? @this.UseMiddleware<RequestMonitorMiddleware>( options ) 
+                    : @this.UseMiddleware<RequestMonitorMiddleware>();
         }
 
 

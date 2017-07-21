@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="1.1.2" />
+    <PackageReference Include="CK.Monitoring" Version="7.0.0" />
     <ProjectReference Include="..\CK.AspNet\CK.AspNet.csproj" />
   </ItemGroup>
   
