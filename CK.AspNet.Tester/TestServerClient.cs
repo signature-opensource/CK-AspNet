@@ -15,15 +15,18 @@ namespace CK.AspNet.Tester
     {
         readonly TestServer _testServer;
         HttpClient _externalClient;
+        readonly bool _disposeTestServer;
 
         /// <summary>
         /// Initializes a new client for a <see cref="TestServer"/>.
         /// </summary>
         /// <param name="testServer">The test server.</param>
-        public TestServerClient( TestServer testServer )
+        /// <param name="disposeTestServer">False to leave the TestServer alive when disposing this client.</param>
+        public TestServerClient( TestServer testServer, bool disposeTestServer = true )
             : base( testServer.BaseAddress, new CookieContainer() )
         {
             _testServer = testServer;
+            _disposeTestServer = disposeTestServer;
         }
 
         /// <summary>
@@ -85,7 +88,7 @@ namespace CK.AspNet.Tester
                 _externalClient.Dispose();
                 _externalClient = null;
             }
-            _testServer.Dispose();
+            if( _disposeTestServer ) _testServer.Dispose();
         }
 
         HttpClient GetExternalClient()

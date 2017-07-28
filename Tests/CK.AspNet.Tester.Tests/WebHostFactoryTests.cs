@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Builder;
+﻿using FluentAssertions;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,6 +15,52 @@ namespace CK.AspNet.Tester.Tests
         [Test]
         public void hello_world_midleware()
         {
+            using( var client = new TestServerClient( CreateStupidServer() ) )
+            {
+                HttpResponseMessage notFound = client.Get( "other" );
+                Assert.That( notFound.StatusCode, Is.EqualTo( HttpStatusCode.NotFound ) );
+
+                HttpResponseMessage hello = client.Get( "?sayHello" );
+                Assert.That( hello.StatusCode, Is.EqualTo( HttpStatusCode.OK ) );
+                var content = hello.Content.ReadAsStringAsync().Result;
+                Assert.That( content.StartsWith( "Hello! " ) );
+            }
+        }
+
+        [Test]
+        public void authorization_token_works()
+        {
+            using( var client = new TestServerClient( CreateStupidServer() ) )
+            {
+                client.Token = "my token";
+                HttpResponseMessage m = client.Get( $"?readHeader&name={client.AuthorizationHeaderName}" );
+                m.Content.ReadAsStringAsync().Result.Should().Be( $"header '{client.AuthorizationHeaderName}': 'Bearer my token'" );
+
+            }
+        }
+
+        [Test]
+        public void testing_PostXml()
+        {
+            using( var client = new TestServerClient( CreateStupidServer() ) )
+            {
+                HttpResponseMessage m = client.PostXml( "?rewriteXElement", "<a  >  <b/> </a>" );
+                m.Content.ReadAsStringAsync().Result.Should().Be( "XElement: '<a><b /></a>'" );
+            }
+        }
+
+        [Test]
+        public void testing_PostJSON()
+        {
+            using( var client = new TestServerClient( CreateStupidServer() ) )
+            {
+                HttpResponseMessage m = client.PostJSON( "?rewriteJSON", @"{ ""a""  : null, ""b"" : {}  }" );
+                m.Content.ReadAsStringAsync().Result.Should().Be( @"JSON: '{""a"":null,""b"":{}}'" );
+            }
+        }
+
+        static TestServer CreateStupidServer()
+        {
             var b = WebHostBuilderFactory.Create( null, null,
                 services =>
                 {
@@ -24,15 +71,8 @@ namespace CK.AspNet.Tester.Tests
                     app.UseMiddleware<StupidMiddleware>();
                 } );
             var server = new TestServer( b );
-            var client = new TestServerClient( server );
-
-            HttpResponseMessage notFound = client.Get( "other" );
-            Assert.That( notFound.StatusCode, Is.EqualTo( HttpStatusCode.NotFound ) );
-
-            HttpResponseMessage hello = client.Get( "?sayHello" );
-            Assert.That( hello.StatusCode, Is.EqualTo( HttpStatusCode.OK ) );
-            var content = hello.Content.ReadAsStringAsync().Result;
-            Assert.That( content.StartsWith( "Hello! " ) );
+            return server;
         }
+
     }
 }

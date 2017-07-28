@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Text;
 
 namespace CK.AspNet.Tester
 {
@@ -19,6 +21,7 @@ namespace CK.AspNet.Tester
         /// <param name="cookies">The cookie container.</param>
         protected TestClientBase( Uri baseAddress, CookieContainer cookies )
         {
+            AuthorizationHeaderName = "Authorization";
             BaseAddress = baseAddress;
             Cookies = cookies;
             MaxAutomaticRedirections = 50;
@@ -26,8 +29,9 @@ namespace CK.AspNet.Tester
 
         /// <summary>
         /// Gets or sets the authorization header (defaults to "Authorization").
-        /// When <see cref="Token"/> is set to a non null token, 
-        /// requests have the 'AuthorizationHeaderName Bearer token" added.
+        /// When <see cref="Token"/> is set to a non null token, requests have 
+        /// the 'AuthorizationHeaderName Bearer token" added to any requests
+        /// to url on <see cref="BaseAddress"/>.
         /// </summary>
         public string AuthorizationHeaderName { get; set; }
 
@@ -169,11 +173,42 @@ namespace CK.AspNet.Tester
         /// <param name="url">The BaseAddress relative url or an absolute url.</param>
         /// <param name="json">The json content.</param>
         /// <returns>The response.</returns>
-        public HttpResponseMessage Post( string url, string json )
+        public HttpResponseMessage PostJSON( string url, string json ) => PostJSON( new Uri( url, UriKind.RelativeOrAbsolute ), json );
+
+        /// <summary>
+        /// Issues a POST request to the relative url on <see cref="BaseAddress"/> or to an absolute url 
+        /// with an "application/json; charset=utf-8" content.
+        /// </summary>
+        /// <param name="url">The BaseAddress relative url or an absolute url.</param>
+        /// <param name="json">The json content.</param>
+        /// <returns>The response.</returns>
+        public HttpResponseMessage PostJSON( Uri url, string json )
         {
-            var c = new StringContent( json );
-            c.Headers.ContentType = System.Net.Http.Headers.MediaTypeHeaderValue.Parse( "application/json" );
-            return Post( new Uri( url, UriKind.RelativeOrAbsolute ), c );
+            var c = new StringContent( json, Encoding.UTF8, "application/json" );
+            return Post( url, c );
+        }
+
+        /// <summary>
+        /// Issues a POST request to the relative url on <see cref="BaseAddress"/> or to an absolute url 
+        /// with an "application/xml; charset=utf-8" content.
+        /// </summary>
+        /// <param name="url">The BaseAddress relative url or an absolute url.</param>
+        /// <param name="xml">The xml content.</param>
+        /// <returns>The response.</returns>
+        public HttpResponseMessage PostXml( string url, string xml ) => PostXml( new Uri( url, UriKind.RelativeOrAbsolute ), xml );
+
+
+        /// <summary>
+        /// Issues a POST request to the relative url on <see cref="BaseAddress"/> or to an absolute url 
+        /// with an "application/xml; charset=utf-8" content.
+        /// </summary>
+        /// <param name="url">The BaseAddress relative url or an absolute url.</param>
+        /// <param name="xml">The xml content.</param>
+        /// <returns>The response.</returns>
+        public HttpResponseMessage PostXml( Uri url, string xml )
+        {
+            var c = new StringContent( xml, Encoding.UTF8, "application/xml" );
+            return Post( url, c );
         }
 
         /// <summary>

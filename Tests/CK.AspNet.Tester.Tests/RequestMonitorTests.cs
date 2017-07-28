@@ -73,7 +73,7 @@ namespace CK.AspNet.Tester.Tests
         }
 
         [Test]
-        public void hiiden_async_bugs_are_not_caught_at_all()
+        public void hidden_async_bugs_are_not_caught_at_all()
         {
             var text = new TextGrandOutputHandlerConfiguration();
             var config = new GrandOutputConfiguration();
