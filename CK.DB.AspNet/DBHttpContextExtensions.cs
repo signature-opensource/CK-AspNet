@@ -13,22 +13,61 @@ namespace CK.AspNet
     /// </summary>
     public static class DBHttpContextExtensions
     {
-        /// <summary>
-        /// Gets a <see cref="ISqlCallContext"/> from the request.
-        /// Allocated 
-        /// </summary>
-        /// <param name="this"></param>
-        /// <returns></returns>
-        public static ISqlCallContext GetSqlCallContext( this HttpContext @this )
+        class Entry
         {
-            object o = @this.Items[typeof( ISqlCallContext )];
-            if( o != null ) return (ISqlCallContext)o;
-            var c = new SqlStandardCallContext( @this.GetRequestMonitor() );
-            @this.Items.Add( typeof( ISqlCallContext ), c );
+            static public object DefaultKey = typeof( ISqlCallContext );
+
+            readonly IActivityMonitor _monitor;
+            readonly int _hash;
+
+            public Entry( IActivityMonitor m )
+            {
+                _monitor = m;
+                _hash = DefaultKey.GetHashCode() ^ m.GetHashCode();
+            }
+
+            public override bool Equals( object obj )
+            {
+                Entry e = obj as Entry;
+                return e != null && e._monitor == _monitor;
+            }
+
+            public override int GetHashCode() => _hash;
+        }
+
+        /// <summary>
+        /// Gets a <see cref="ISqlCallContext"/> from the context, optionally associated to a specific monitor.
+        /// </summary>
+        /// <param name="this">This HttpContext.</param>
+        /// <param name="monitor">
+        /// Optional monitor associated to the <see cref="ISqlCallContext"/>. 
+        /// By default the context's one is used (<see cref="CKAspNetHttpContextExtensions.GetRequestMonitor(HttpContext)">HttpContext.GetRequestMonitor()</see>).
+        /// </param>
+        /// <returns>The ISqlCallContext to associated to the current context.</returns>
+        public static ISqlCallContext GetSqlCallContext( this HttpContext @this, IActivityMonitor monitor = null )
+        {
+            SqlStandardCallContext c;
+            // Fast path.
+            if( monitor == null )
+            {
+                object o = @this.Items[Entry.DefaultKey];
+                if( o != null ) return (ISqlCallContext)o;
+                // Creates the default call context.
+                c = new SqlStandardCallContext( @this.GetRequestMonitor() );
+                @this.Items.Add( Entry.DefaultKey, c );
+                @this.Items.Add( new Entry( c.Monitor ), c );
+            }
+            else
+            {
+                Entry e = new Entry( monitor );
+                object o = @this.Items[e];
+                if( o != null ) return (ISqlCallContext)o;
+                c = new SqlStandardCallContext( monitor );
+                @this.Items.Add( e, c );
+            }
             @this.Response.RegisterForDispose( c );
             return c;
         }
-
 
     }
 }

@@ -8,167 +8,124 @@ using Microsoft.Net.Http.Headers;
 namespace CK.AspNet.Tester
 {
     /// <summary>
-    /// Client helper.
+    /// Client helper that wraps a <see cref="TestServer"/> and provides simple methods (synchronous)
+    /// to easily Get/Post requests, manage cookies and a token, follow redirects (or not) and Reads the response contents.
     /// </summary>
-    public class TestServerClient
+    public class TestServerClient : TestClientBase
     {
         readonly TestServer _testServer;
+        HttpClient _externalClient;
 
         /// <summary>
         /// Initializes a new client for a <see cref="TestServer"/>.
         /// </summary>
         /// <param name="testServer">The test server.</param>
-        public TestServerClient(TestServer testServer)
+        public TestServerClient( TestServer testServer )
+            : base( testServer.BaseAddress, new CookieContainer() )
         {
-            if (testServer == null) throw new ArgumentNullException(nameof(Tester));
             _testServer = testServer;
-            Cookies = new CookieContainer();
         }
 
         /// <summary>
-        /// Gets or sets the authorization header (defaults to "Authorization").
-        /// When <see cref="Token"/> is non null requests have the 'AuthorizationHeaderName Bearer token" added.
+        /// Gets or sets the authorization token or clears it (by setting it to null).
         /// </summary>
-        public string AuthorizationHeaderName { get; set; } = "Authorization";
+        public override string Token { get; set; }
 
         /// <summary>
-        /// Sets the authorization token or clears it (by setting it to null).
+        /// Issues a GET request to the relative url on <see cref="TestClientBase.BaseAddress"/> or to an absolute url.
         /// </summary>
-        public string Token { get; set; }
-
-        /// <summary>
-        /// Gets the <see cref="CookieContainer"/>.
-        /// </summary>
-        public CookieContainer Cookies { get; }
-
-        /// <summary>
-        /// Issues a GET request to the relative url on <see cref="TestServer.BaseAddress"/>.
-        /// </summary>
-        /// <param name="relativeUrl">The relative url.</param>
+        /// <param name="url">The BaseAddress relative url or an absolute url.</param>
         /// <returns>The response.</returns>
-        public HttpResponseMessage Get(string relativeUrl)
+        internal protected override HttpResponseMessage DoGet( Uri url )
         {
-            return Get(new Uri(relativeUrl, UriKind.Relative));
-        }
-
-        /// <summary>
-        /// Issues a GET request to the relative url on <see cref="TestServer.BaseAddress"/>.
-        /// </summary>
-        /// <param name="relativeUrl">The relative url.</param>
-        /// <returns>The response.</returns>
-        public HttpResponseMessage Get(Uri relativeUrl)
-        {
-            var absoluteUrl = new Uri(_testServer.BaseAddress, relativeUrl);
-            var requestBuilder = _testServer.CreateRequest(absoluteUrl.ToString());
-            AddCookies(requestBuilder, absoluteUrl);
-            AddToken(requestBuilder);
+            if( url.IsAbsoluteUri && !BaseAddress.IsBaseOf( url ) ) 
+            {
+                return GetExternalClient().GetAsync( url ).Result;
+            }
+            var absoluteUrl = new Uri( _testServer.BaseAddress, url );
+            var requestBuilder = _testServer.CreateRequest( absoluteUrl.ToString() );
+            AddCookies( requestBuilder, absoluteUrl );
+            AddToken( requestBuilder );
             var response = requestBuilder.GetAsync().Result;
-            UpdateCookies(response, absoluteUrl);
+            UpdateCookies( response, absoluteUrl );
             return response;
-        }
-
-        /// <summary>
-        /// Issues a POST request to the relative url on <see cref="TestServer.BaseAddress"/> with form values.
-        /// </summary>
-        /// <param name="relativeUrl">The relative url.</param>
-        /// <param name="formValues">The form values.</param>
-        /// <returns>The response.</returns>
-        public HttpResponseMessage Post(string relativeUrl, IDictionary<string, string> formValues)
-        {
-            return Post(new Uri(relativeUrl, UriKind.Relative), formValues);
-        }
-
-        /// <summary>
-        /// Issues a POST request to the relative url on <see cref="TestServer.BaseAddress"/> with form values.
-        /// </summary>
-        /// <param name="relativeUrl">The relative url.</param>
-        /// <param name="formValues">The form values.</param>
-        /// <returns>The response.</returns>
-        public HttpResponseMessage Post(Uri relativeUrl, IDictionary<string, string> formValues)
-        {
-            return Post(relativeUrl, new FormUrlEncodedContent(formValues));
-        }
-
-        /// <summary>
-        /// Issues a POST request to the relative url on <see cref="TestServer.BaseAddress"/> with an "application/json"
-        /// contnent.
-        /// </summary>
-        /// <param name="relativeUrl">The relative url.</param>
-        /// <param name="json">The json content.</param>
-        /// <returns>The response.</returns>
-        public HttpResponseMessage Post(string relativeUrl, string json)
-        {
-            var c = new StringContent(json);
-            c.Headers.ContentType = System.Net.Http.Headers.MediaTypeHeaderValue.Parse("application/json");
-            return Post(new Uri(relativeUrl, UriKind.Relative), c);
         }
 
         /// <summary>
         /// Issues a POST request to the relative url on <see cref="TestServer.BaseAddress"/> with an <see cref="HttpContent"/>.
         /// </summary>
-        /// <param name="relativeUrl">The relative url.</param>
+        /// <param name="url">The relative or absolute url.</param>
         /// <param name="content">The content.</param>
         /// <returns>The response.</returns>
-        public HttpResponseMessage Post(Uri relativeUrl, HttpContent content)
+        internal protected override HttpResponseMessage DoPost( Uri url, HttpContent content )
         {
-            var absoluteUrl = new Uri(_testServer.BaseAddress, relativeUrl);
-            var requestBuilder = _testServer.CreateRequest(absoluteUrl.ToString());
-            AddCookies(requestBuilder, absoluteUrl);
-            AddToken(requestBuilder);
-            var response = requestBuilder.And(message =>
+            if( url.IsAbsoluteUri && !BaseAddress.IsBaseOf( url ) )
             {
-                message.Content = content;
-            }).PostAsync().Result;
-            UpdateCookies(response, absoluteUrl);
+                return GetExternalClient().PostAsync( url, content ).Result;
+            }
+            var absoluteUrl = new Uri( _testServer.BaseAddress, url );
+            var requestBuilder = _testServer.CreateRequest( absoluteUrl.ToString() );
+            AddCookies( requestBuilder, absoluteUrl );
+            AddToken( requestBuilder );
+            var response = requestBuilder.And( message =>
+             {
+                 message.Content = content;
+             } ).PostAsync().Result;
+            UpdateCookies( response, absoluteUrl );
             return response;
         }
 
         /// <summary>
-        /// Follows the reddirected url if the response's status is <see cref="HttpStatusCode.Moved"/> (301) 
-        /// or <see cref="HttpStatusCode.Found"/> (302).
-        /// A redirection always uses the GET method.
+        /// Dispose the inner <see cref="TestServer"/>.
         /// </summary>
-        /// <param name="response">The initial response.</param>
-        /// <returns>The redirected response.</returns>
-        public HttpResponseMessage FollowRedirect(HttpResponseMessage response)
+        public override void Dispose()
         {
-            if (response.StatusCode != HttpStatusCode.Moved && response.StatusCode != HttpStatusCode.Found)
+            if( _externalClient != null )
             {
-                return response;
+                _externalClient.Dispose();
+                _externalClient = null;
             }
-            var redirectUrl = response.Headers.Location;
-            if (!redirectUrl.IsAbsoluteUri)
-            {
-                redirectUrl = new Uri(response.RequestMessage.RequestUri, redirectUrl);
-            }
-            return Get(redirectUrl);
+            _testServer.Dispose();
         }
 
-        void AddToken(RequestBuilder requestBuilder)
+        HttpClient GetExternalClient()
         {
-            if(Token != null)
+            if( _externalClient == null )
             {
-                requestBuilder.AddHeader(AuthorizationHeaderName, "Bearer " + Token );
-            }
-        }
-
-        void AddCookies(RequestBuilder requestBuilder, Uri absoluteUrl)
-        {
-            var cookieHeader = Cookies.GetCookieHeader(absoluteUrl);
-            if (!string.IsNullOrWhiteSpace(cookieHeader))
-            {
-                requestBuilder.AddHeader(HeaderNames.Cookie, cookieHeader);
-            }
-        }
-
-        void UpdateCookies(HttpResponseMessage response, Uri absoluteUrl)
-        {
-            if (response.Headers.Contains(HeaderNames.SetCookie))
-            {
-                var cookies = response.Headers.GetValues(HeaderNames.SetCookie);
-                foreach (var cookie in cookies)
+                _externalClient = new HttpClient( new HttpClientHandler()
                 {
-                    Cookies.SetCookies( absoluteUrl, cookie);
+                    CookieContainer = Cookies,
+                    AllowAutoRedirect = false
+                } );
+            }
+            return _externalClient;
+        }
+
+        void AddToken( RequestBuilder requestBuilder )
+        {
+            if( Token != null )
+            {
+                requestBuilder.AddHeader( AuthorizationHeaderName, "Bearer " + Token );
+            }
+        }
+
+        void AddCookies( RequestBuilder requestBuilder, Uri absoluteUrl )
+        {
+            var cookieHeader = Cookies.GetCookieHeader( absoluteUrl );
+            if( !string.IsNullOrWhiteSpace( cookieHeader ) )
+            {
+                requestBuilder.AddHeader( HeaderNames.Cookie, cookieHeader );
+            }
+        }
+
+        void UpdateCookies( HttpResponseMessage response, Uri absoluteUrl )
+        {
+            if( response.Headers.Contains( HeaderNames.SetCookie ) )
+            {
+                var cookies = response.Headers.GetValues( HeaderNames.SetCookie );
+                foreach( var cookie in cookies )
+                {
+                    Cookies.SetCookies( absoluteUrl, cookie );
                 }
             }
         }

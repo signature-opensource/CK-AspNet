@@ -8,22 +8,26 @@ using CK.Monitoring;
 
 namespace CK.AspNet.Tester
 {
+    /// <summary>
+    /// Handler associated to <see cref="TextGrandOutputHandlerConfiguration"/>.
+    /// </summary>
     public class TextGrandOutputHandler : IGrandOutputHandler
     {
         TextGrandOutputHandlerConfiguration _config;
         readonly MulticastLogEntryTextBuilder _builder = new MulticastLogEntryTextBuilder();
 
+        /// <summary>
+        /// Initializes a new <see cref="TextGrandOutputHandler"/>.
+        /// </summary>
+        /// <param name="config">The configuration object.</param>
         public TextGrandOutputHandler( TextGrandOutputHandlerConfiguration config )
         {
             _config = config;
         }
 
-        public bool Activate( IActivityMonitor m )
-        {
-            return true;
-        }
+        bool IGrandOutputHandler.Activate( IActivityMonitor m ) => true;
 
-        public bool ApplyConfiguration( IActivityMonitor m, IHandlerConfiguration c )
+        bool IGrandOutputHandler.ApplyConfiguration( IActivityMonitor m, IHandlerConfiguration c )
         {
             TextGrandOutputHandlerConfiguration config = c as TextGrandOutputHandlerConfiguration;
             if( config != null )
@@ -34,20 +38,15 @@ namespace CK.AspNet.Tester
             return false;
         }
 
-        public void Deactivate( IActivityMonitor m )
-        {
-            _config.FromSink( _builder.Builder, true );
-        }
+        void IGrandOutputHandler.Deactivate( IActivityMonitor m ) => _config.FromSink( _builder.Builder, true );
 
-        public void Handle( GrandOutputEventInfo logEvent )
+        void IGrandOutputSink.Handle( GrandOutputEventInfo logEvent )
         {
             _builder.AppendEntry( logEvent.Entry );
             _config.FromSink( _builder.Builder, false );
         }
 
-        public void OnTimer( TimeSpan timerSpan )
-        {
-            _config.FromSink( _builder.Builder, false );
-        }
+        void IGrandOutputHandler.OnTimer( TimeSpan timerSpan ) => _config.FromSink( _builder.Builder, false );
+
     }
 }
