@@ -3,7 +3,9 @@ using Microsoft.Extensions.DependencyInjection;
 using System;
 using CK.SqlServer.Setup;
 using System.Reflection;
+#if NETSTANDARD1_6
 using System.IO;
+#endif
 
 namespace CK.AspNet
 {
@@ -46,10 +48,10 @@ namespace CK.AspNet
         /// <returns>The loaded assembly.</returns>
         static Assembly LoadAssemblyFromAppContextBaseDirectory( string assemblyName )
         {
-#if NET461
-            return Assembly.Load( new AssemblyName( assemblyName ) );
-#else
+#if NETSTANDARD1_6
             return System.Runtime.Loader.AssemblyLoadContext.Default.LoadFromAssemblyPath( Path.Combine( AppContext.BaseDirectory, assemblyName + ".dll" ) );
+#else
+            return Assembly.Load( new AssemblyName( assemblyName ) );
 #endif
         }
 
