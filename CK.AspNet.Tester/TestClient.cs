@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -60,7 +60,7 @@ namespace CK.AspNet.Tester
             var absoluteUrl = new Uri( BaseAddress, url );
             string currentToken = _token;
             if( currentToken != null && !BaseAddress.IsBaseOf( url ) ) Token = null;
-            var r = _httpClient.GetAsync( absoluteUrl ).Result;
+            var r = _httpClient.GetAsync( absoluteUrl ).GetAwaiter().GetResult();
             Token = currentToken;
             return r;
         }
@@ -77,7 +77,7 @@ namespace CK.AspNet.Tester
             var absoluteUrl = new Uri( BaseAddress, url );
             string currentToken = _token;
             if( currentToken != null && !BaseAddress.IsBaseOf( url ) ) Token = null;
-            var r = _httpClient.PostAsync( absoluteUrl, content ).Result;
+            var r = _httpClient.PostAsync( absoluteUrl, content ).GetAwaiter().GetResult();
             Token = currentToken;
             return r;
         }
