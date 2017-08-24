@@ -1,9 +1,10 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace CK.AspNet.Tester
 {
@@ -114,12 +115,12 @@ namespace CK.AspNet.Tester
         /// otherwise redirections are automatically followed.
         /// A redirection always uses the GET method.
         /// </remarks>
-        public HttpResponseMessage FollowRedirect( HttpResponseMessage response, bool throwIfNotRedirect = false )
+        public Task<HttpResponseMessage> FollowRedirect( HttpResponseMessage response, bool throwIfNotRedirect = false )
         {
             if( response.StatusCode != HttpStatusCode.Moved && response.StatusCode != HttpStatusCode.Found )
             {
                 if( throwIfNotRedirect ) throw new Exception( "Response must be a 301 Moved or a 302 Found." );
-                return response;
+                return Task.FromResult( response );
             }
             var redirectUrl = response.Headers.Location;
             if( !redirectUrl.IsAbsoluteUri )
@@ -134,7 +135,7 @@ namespace CK.AspNet.Tester
         /// </summary>
         /// <param name="url">The BaseAddress relative url or an absolute url.</param>
         /// <returns>The response.</returns>
-        public HttpResponseMessage Get( string url )
+        public Task<HttpResponseMessage> Get( string url )
         {
             return Get( new Uri( url, UriKind.RelativeOrAbsolute ) );
         }
@@ -144,7 +145,7 @@ namespace CK.AspNet.Tester
         /// </summary>
         /// <param name="url">The BaseAddress relative url or an absolute url.</param>
         /// <returns>The response.</returns>
-        public virtual HttpResponseMessage Get( Uri url ) => AutoFollowRedirect( DoGet( url ) );
+        async public virtual Task<HttpResponseMessage> Get( Uri url ) => await AutoFollowRedirect( await DoGet( url ) );
 
         /// <summary>
         /// Issues a GET request to the relative url on <see cref="BaseAddress"/> or to an absolute url.
@@ -152,7 +153,7 @@ namespace CK.AspNet.Tester
         /// </summary>
         /// <param name="url">The BaseAddress relative url or an absolute url.</param>
         /// <returns>The response.</returns>
-        internal protected abstract HttpResponseMessage DoGet( Uri url );
+        internal protected abstract Task<HttpResponseMessage> DoGet( Uri url );
 
         /// <summary>
         /// Issues a POST request to the relative url on <see cref="BaseAddress"/> or to an absolute url
@@ -161,7 +162,7 @@ namespace CK.AspNet.Tester
         /// <param name="url">The BaseAddress relative url or an absolute url.</param>
         /// <param name="formValues">The form values.</param>
         /// <returns>The response.</returns>
-        public HttpResponseMessage Post( string url, IEnumerable<KeyValuePair<string, string>> formValues )
+        public Task<HttpResponseMessage> Post( string url, IEnumerable<KeyValuePair<string, string>> formValues )
         {
             return Post( new Uri( url, UriKind.RelativeOrAbsolute ), formValues );
         }
@@ -173,7 +174,7 @@ namespace CK.AspNet.Tester
         /// <param name="url">The BaseAddress relative url or an absolute url.</param>
         /// <param name="json">The json content.</param>
         /// <returns>The response.</returns>
-        public HttpResponseMessage PostJSON( string url, string json ) => PostJSON( new Uri( url, UriKind.RelativeOrAbsolute ), json );
+        public Task<HttpResponseMessage> PostJSON( string url, string json ) => PostJSON( new Uri( url, UriKind.RelativeOrAbsolute ), json );
 
         /// <summary>
         /// Issues a POST request to the relative url on <see cref="BaseAddress"/> or to an absolute url 
@@ -182,7 +183,7 @@ namespace CK.AspNet.Tester
         /// <param name="url">The BaseAddress relative url or an absolute url.</param>
         /// <param name="json">The json content.</param>
         /// <returns>The response.</returns>
-        public HttpResponseMessage PostJSON( Uri url, string json )
+        public Task<HttpResponseMessage> PostJSON( Uri url, string json )
         {
             var c = new StringContent( json, Encoding.UTF8, "application/json" );
             return Post( url, c );
@@ -195,7 +196,7 @@ namespace CK.AspNet.Tester
         /// <param name="url">The BaseAddress relative url or an absolute url.</param>
         /// <param name="xml">The xml content.</param>
         /// <returns>The response.</returns>
-        public HttpResponseMessage PostXml( string url, string xml ) => PostXml( new Uri( url, UriKind.RelativeOrAbsolute ), xml );
+        public Task<HttpResponseMessage> PostXml( string url, string xml ) => PostXml( new Uri( url, UriKind.RelativeOrAbsolute ), xml );
 
 
         /// <summary>
@@ -205,7 +206,7 @@ namespace CK.AspNet.Tester
         /// <param name="url">The BaseAddress relative url or an absolute url.</param>
         /// <param name="xml">The xml content.</param>
         /// <returns>The response.</returns>
-        public HttpResponseMessage PostXml( Uri url, string xml )
+        public Task<HttpResponseMessage> PostXml( Uri url, string xml )
         {
             var c = new StringContent( xml, Encoding.UTF8, "application/xml" );
             return Post( url, c );
@@ -218,7 +219,7 @@ namespace CK.AspNet.Tester
         /// <param name="url">The BaseAddress relative url or an absolute url.</param>
         /// <param name="formValues">The form values (compatible with a IDictionary&lt;string, string&gt;).</param>
         /// <returns>The response.</returns>
-        public HttpResponseMessage Post( Uri url, IEnumerable<KeyValuePair<string, string>> formValues )
+        public Task<HttpResponseMessage> Post( Uri url, IEnumerable<KeyValuePair<string, string>> formValues )
         {
             return Post( url, new FormUrlEncodedContent( formValues ) );
         }
@@ -230,7 +231,7 @@ namespace CK.AspNet.Tester
         /// <param name="url">The BaseAddress relative url or an absolute url.</param>
         /// <param name="content">The content.</param>
         /// <returns>The response.</returns>
-        public virtual HttpResponseMessage Post( Uri url, HttpContent content ) => AutoFollowRedirect( DoPost( url, content ) );
+        public async virtual Task<HttpResponseMessage> Post( Uri url, HttpContent content ) => await AutoFollowRedirect( await DoPost( url, content ) );
 
         /// <summary>
         /// Issues a POST request to the relative url on <see cref="BaseAddress"/> or to an absolute url 
@@ -240,19 +241,19 @@ namespace CK.AspNet.Tester
         /// <param name="url">The BaseAddress relative url or an absolute url.</param>
         /// <param name="content">The content.</param>
         /// <returns>The response.</returns>
-        internal protected abstract HttpResponseMessage DoPost( Uri url, HttpContent content );
+        internal protected abstract Task<HttpResponseMessage> DoPost( Uri url, HttpContent content );
 
         /// <summary>
         /// Follows at most <see cref="MaxAutomaticRedirections"/>.
         /// </summary>
         /// <param name="m">The original response.</param>
         /// <returns>The final response.</returns>
-        protected HttpResponseMessage AutoFollowRedirect( HttpResponseMessage m )
+        protected async Task<HttpResponseMessage> AutoFollowRedirect( HttpResponseMessage m )
         {
             int redirection = _maxAutomaticRedirections;
             while( --redirection >= 0 )
             {
-                var next = FollowRedirect( m, throwIfNotRedirect: false );
+                var next = await FollowRedirect( m, throwIfNotRedirect: false );
                 if( next == m ) break;
                 m = next;
             }

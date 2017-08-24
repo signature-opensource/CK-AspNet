@@ -1,9 +1,10 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Net.Http.Headers;
+using System.Threading.Tasks;
 
 namespace CK.AspNet.Tester
 {
@@ -39,17 +40,17 @@ namespace CK.AspNet.Tester
         /// </summary>
         /// <param name="url">The BaseAddress relative url or an absolute url.</param>
         /// <returns>The response.</returns>
-        internal protected override HttpResponseMessage DoGet( Uri url )
+        internal async protected override Task<HttpResponseMessage> DoGet( Uri url )
         {
             if( url.IsAbsoluteUri && !BaseAddress.IsBaseOf( url ) ) 
             {
-                return GetExternalClient().GetAsync( url ).Result;
+                return await GetExternalClient().GetAsync( url );
             }
             var absoluteUrl = new Uri( _testServer.BaseAddress, url );
             var requestBuilder = _testServer.CreateRequest( absoluteUrl.ToString() );
             AddCookies( requestBuilder, absoluteUrl );
             AddToken( requestBuilder );
-            var response = requestBuilder.GetAsync().Result;
+            var response = await requestBuilder.GetAsync();
             UpdateCookies( response, absoluteUrl );
             return response;
         }
@@ -60,20 +61,20 @@ namespace CK.AspNet.Tester
         /// <param name="url">The relative or absolute url.</param>
         /// <param name="content">The content.</param>
         /// <returns>The response.</returns>
-        internal protected override HttpResponseMessage DoPost( Uri url, HttpContent content )
+        internal async protected override Task<HttpResponseMessage> DoPost( Uri url, HttpContent content )
         {
             if( url.IsAbsoluteUri && !BaseAddress.IsBaseOf( url ) )
             {
-                return GetExternalClient().PostAsync( url, content ).Result;
+                return await GetExternalClient().PostAsync( url, content );
             }
             var absoluteUrl = new Uri( _testServer.BaseAddress, url );
             var requestBuilder = _testServer.CreateRequest( absoluteUrl.ToString() );
             AddCookies( requestBuilder, absoluteUrl );
             AddToken( requestBuilder );
-            var response = requestBuilder.And( message =>
+            var response = await requestBuilder.And( message =>
              {
                  message.Content = content;
-             } ).PostAsync().Result;
+             } ).PostAsync();
             UpdateCookies( response, absoluteUrl );
             return response;
         }

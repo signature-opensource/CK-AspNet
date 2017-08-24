@@ -1,4 +1,4 @@
-﻿using FluentAssertions;
+using FluentAssertions;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.TestHost;
@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using System.Net;
 using System.Net.Http;
+using System.Threading.Tasks;
 
 namespace CK.AspNet.Tester.Tests
 {
@@ -13,14 +14,14 @@ namespace CK.AspNet.Tester.Tests
     public class WebHostFactoryTests
     {
         [Test]
-        public void hello_world_midleware()
+        public async Task hello_world_midleware()
         {
             using( var client = new TestServerClient( CreateStupidServer() ) )
             {
-                HttpResponseMessage notFound = client.Get( "other" );
+                HttpResponseMessage notFound = await client.Get( "other" );
                 Assert.That( notFound.StatusCode, Is.EqualTo( HttpStatusCode.NotFound ) );
 
-                HttpResponseMessage hello = client.Get( "?sayHello" );
+                HttpResponseMessage hello = await client.Get( "?sayHello" );
                 Assert.That( hello.StatusCode, Is.EqualTo( HttpStatusCode.OK ) );
                 var content = hello.Content.ReadAsStringAsync().Result;
                 Assert.That( content.StartsWith( "Hello! " ) );
@@ -28,33 +29,33 @@ namespace CK.AspNet.Tester.Tests
         }
 
         [Test]
-        public void authorization_token_works()
+        public async Task authorization_token_works()
         {
             using( var client = new TestServerClient( CreateStupidServer() ) )
             {
                 client.Token = "my token";
-                HttpResponseMessage m = client.Get( $"?readHeader&name={client.AuthorizationHeaderName}" );
+                HttpResponseMessage m = await client.Get( $"?readHeader&name={client.AuthorizationHeaderName}" );
                 m.Content.ReadAsStringAsync().Result.Should().Be( $"header '{client.AuthorizationHeaderName}': 'Bearer my token'" );
 
             }
         }
 
         [Test]
-        public void testing_PostXml()
+        public async Task testing_PostXml()
         {
             using( var client = new TestServerClient( CreateStupidServer() ) )
             {
-                HttpResponseMessage m = client.PostXml( "?rewriteXElement", "<a  >  <b/> </a>" );
+                HttpResponseMessage m = await client.PostXml( "?rewriteXElement", "<a  >  <b/> </a>" );
                 m.Content.ReadAsStringAsync().Result.Should().Be( "XElement: '<a><b /></a>'" );
             }
         }
 
         [Test]
-        public void testing_PostJSON()
+        public async Task testing_PostJSON()
         {
             using( var client = new TestServerClient( CreateStupidServer() ) )
             {
-                HttpResponseMessage m = client.PostJSON( "?rewriteJSON", @"{ ""a""  : null, ""b"" : {}  }" );
+                HttpResponseMessage m = await client.PostJSON( "?rewriteJSON", @"{ ""a""  : null, ""b"" : {}  }" );
                 m.Content.ReadAsStringAsync().Result.Should().Be( @"JSON: '{""a"":null,""b"":{}}'" );
             }
         }

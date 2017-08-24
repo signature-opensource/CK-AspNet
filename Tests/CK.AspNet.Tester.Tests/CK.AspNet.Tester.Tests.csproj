@@ -3,14 +3,14 @@
   <Import Project="..\..\Common\Shared.props" />
   
   <PropertyGroup>
-    <TargetFramework>net461</TargetFramework>
-    <!-- Fix required: see https://github.com/aspnet/Hosting/issues/926 -->
-    <GenerateBindingRedirectsOutputType>true</GenerateBindingRedirectsOutputType>
-    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+    <TargetFrameworks>net461;netcoreapp2.0</TargetFrameworks>
+    <IsPack>false</IsPack>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="NUnit" Version="[2.6.4]" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="15.5.0-*" />
+    <PackageReference Include="NUnit" Version="3.7.1" />
+    <PackageReference Include="NUnit3TestAdapter" Version="3.8.0" />
     <PackageReference Include="FluentAssertions" Version="4.19.3" />
     <PackageReference Include="Newtonsoft.Json" Version="10.0.3" />
     <ProjectReference Include="..\..\CK.AspNet.Tester\CK.AspNet.Tester.csproj" />

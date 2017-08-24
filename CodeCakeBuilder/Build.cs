@@ -1,4 +1,4 @@
-﻿using Cake.Common.Build;
+using Cake.Common.Build;
 using Cake.Common.Diagnostics;
 using Cake.Common.IO;
 using Cake.Common.Solution;
@@ -84,6 +84,7 @@ namespace CodeCake
                 .Does( () =>
                  {
                      Cake.CleanDirectories( projects.Select( p => p.Path.GetDirectory().Combine( "bin" ) ) );
+                     Cake.CleanDirectories( projects.Select( p => p.Path.GetDirectory().Combine( "obj" ) ) );
                      Cake.CleanDirectories( releasesDir );
                  } );
 
@@ -94,9 +95,9 @@ namespace CodeCake
                      Cake.DotNetCoreRestore( coreBuildFile,
                          new DotNetCoreRestoreSettings().AddVersionArguments( gitInfo, c =>
                          {
-                            // No impact see: https://github.com/NuGet/Home/issues/3772
-                            // c.Verbosity = DotNetCoreRestoreVerbosity.Minimal;
-                        } ) );
+                             // No impact see: https://github.com/NuGet/Home/issues/3772
+                             // c.Verbosity = DotNetCoreRestoreVerbosity.Minimal;
+                         } ) );
                  } );
 
 
@@ -119,11 +120,20 @@ namespace CodeCake
                                         || Cake.ReadInteractiveOption( "Run unit tests?", 'Y', 'N' ) == 'Y' )
                .Does( () =>
                 {
-                    var testDlls = projects
-                                     .Where( p => p.Name.EndsWith( ".Tests" ) )
-                                     .Select( p => p.Path.GetDirectory().CombineWithFilePath( "bin/" + configuration + "/net461/" + p.Name + ".dll" ) );
-                    Cake.Information( "Testing: {0}", string.Join( ", ", testDlls.Select( p => p.GetFilename().ToString() ) ) );
-                    Cake.NUnit( testDlls, new NUnitSettings() { Framework = "v4.5" } );
+                    foreach( var p in projects.Where( p => p.Name.EndsWith( ".Tests" ) ) )
+                    {
+                        Cake.Information( "Testing: {0}", p.Name );
+                        Cake.DotNetCoreTest( p.Path.FullPath, new DotNetCoreTestSettings
+                        {
+                            Framework = "net461",
+                            NoBuild = true
+                        } );
+                        Cake.DotNetCoreTest( p.Path.FullPath, new DotNetCoreTestSettings
+                        {
+                            Framework = "netcoreapp2.0",
+                            NoBuild = true
+                        } );
+                    }
                 } );
 
 

@@ -3,13 +3,12 @@
   <Import Project="..\Common\Shared.props" />
 
   <PropertyGroup>
-    <TargetFrameworks>netstandard1.6;netstandard2.0;net461</TargetFrameworks>
+    <TargetFrameworks>netstandard2.0;net461</TargetFrameworks>
     <Description>AspNet Core integration test tools like WebHostBuilderFactory and TestClient.</Description>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Condition=" '$(TargetFramework)' != 'netstandard1.6' " Include="Microsoft.AspNetCore.TestHost" Version="2.0.0" />
-    <PackageReference Condition=" '$(TargetFramework)' == 'netstandard1.6' " Include="Microsoft.AspNetCore.TestHost" Version="1.1.2" />
+    <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="2.0.0" />
     <PackageReference Include="CK.Monitoring" Version="7.0.0" />
     <ProjectReference Include="..\CK.AspNet\CK.AspNet.csproj" />
   </ItemGroup>
