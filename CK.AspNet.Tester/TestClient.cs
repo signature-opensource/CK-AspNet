@@ -55,12 +55,12 @@ namespace CK.AspNet.Tester
         /// </summary>
         /// <param name="url">The BaseAddress relative url or an absolute url.</param>
         /// <returns>The response.</returns>
-        internal protected override HttpResponseMessage DoGet( Uri url )
+        internal async protected override Task<HttpResponseMessage> DoGet( Uri url )
         {
             var absoluteUrl = new Uri( BaseAddress, url );
             string currentToken = _token;
             if( currentToken != null && !BaseAddress.IsBaseOf( url ) ) Token = null;
-            var r = _httpClient.GetAsync( absoluteUrl ).Result;
+            var r = await _httpClient.GetAsync( absoluteUrl );
             Token = currentToken;
             return r;
         }
@@ -72,12 +72,12 @@ namespace CK.AspNet.Tester
         /// <param name="url">The BaseAddress relative url or an absolute url.</param>
         /// <param name="content">The content.</param>
         /// <returns>The response.</returns>
-        internal protected override HttpResponseMessage DoPost( Uri url, HttpContent content )
+        internal protected async override Task<HttpResponseMessage> DoPost( Uri url, HttpContent content )
         {
             var absoluteUrl = new Uri( BaseAddress, url );
             string currentToken = _token;
             if( currentToken != null && !BaseAddress.IsBaseOf( url ) ) Token = null;
-            var r = _httpClient.PostAsync( absoluteUrl, content ).Result;
+            var r = await _httpClient.PostAsync( absoluteUrl, content );
             Token = currentToken;
             return r;
         }
