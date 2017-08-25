@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -107,7 +107,7 @@ namespace CK.AspNet
 
         static void DefaultOnEndRequest( HttpContext ctx, IActivityMonitor m, TaskStatus status )
         {
-            m.MonitorEnd( status == TaskStatus.Canceled ? "Request canceled." : null );
+            m.MonitorEnd( $"StatusCode: {ctx.Response.StatusCode}" + (status == TaskStatus.Canceled ? "Request canceled." : String.Empty) );
         }
     }
 }
