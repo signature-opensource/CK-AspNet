@@ -1,0 +1,19 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <Import Project="..\Common\Shared.props" />
+
+  <PropertyGroup>
+    <TargetFrameworks>netstandard1.6;net461</TargetFrameworks>
+    <Description>Helpers to use CK-DB architecture in AspNet Core application.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CK.SqlServer.Setup.Model" Version="$(CKDatabaseVersion)" />
+    <ProjectReference Include="..\CK.AspNet\CK.AspNet.csproj" />
+  </ItemGroup>
+
+  <ItemGroup Condition=" '$(TargetFramework)' == 'netstandard1.6' " >
+    <PackageReference Include="System.Runtime.Loader" Version="4.3.0" />
+  </ItemGroup>
+
+</Project>
