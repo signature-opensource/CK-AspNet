@@ -1,6 +1,7 @@
-﻿using CK.Core;
+using CK.Core;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Options;
 using System;
 
 namespace CK.AspNet
@@ -19,13 +20,11 @@ namespace CK.AspNet
         /// <param name="this">This application builder.</param>
         /// <param name="options">Optional configuration.</param>
         /// <returns>The application builder.</returns>
-        public static IApplicationBuilder UseRequestMonitor( this IApplicationBuilder @this, RequestMonitorMiddlewareOptions options = null )
+        public static IApplicationBuilder UseRequestMonitor( this IApplicationBuilder @this, IOptionsMonitor<RequestMonitorMiddlewareOptions> options = null )
         {
             return options != null 
                     ? @this.UseMiddleware<RequestMonitorMiddleware>( options ) 
                     : @this.UseMiddleware<RequestMonitorMiddleware>();
         }
-
-
     }
 }

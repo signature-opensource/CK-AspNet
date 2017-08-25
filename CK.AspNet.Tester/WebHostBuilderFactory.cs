@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -142,6 +142,11 @@ namespace CK.AspNet.Tester
                 var conf = startup.GetType().GetMethod("Configure");
                 conf?.Invoke(startup, new[] { builder });
             }
+        }
+
+        public static object Create( object p1, object p2, Action<IServiceCollection> p3, Action<IApplicationBuilder> p4 )
+        {
+            throw new NotImplementedException();
         }
     }
 }

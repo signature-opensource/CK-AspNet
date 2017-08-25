@@ -1,4 +1,4 @@
-﻿using CK.Core;
+using CK.Core;
 using Microsoft.AspNetCore.Http;
 using System;
 
@@ -17,9 +17,9 @@ namespace CK.AspNet
         /// </summary>
         /// <param name="this">This http context.</param>
         /// <returns>The activity monitor.</returns>
-        public static IActivityMonitor GetRequestMonitor(this HttpContext @this)
+        public static IActivityMonitor GetRequestMonitor( this HttpContext @this )
         {
-            return (IActivityMonitor)@this.Items[typeof(IActivityMonitor)];
+            return (IActivityMonitor)@this.Items[typeof( IActivityMonitor )];
         }
 
 
