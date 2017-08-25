@@ -1,4 +1,4 @@
-﻿using CK.Core;
+using CK.Core;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
 using System;
@@ -43,6 +43,13 @@ namespace CK.AspNet
         /// by default also receive exceptions.
         /// </summary>
         public bool SwallowErrors { get; set; }
+
+        /// <summary>
+        /// Gets or sets whether the <see cref="RequestMonitorMiddleware"/> and the <see cref="Microsoft.AspNetCore.Diagnostics.DeveloperExceptionPageMiddleware"/>
+        /// will be automaticaly injected into the pipeline or not.
+        /// Defaults to true.
+        /// </summary>
+        public bool AutoInsertMiddlewares { get; set; } = true;
 
         RequestMonitorMiddlewareOptions IOptions<RequestMonitorMiddlewareOptions>.Value => this;
     }

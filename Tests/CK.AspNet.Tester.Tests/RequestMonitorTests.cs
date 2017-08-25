@@ -27,11 +27,16 @@ namespace CK.AspNet.Tester.Tests
                 var b = WebHostBuilderFactory.Create( null, null,
                     services =>
                     {
+                        services.AddRequestMonitoring( opt =>
+                        {
+                            opt.SwallowErrors = swallow;
+                            opt.AutoInsertMiddlewares = false;
+                        } );
                         services.AddSingleton<StupidService>();
                     },
                     app =>
                     {
-                        app.Use( async ( context, next ) => 
+                        app.Use( async ( context, next ) =>
                         {
                             try
                             {
@@ -43,7 +48,7 @@ namespace CK.AspNet.Tester.Tests
                                 context.Response.StatusCode = StatusCodes.Status500InternalServerError;
                             }
                         } );
-                        app.UseRequestMonitor( new RequestMonitorMiddlewareOptions() { SwallowErrors = swallow } );
+                        app.UseRequestMonitor();
                         app.UseMiddleware<StupidMiddleware>();
                     } );
                 var server = new TestServer( b );
@@ -85,11 +90,45 @@ namespace CK.AspNet.Tester.Tests
                 var b = WebHostBuilderFactory.Create( null, null,
                     services =>
                     {
+                        services.AddRequestMonitoring( opt => opt.SwallowErrors = true );
                         services.AddSingleton<StupidService>();
                     },
                     app =>
                     {
-                        app.UseRequestMonitor( new RequestMonitorMiddlewareOptions() { SwallowErrors = true } );
+                        app.UseMiddleware<StupidMiddleware>();
+                    } );
+                var server = new TestServer( b );
+                var client = new TestServerClient( server );
+
+                HttpResponseMessage hiddenBug = await client.Get( "?hiddenAsyncBug" );
+                Assert.That( text.GetText().Contains( "/?hiddenAsyncBug" ) );
+                Assert.That( text.GetText().Contains( "hiddenAsyncBug!" ), Is.False );
+                Assert.That( hiddenBug.StatusCode, Is.EqualTo( HttpStatusCode.NotFound ) );
+            }
+            finally
+            {
+                GrandOutput.Default.Dispose();
+            }
+        }
+
+        [Test]
+        public async Task request_monitor_is_injected_using_startup_filter()
+        {
+            var text = new TextGrandOutputHandlerConfiguration();
+            var config = new GrandOutputConfiguration();
+            config.AddHandler( text );
+            GrandOutput.EnsureActiveDefault( config );
+            try
+            {
+                var b = WebHostBuilderFactory.Create( null, null,
+                    services =>
+                    {
+                        services.AddRequestMonitoring();
+                        services.AddSingleton<StupidService>();
+                    },
+                    app =>
+                    {
+                        app.UseDeveloperExceptionPage();
                         app.UseMiddleware<StupidMiddleware>();
                     } );
                 var server = new TestServer( b );

@@ -1,9 +1,10 @@
-﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http;
 using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 using CK.Core;
+using Microsoft.Extensions.Options;
 
 namespace CK.AspNet
 {
@@ -13,32 +14,23 @@ namespace CK.AspNet
     public class RequestMonitorMiddleware
     {
         readonly RequestDelegate _next;
-        readonly RequestMonitorMiddlewareOptions _options;
+        readonly IOptionsMonitor<RequestMonitorMiddlewareOptions> _options;
         readonly Action<HttpContext, IActivityMonitor> _onStartRequest;
         readonly Action<HttpContext, IActivityMonitor, TaskStatus> _onEndRequest;
         readonly Action<HttpContext, IActivityMonitor, Exception> _onRequestError;
-
-        /// <summary>
-        /// Initializes a new <see cref="RequestMonitorMiddleware"/>.
-        /// </summary>
-        /// <param name="next">Next middleware.</param>
-        public RequestMonitorMiddleware( RequestDelegate next )
-            : this( next, new RequestMonitorMiddlewareOptions() )
-        {
-        }
 
         /// <summary>
         /// Initializes a new <see cref="RequestMonitorMiddleware"/> with options.
         /// </summary>
         /// <param name="next">Next middleware.</param>
         /// <param name="options">Options.</param>
-        public RequestMonitorMiddleware( RequestDelegate next, RequestMonitorMiddlewareOptions options )
+        public RequestMonitorMiddleware( RequestDelegate next, IOptionsMonitor<RequestMonitorMiddlewareOptions> options )
         {
             _next = next;
             _options = options;
-            _onStartRequest = _options.OnStartRequest ?? DefaultOnStartRequest;
-            _onEndRequest = _options.OnEndRequest ?? DefaultOnEndRequest;
-            _onRequestError = _options.OnRequestError ?? DefaultOnRequestError;
+            _onStartRequest = _options.CurrentValue.OnStartRequest ?? DefaultOnStartRequest;
+            _onEndRequest = _options.CurrentValue.OnEndRequest ?? DefaultOnEndRequest;
+            _onRequestError = _options.CurrentValue.OnRequestError ?? DefaultOnRequestError;
         }
 
         /// <summary>
@@ -72,7 +64,7 @@ namespace CK.AspNet
                             _onRequestError( ctx, m, e.InnerException );
                         else _onRequestError( ctx, m, e );
                         _onEndRequest.Invoke( ctx, m, t.Status );
-                        if( _options.SwallowErrors )
+                        if( _options.CurrentValue.SwallowErrors )
                             tcs.SetResult( false );
                         else tcs.SetException( t.Exception );
                     }
@@ -87,7 +79,7 @@ namespace CK.AspNet
             {
                 _onRequestError( ctx, m, ex );
                 _onEndRequest.Invoke( ctx, m, TaskStatus.Faulted );
-                if( _options.SwallowErrors )
+                if( _options.CurrentValue.SwallowErrors )
                     tcs.SetResult( false );
                 else tcs.SetException( ex );
             }
@@ -107,7 +99,7 @@ namespace CK.AspNet
 
         static void DefaultOnEndRequest( HttpContext ctx, IActivityMonitor m, TaskStatus status )
         {
-            m.MonitorEnd( status == TaskStatus.Canceled ? "Request canceled." : null );
+            m.MonitorEnd( $"StatusCode: {ctx.Response.StatusCode}" + (status == TaskStatus.Canceled ? "Request canceled." : String.Empty) );
         }
     }
 }
