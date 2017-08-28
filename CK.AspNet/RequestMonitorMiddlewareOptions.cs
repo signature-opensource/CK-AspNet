@@ -11,7 +11,7 @@ namespace CK.AspNet
     /// <summary>
     /// Options for the <see cref="RequestMonitorMiddleware"/>.
     /// </summary>
-    public class RequestMonitorMiddlewareOptions : IOptions<RequestMonitorMiddlewareOptions>
+    public class RequestMonitorMiddlewareOptions : IOptionsMonitor<RequestMonitorMiddlewareOptions>
     {
         /// <summary>
         /// Gets or sets a replacement of the request start action.
@@ -51,6 +51,10 @@ namespace CK.AspNet
         /// </summary>
         public bool AutoInsertMiddlewares { get; set; } = true;
 
-        RequestMonitorMiddlewareOptions IOptions<RequestMonitorMiddlewareOptions>.Value => this;
+        RequestMonitorMiddlewareOptions IOptionsMonitor<RequestMonitorMiddlewareOptions>.CurrentValue => this;
+
+        RequestMonitorMiddlewareOptions IOptionsMonitor<RequestMonitorMiddlewareOptions>.Get( string name ) => this;
+
+        IDisposable IOptionsMonitor<RequestMonitorMiddlewareOptions>.OnChange( Action<RequestMonitorMiddlewareOptions, string> listener ) => Util.EmptyDisposable;
     }
 }

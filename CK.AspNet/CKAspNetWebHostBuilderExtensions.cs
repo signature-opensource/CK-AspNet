@@ -31,6 +31,7 @@ namespace Microsoft.AspNetCore.Hosting
         /// Uses <see cref="CK.Monitoring"/> during the web host building and creates the default <see cref="GrandOutput"/>, with <see cref="GrandOutputOptions"/> options.
         /// </summary>
         /// <param name="builder">Web host builder</param>
+        /// <param name="options"></param>
         /// <returns></returns>
         public static IWebHostBuilder UseMonitoring( this IWebHostBuilder builder, GrandOutputOptions options ) => UseMonitoring<GrandOutputOptions>( builder, options );
 
@@ -64,8 +65,9 @@ namespace Microsoft.AspNetCore.Hosting
             builder.UseConfiguration( configuration );
             builder.ConfigureLogging( ( ctx, l ) =>
             {
-                TConfig options = GetOptionsFromConfigurationAndWatchChanges<TConfig>( configuration, configurationPath );
-                ConfigureLogging( ctx, l, options );
+                var section = configuration.GetSection( configurationPath );
+                TConfig options = GetOptionsFromConfigurationAndWatchChanges<TConfig>( section );
+                ConfigureLogging( ctx, l, options, section );
             } );
             builder.ConfigureServices( ( ctx, services ) =>
             {
@@ -74,19 +76,19 @@ namespace Microsoft.AspNetCore.Hosting
             return builder;
         }
 
-        private static TConfig GetOptionsFromConfigurationAndWatchChanges<TConfig>( IConfiguration configuration, string configurationPath ) where TConfig : GrandOutputOptions
+        private static TConfig GetOptionsFromConfigurationAndWatchChanges<TConfig>( IConfigurationSection configuration ) where TConfig : GrandOutputOptions
         {
-            var applyConfiguration = new ApplyConfiguration<TConfig>( configuration, configurationPath );
+            var applyConfiguration = new ApplyConfiguration<TConfig>( configuration );
             applyConfiguration.RegisterChangeCallback();
             return applyConfiguration.GetConfiguration();
         }
 
-        private static void ConfigureLogging<TConfig>( WebHostBuilderContext ctx, ILoggingBuilder l, TConfig options ) where TConfig : GrandOutputOptions
+        private static void ConfigureLogging<TConfig>( WebHostBuilderContext ctx, ILoggingBuilder l, TConfig options, IConfigurationSection section = null ) where TConfig : GrandOutputOptions
         {
             var rootLogPath = Path.Combine( ctx.HostingEnvironment.ContentRootPath, options.RootLogPath );
             SystemActivityMonitor.RootLogPath = rootLogPath;
 
-            var grandOutputConfig = options.CreateGrandOutputConfiguration();
+            var grandOutputConfig = options.CreateGrandOutputConfiguration( section );
             var grandOutput = GrandOutput.EnsureActiveDefault( grandOutputConfig );
             l.AddGrandOutput( grandOutput );
 #if NET461
@@ -96,11 +98,46 @@ namespace Microsoft.AspNetCore.Hosting
                 {
                     listener.Subscribe( new LogObserver<KeyValuePair<string, object>>( diagnosticEvent =>
                     {
-
+                        if( GrandOutput.Default != null && !GrandOutput.Default.IsDisposed )
+                            GrandOutput.Default.ExternalLog( CK.Core.LogLevel.Info, $"{diagnosticEvent.Key}={diagnosticEvent.Value}" );
                     } ) );
                 } ) );
             }
 #endif
+            if( options.LogUnhandledExceptions )
+            {
+                AppDomain.CurrentDomain.UnhandledException += UnhandledException;
+            }
+        }
+
+        static void UnhandledException( object sender, UnhandledExceptionEventArgs e )
+        {
+            try
+            {
+                if( e.ExceptionObject != null )
+                {
+                    if( e.ExceptionObject is Exception )
+                    {
+                        GrandOutput.Default.ExternalLog(
+                            CK.Core.LogLevel.Fatal,
+                            "UnhandledException",
+                            (Exception)e.ExceptionObject,
+                            ActivityMonitor.Tags.Register( "Alert|Fatal" ) );
+                    }
+                    else
+                    {
+                        GrandOutput.Default.ExternalLog(
+                            CK.Core.LogLevel.Fatal,
+                            $"UnhandledException: {e.ExceptionObject}",
+                            ActivityMonitor.Tags.Register( "Alert|Fatal" ) );
+                    }
+                    GrandOutput.Default.Dispose( 30000 );
+                }
+            }
+            catch( Exception )
+            {
+                // No-op
+            }
         }
 
 #if NET461

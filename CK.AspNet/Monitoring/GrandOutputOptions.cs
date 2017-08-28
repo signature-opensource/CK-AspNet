@@ -16,7 +16,14 @@ namespace Microsoft.AspNetCore.Hosting
         public BinaryFileConfiguration BinaryFile { get; set; }
         public TimeSpan TimerDuration { get; set; } = TimeSpan.FromMilliseconds( 500 );
 
-        public virtual GrandOutputConfiguration CreateGrandOutputConfiguration()
+        public bool LogUnhandledExceptions { get; set; } = true;
+
+        /// <summary>
+        /// Creates the <see cref="GrandOutputConfiguration"/>.
+        /// </summary>
+        /// <param name="configuration">A configuration section where data needed to configures the grand output are stored. Can be null.</param>
+        /// <returns></returns>
+        public virtual GrandOutputConfiguration CreateGrandOutputConfiguration( IConfigurationSection configuration )
         {
             var config = new GrandOutputConfiguration();
             if( TextFile != null ) config.Handlers.Add( TextFile );

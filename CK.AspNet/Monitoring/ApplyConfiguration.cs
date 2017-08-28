@@ -7,20 +7,14 @@ namespace Microsoft.AspNetCore.Hosting
     class ApplyConfiguration<TConfig> where TConfig : GrandOutputOptions
     {
         IDisposable _changeToken;
-        readonly IConfiguration _config;
-        readonly string _configurationSection;
+        readonly IConfigurationSection _section;
 
-        public ApplyConfiguration( IConfiguration config, string configurationSection )
+        public ApplyConfiguration( IConfigurationSection section )
         {
-            _config = config;
-            _configurationSection = configurationSection;
+            _section = section;
         }
 
-        public IConfiguration Config => _config;
-
-        public string ConfigPath => _configurationSection;
-
-        public IConfigurationSection Section => Config.GetSection( ConfigPath );
+        public IConfigurationSection Section => _section;
 
         public TConfig GetConfiguration() => Section.Get<TConfig>();
 
@@ -39,7 +33,7 @@ namespace Microsoft.AspNetCore.Hosting
             if( GrandOutput.Default != null )
             {
                 var updatedConfiguration = applyConfigurationInfo.GetConfiguration();
-                var updatedGrandOutputConfiguration = updatedConfiguration.CreateGrandOutputConfiguration();
+                var updatedGrandOutputConfiguration = updatedConfiguration.CreateGrandOutputConfiguration( Section );
                 GrandOutput.Default.ApplyConfiguration( updatedGrandOutputConfiguration, true );
             }
 
