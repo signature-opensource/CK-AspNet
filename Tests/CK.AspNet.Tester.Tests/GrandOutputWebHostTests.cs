@@ -163,10 +163,14 @@ namespace CK.AspNet.Tester.Tests
                     app.UseMiddleware<StupidMiddleware>();
                 } );
 
-            configRoot = new ConfigurationBuilder().Add( config ).Build();
-
-            b.UseMonitoring<GrandOutputOptions>( configRoot, configSection );
+            //configRoot = new ConfigurationBuilder();
+            b.ConfigureAppConfiguration( ( ctx, configBuilder ) =>
+            {
+                configBuilder.Add( config );
+            } );
+            b.UseMonitoring<GrandOutputOptions>( configSection );
             var server = new TestServer( b );
+            configRoot = server.Host.Services.GetRequiredService<IConfiguration>() as IConfigurationRoot;
             return server;
         }
     }

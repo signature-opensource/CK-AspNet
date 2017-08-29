@@ -57,15 +57,13 @@ namespace Microsoft.AspNetCore.Hosting
         /// and bounds the configuration from the given configuration section.
         /// </summary>
         /// <param name="builder">Web host builder</param>
-        /// <param name="configuration">The root configuration object.</param>
         /// <param name="configurationPath">The path of the configuration </param>
         /// <returns></returns>
-        public static IWebHostBuilder UseMonitoring<TConfig>( this IWebHostBuilder builder, IConfiguration configuration, string configurationPath ) where TConfig : GrandOutputOptions
+        public static IWebHostBuilder UseMonitoring<TConfig>( this IWebHostBuilder builder, string configurationPath ) where TConfig : GrandOutputOptions
         {
-            builder.UseConfiguration( configuration );
             builder.ConfigureLogging( ( ctx, l ) =>
             {
-                var section = configuration.GetSection( configurationPath );
+                var section = ctx.Configuration.GetSection( configurationPath );
                 TConfig options = GetOptionsFromConfigurationAndWatchChanges<TConfig>( section );
                 ConfigureLogging( ctx, l, options, section );
             } );
