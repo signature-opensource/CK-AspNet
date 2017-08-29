@@ -46,62 +46,68 @@ namespace CK.AspNet.Tester.Tests
         [Test]
         public void grand_output_configuration_from_configurationmodel()
         {
-            var createHandler = GrandOutput.CreateHandler;
-            try
+            using( var e = new ManualResetEvent( false ) )
             {
-                var configSource = new MemoryConfigurationSource
+                var createHandler = GrandOutput.CreateHandler;
+                try
                 {
-                    InitialData = new Dictionary<string, string> { { "GrandOutput:TimerDuration", TimeSpan.FromSeconds( 10 ).ToString() } }
-                };
-
-                using( var client = new TestServerClient( CreateServerWithUseMonitoring( "GrandOutput", configSource, out IConfigurationRoot configRoot ) ) )
-                {
-                    SystemActivityMonitor.RootLogPath.Should().NotBeNull().And.Contain( "Logs" );
-                    GrandOutput.Default.Should().NotBeNull();
-
-                    var configProvider = configRoot.Providers.OfType<MemoryConfigurationProvider>().First();
-                    configProvider.Set( "GrandOutput:TimerDuration", TimeSpan.FromSeconds( 2 ).ToString() );
-                    configProvider.Add( "GrandOutput:TextFile:Path", "Monitoring" );
-                    configProvider.Add( "GrandOutput:TextFile:MaxCountPerFile", "10" );
-
-                    int newHandlerCreated = 0;
-                    GrandOutput.CreateHandler = ( handlerConfig ) =>
+                    var configSource = new MemoryConfigurationSource
                     {
-                        newHandlerCreated++;
-                        handlerConfig.Should().BeOfType<TextFileConfiguration>();
-                        TextFileConfiguration textFileConfiguration = (TextFileConfiguration)handlerConfig;
-                        textFileConfiguration.MaxCountPerFile.Should().Be( 10 );
-                        return createHandler( handlerConfig );
+                        InitialData = new Dictionary<string, string> { { "GrandOutput:TimerDuration", TimeSpan.FromSeconds( 10 ).ToString() } }
                     };
 
-                    var section = configRoot.GetSection( "GrandOutput" );
-                    var reloadToken = section.GetReloadToken();
-                    configRoot.Reload();
-                    Thread.Sleep( 1000 );
-                    reloadToken.HasChanged.Should().BeTrue();
-                    newHandlerCreated.Should().Be( 1 );
-
-                    GrandOutput.CreateHandler = ( handlerConfig ) =>
+                    using( var client = new TestServerClient( CreateServerWithUseMonitoring( "GrandOutput", configSource, out IConfigurationRoot configRoot ) ) )
                     {
-                        newHandlerCreated++;
-                        handlerConfig.Should().BeOfType<BinaryFileConfiguration>();
-                        BinaryFileConfiguration configuration = (BinaryFileConfiguration)handlerConfig;
-                        configuration.MaxCountPerFile.Should().Be( 100 );
-                        configuration.UseGzipCompression.Should().BeTrue();
+                        SystemActivityMonitor.RootLogPath.Should().NotBeNull().And.Contain( "Logs" );
+                        GrandOutput.Default.Should().NotBeNull();
 
-                        return createHandler( handlerConfig );
-                    };
+                        var configProvider = configRoot.Providers.OfType<MemoryConfigurationProvider>().First();
+                        configProvider.Set( "GrandOutput:TimerDuration", TimeSpan.FromSeconds( 2 ).ToString() );
+                        configProvider.Add( "GrandOutput:TextFile:Path", "Monitoring" );
+                        configProvider.Add( "GrandOutput:TextFile:MaxCountPerFile", "10" );
 
-                    configProvider.Set( "GrandOutput:BinaryFile:MaxCountPerFile", "100" );
-                    configProvider.Set( "GrandOutput:BinaryFile:UseGzipCompression", "True" );
-                    configRoot.Reload();
+                        int newHandlerCreated = 0;
+                        GrandOutput.CreateHandler = ( handlerConfig ) =>
+                        {
+                            newHandlerCreated++;
+                            handlerConfig.Should().BeOfType<TextFileConfiguration>();
+                            TextFileConfiguration textFileConfiguration = (TextFileConfiguration)handlerConfig;
+                            textFileConfiguration.MaxCountPerFile.Should().Be( 10 );
+                            return createHandler( handlerConfig );
+                        };
 
-                    newHandlerCreated.Should().Be( 2 );
+                        var section = configRoot.GetSection( "GrandOutput" );
+
+                        var reloadToken = section.GetReloadToken();
+                        reloadToken.RegisterChangeCallback( _ => e.Set(), null );
+                        configRoot.Reload();
+                        e.WaitOne( 200 );
+
+                        reloadToken.HasChanged.Should().BeTrue();
+                        newHandlerCreated.Should().Be( 1 );
+
+                        GrandOutput.CreateHandler = ( handlerConfig ) =>
+                        {
+                            newHandlerCreated++;
+                            handlerConfig.Should().BeOfType<BinaryFileConfiguration>();
+                            BinaryFileConfiguration configuration = (BinaryFileConfiguration)handlerConfig;
+                            configuration.MaxCountPerFile.Should().Be( 100 );
+                            configuration.UseGzipCompression.Should().BeTrue();
+
+                            return createHandler( handlerConfig );
+                        };
+
+                        configProvider.Set( "GrandOutput:BinaryFile:MaxCountPerFile", "100" );
+                        configProvider.Set( "GrandOutput:BinaryFile:UseGzipCompression", "True" );
+                        configRoot.Reload();
+
+                        newHandlerCreated.Should().Be( 2 );
+                    }
                 }
-            }
-            finally
-            {
-                GrandOutput.CreateHandler = createHandler;
+                finally
+                {
+                    GrandOutput.CreateHandler = createHandler;
+                }
             }
         }
 
