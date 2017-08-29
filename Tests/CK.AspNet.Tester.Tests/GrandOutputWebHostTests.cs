@@ -13,6 +13,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration.Memory;
 using System.Linq;
 using CK.Monitoring.Handlers;
+using System.Threading;
 
 namespace CK.AspNet.Tester.Tests
 {
@@ -76,7 +77,7 @@ namespace CK.AspNet.Tester.Tests
                     var section = configRoot.GetSection( "GrandOutput" );
                     var reloadToken = section.GetReloadToken();
                     configRoot.Reload();
-
+                    Thread.Sleep( 1000 );
                     reloadToken.HasChanged.Should().BeTrue();
                     newHandlerCreated.Should().Be( 1 );
 
