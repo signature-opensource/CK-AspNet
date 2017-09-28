@@ -8,6 +8,8 @@ using Microsoft.Extensions.Primitives;
 using System.IO;
 using Newtonsoft.Json.Linq;
 using System.Xml.Linq;
+using System.Threading;
+using CK.Core;
 
 namespace CK.AspNet.Tester.Tests
 {
@@ -57,10 +59,26 @@ namespace CK.AspNet.Tester.Tests
             }
             if( context.Request.Query.ContainsKey( "hiddenAsyncBug" ) )
             {
+                context.Response.StatusCode = StatusCodes.Status202Accepted;
                 Task.Delay( 100 ).ContinueWith( t =>
                 {
-                    throw new Exception( "HiddenAsyncBug!" );
+                    throw new Exception( "I'm an horrible HiddenAsyncBug!" );
                 } );
+                return context.Response.WriteAsync( "Will break the started Task." );
+            }
+            if( context.Request.Query.ContainsKey( "unhandledAppDomainException" ) )
+            {
+                context.Response.StatusCode = StatusCodes.Status202Accepted;
+                var t = new Thread( () => throw new Exception( "I'm an unhandled exception." ) );
+                t.IsBackground = true;
+                t.Start();
+                return context.Response.WriteAsync( "Will break the started thread." );
+            }
+            if( context.Request.Query.ContainsKey( "explicitCriticalError" ) )
+            {
+                context.Response.StatusCode = StatusCodes.Status202Accepted;
+                ActivityMonitor.CriticalErrorCollector.Add( new Exception( "I'm a Critical error." ), "Test" );
+                return context.Response.WriteAsync( "Adds a Critical error to the CriticalErrorCollector." );
             }
             return _next.Invoke( context );
         }

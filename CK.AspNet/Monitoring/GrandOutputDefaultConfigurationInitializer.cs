@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace CK.Monitoring
 {
@@ -60,10 +61,12 @@ namespace CK.Monitoring
                 if( setUnhandledException )
                 {
                     AppDomain.CurrentDomain.UnhandledException += OnUnhandledException;
+                    TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
                 }
                 else
                 {
                     AppDomain.CurrentDomain.UnhandledException -= OnUnhandledException;
+                    TaskScheduler.UnobservedTaskException -= OnUnobservedTaskException;
                 }
                 _unhandledException = setUnhandledException;
             }
@@ -120,6 +123,12 @@ namespace CK.Monitoring
                 }
             }
             _target.ApplyConfiguration( c );
+        }
+
+        void OnUnobservedTaskException( object sender, UnobservedTaskExceptionEventArgs e )
+        {
+            ActivityMonitor.CriticalErrorCollector.Add( e.Exception, "UnobservedTaskException" );
+            e.SetObserved();
         }
 
         void OnUnhandledException( object sender, UnhandledExceptionEventArgs e )

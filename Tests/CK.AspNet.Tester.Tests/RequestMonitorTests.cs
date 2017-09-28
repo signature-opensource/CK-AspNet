@@ -78,7 +78,7 @@ namespace CK.AspNet.Tester.Tests
         }
 
         [Test]
-        public async Task hidden_async_bugs_are_not_caught_at_all()
+        public async Task hidden_async_bugs_aka_Task_UnobservedExceptions_are_not_caught_at_all_by_the_RequestMonitor()
         {
             var text = new TextGrandOutputHandlerConfiguration();
             var config = new GrandOutputConfiguration();
@@ -101,7 +101,7 @@ namespace CK.AspNet.Tester.Tests
 
                 using( HttpResponseMessage hiddenBug = await client.Get( "?hiddenAsyncBug" ) )
                 {
-                    Assert.That( hiddenBug.StatusCode, Is.EqualTo( HttpStatusCode.NotFound ) );
+                    Assert.That( hiddenBug.StatusCode, Is.EqualTo( HttpStatusCode.Accepted ) );
                     Assert.That( text.GetText().Contains( "/?hiddenAsyncBug" ) );
                     Assert.That( text.GetText().Contains( "hiddenAsyncBug!" ), Is.False );
                 }

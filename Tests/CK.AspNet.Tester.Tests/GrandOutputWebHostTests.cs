@@ -49,7 +49,8 @@ namespace CK.AspNet.Tester.Tests
                          }
                       }" );
 
-            Directory.Delete( Path.Combine( LogFile.RootLogPath, "GrandOutput_configuration_from_Json" ), true );
+            string logPath = Path.Combine( LogFile.RootLogPath, "GrandOutput_configuration_from_Json" );
+            if( Directory.Exists( logPath ) ) Directory.Delete( logPath, true );
 
             using( var g = new GrandOutput( new GrandOutputConfiguration() ) )
             {
@@ -68,7 +69,7 @@ namespace CK.AspNet.Tester.Tests
                 }
             }
 
-            var log = Directory.EnumerateFiles( Path.Combine( LogFile.RootLogPath, "GrandOutput_configuration_from_Json" ) ).Single();
+            var log = Directory.EnumerateFiles( logPath ).Single();
             File.ReadAllText( log ).Should().Contain( "/?sayHello" );
         }
 
@@ -108,9 +109,12 @@ namespace CK.AspNet.Tester.Tests
                                  }
                               }";
 
-            Directory.Delete( Path.Combine( LogFile.RootLogPath, "dynamic_conf_1" ), true );
-            Directory.Delete( Path.Combine( LogFile.RootLogPath, "dynamic_conf_2" ), true );
-            Directory.Delete( Path.Combine( LogFile.RootLogPath, "dynamic_conf_3" ), true );
+            string logPath1 = Path.Combine( LogFile.RootLogPath, "dynamic_conf_1" );
+            string logPath2 = Path.Combine( LogFile.RootLogPath, "dynamic_conf_2" );
+            string logPath3 = Path.Combine( LogFile.RootLogPath, "dynamic_conf_3" );
+            if( Directory.Exists( logPath1 ) ) Directory.Delete( logPath1, true );
+            if( Directory.Exists( logPath2 ) ) Directory.Delete( logPath2, true );
+            if( Directory.Exists( logPath3 ) ) Directory.Delete( logPath3, true );
 
             var config = new DynamicJsonConfigurationSource( c1 );
             using( var g = new GrandOutput( new GrandOutputConfiguration() ) )
@@ -136,24 +140,23 @@ namespace CK.AspNet.Tester.Tests
                 }
             }
 
-            var log1 = Directory.EnumerateFiles( Path.Combine( LogFile.RootLogPath, "dynamic_conf_1" ) ).Single();
+            var log1 = Directory.EnumerateFiles( logPath1 ).Single();
             File.ReadAllText( log1 ).Should().Contain( "/?sayHello&WhileConfig_1" )
                                              .And.NotContain( "NOSHOW_since_we_are_in_binary" )
                                              .And.NotContain( "/?sayHello&WhileConfig_3" );
 
 
-            var log2 = Directory.EnumerateFiles( Path.Combine( LogFile.RootLogPath, "dynamic_conf_2" ) ).Single();
+            var log2 = Directory.EnumerateFiles( logPath2 ).Single();
             log2.Should().EndWith( ".ckmon" );
             PoorASCIIStringFromBytes( File.ReadAllBytes( log2 ) )
                     .Should().Contain( "NOSHOW_since_we_are_in_binary" )
                     .And.NotContain( "?sayHello&WhileConfig_1" )
                     .And.NotContain( "/?sayHello&WhileConfig_3" );
 
-            var log3 = Directory.EnumerateFiles( Path.Combine( LogFile.RootLogPath, "dynamic_conf_3" ) ).Single();
+            var log3 = Directory.EnumerateFiles( logPath3 ).Single();
             File.ReadAllText( log3 ).Should().Contain( "/?sayHello&WhileConfig_3" )
                                             .And.NotContain( "/?sayHello&WhileConfig_1" )
                                             .And.NotContain( "NOSHOW_since_we_are_in_binary" );
-
 
         }
 
@@ -163,103 +166,54 @@ namespace CK.AspNet.Tester.Tests
         }
 
 
-        //[Test]
-        //public void grand_output_configuration_from_configurationmodel()
-        //{
-        //    using( var e = new ManualResetEvent( false ) )
-        //    {
-        //        var createHandler = GrandOutput.CreateHandler;
-        //        try
-        //        {
-        //            var configSource = new MemoryConfigurationSource
-        //            {
-        //                InitialData = new Dictionary<string, string> { { "GrandOutput:TimerDuration", TimeSpan.FromSeconds( 10 ).ToString() } }
-        //            };
+        [Test]
+        public async Task hidden_async_bugs_aka_Task_UnobservedExceptions_are_handled_like_AppDomain_unhandled_exceptions_as_CriticalErrors()
+        {
+            const string c1 = @"{ ""Monitor"": {
+                                    ""GrandOutput"": {
+                                        ""Handlers"": {
+                                            ""TextFile"": {
+                                                ""Path"": ""unhandled_and_unobserved""
+                                            }
+                                        }
+                                    }
+                                 }
+                              }";
 
-        //            using( var client = new TestServerClient( CreateServerWithUseMonitoring( "GrandOutput", configSource, out IConfigurationRoot configRoot ) ) )
-        //            {
-        //                SystemActivityMonitor.RootLogPath.Should().NotBeNull().And.Contain( "Logs" );
-        //                GrandOutput.Default.Should().NotBeNull();
+            string logPath = Path.Combine( LogFile.RootLogPath, "unhandled_and_unobserved" );
+            if( Directory.Exists( logPath ) ) Directory.Delete( logPath, true );
 
-        //                var configProvider = configRoot.Providers.OfType<MemoryConfigurationProvider>().First();
-        //                configProvider.Set( "GrandOutput:TimerDuration", TimeSpan.FromSeconds( 2 ).ToString() );
-        //                configProvider.Add( "GrandOutput:TextFile:Path", "Monitoring" );
-        //                configProvider.Add( "GrandOutput:TextFile:MaxCountPerFile", "10" );
+            var config = new DynamicJsonConfigurationSource( c1 );
+            using( var g = new GrandOutput( new GrandOutputConfiguration() ) )
+            {
+                g.HandleCriticalErrors = true;
+                Action<IActivityMonitor> autoRegisterer = m => g.EnsureGrandOutputClient( m );
+                ActivityMonitor.AutoConfiguration += autoRegisterer;
+                try
+                {
+                    using( var client = CreateServerWithUseMonitoring( config, g ) )
+                    {
+                        (await client.Get( "?explicitCriticalError" )).Dispose();
+                        // Unable to make this works:
+                        // 1 - Task exceptions are raised loooooong after the error.
+                        // 2 - Thread exceptions kills the process.
+                        //(await client.Get( "?hiddenAsyncBug" )).Dispose();
+                        //(await client.Get( "?unhandledAppDomainException" )).Dispose();
+                    }
+                }
+                finally
+                {
+                    ActivityMonitor.AutoConfiguration -= autoRegisterer;
+                }
+                Thread.Sleep( 200 );
+            }
 
-        //                int newHandlerCreated = 0;
-        //                GrandOutput.CreateHandler = ( handlerConfig ) =>
-        //                {
-        //                    newHandlerCreated++;
-        //                    handlerConfig.Should().BeOfType<TextFileConfiguration>();
-        //                    TextFileConfiguration textFileConfiguration = (TextFileConfiguration)handlerConfig;
-        //                    textFileConfiguration.MaxCountPerFile.Should().Be( 10 );
-        //                    return createHandler( handlerConfig );
-        //                };
-
-        //                var section = configRoot.GetSection( "GrandOutput" );
-
-        //                var reloadToken = section.GetReloadToken();
-        //                reloadToken.RegisterChangeCallback( _ => e.Set(), null );
-        //                configRoot.Reload();
-        //                e.WaitOne( 200 );
-
-        //                reloadToken.HasChanged.Should().BeTrue();
-        //                newHandlerCreated.Should().Be( 1 );
-
-        //                GrandOutput.CreateHandler = ( handlerConfig ) =>
-        //                {
-        //                    newHandlerCreated++;
-        //                    handlerConfig.Should().BeOfType<BinaryFileConfiguration>();
-        //                    BinaryFileConfiguration configuration = (BinaryFileConfiguration)handlerConfig;
-        //                    configuration.MaxCountPerFile.Should().Be( 100 );
-        //                    configuration.UseGzipCompression.Should().BeTrue();
-
-        //                    return createHandler( handlerConfig );
-        //                };
-
-        //                configProvider.Set( "GrandOutput:BinaryFile:MaxCountPerFile", "100" );
-        //                configProvider.Set( "GrandOutput:BinaryFile:UseGzipCompression", "True" );
-        //                configRoot.Reload();
-
-        //                newHandlerCreated.Should().Be( 2 );
-        //            }
-        //        }
-        //        finally
-        //        {
-        //            GrandOutput.CreateHandler = createHandler;
-        //        }
-        //    }
-        //}
-
-        //[Test]
-        //public void grand_output_configuration_create_handler_exception()
-        //{
-        //    var createHandler = GrandOutput.CreateHandler;
-        //    try
-        //    {
-        //        GrandOutput.CreateHandler = ( handlerConfig ) =>
-        //        {
-        //            throw new Exception( "Ouin" );
-        //            return createHandler( handlerConfig );
-        //        };
-        //        using( var client = new TestServerClient( CreateServerWithUseMonitoring( new GrandOutputOptions
-        //        {
-        //            TextFile = new TextFileConfiguration
-        //            {
-        //                Path = "Monitoring"
-        //            }
-        //        } ) ) )
-        //        {
-        //            var config = new GrandOutputConfiguration();
-        //            config.AddHandler( new TextFileConfiguration { Path = "Monitoring" } );
-        //            GrandOutput.EnsureActiveDefault( config );
-        //        }
-        //    }
-        //    finally
-        //    {
-        //        GrandOutput.CreateHandler = createHandler;
-        //    }
-        //}
+            var log = Directory.EnumerateFiles( logPath ).Single();
+            File.ReadAllText( log ).Should()
+                    .Contain( "I'm a Critical error." );
+                    //.And.Contain( "I'm an horrible HiddenAsyncBug!" );
+                    //.And.Contain( "I'm an unhandled exception." );
+        }
 
         /// <summary>
         /// Creates a TestServerClient with the GrandOutput.Default or witn a explicit instance.
