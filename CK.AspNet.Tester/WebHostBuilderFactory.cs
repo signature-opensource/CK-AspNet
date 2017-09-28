@@ -28,9 +28,9 @@ namespace CK.AspNet.Tester
             Type startupType,
             string contentRoot,
             Action<IServiceCollection> configureServices,
-            Action<IApplicationBuilder> configureApplication)
+            Action<IApplicationBuilder> configureApplication )
         {
-            return Create(startupType, contentRoot, new[] { configureServices }, new[] { configureApplication });
+            return Create( startupType, contentRoot, new[] { configureServices }, new[] { configureApplication } );
         }
 
         /// <summary>
@@ -45,62 +45,62 @@ namespace CK.AspNet.Tester
             Type startupType,
             string contentRoot,
             IEnumerable<Action<IServiceCollection>> configureServices,
-            IEnumerable<Action<IApplicationBuilder>> configureApplication)
+            IEnumerable<Action<IApplicationBuilder>> configureApplication )
         {
             object startup = null;
             var webHostBuilder = new WebHostBuilder();
-            if( contentRoot != null ) webHostBuilder.UseContentRoot(contentRoot);
-            webHostBuilder.UseEnvironment(EnvironmentName.Development);
-            webHostBuilder.ConfigureServices(services =>
-              {
-                  if( startupType != null )
-                  {
-                      startup = CreateStartupObject(startupType, services);
-                  }
-                  ConfigureServices(startup, services, configureServices);
-              })
-              .Configure(builder =>
-              {
-                  ConfigureApplication(startup, builder, configureApplication);
-              });
+            if( contentRoot != null ) webHostBuilder.UseContentRoot( contentRoot );
+            webHostBuilder.UseEnvironment( EnvironmentName.Development );
+            webHostBuilder.ConfigureServices( services =>
+               {
+                   if( startupType != null )
+                   {
+                       startup = CreateStartupObject( startupType, services );
+                   }
+                   ConfigureServices( startup, services, configureServices );
+               } )
+              .Configure( builder =>
+               {
+                   ConfigureApplication( startup, builder, configureApplication );
+               } );
             return webHostBuilder;
         }
 
-        static object CreateStartupObject(Type startupType, IServiceCollection services)
+        static object CreateStartupObject( Type startupType, IServiceCollection services )
         {
-            Debug.Assert(startupType != null);
+            Debug.Assert( startupType != null );
             object startup;
-            var hostingEnvironment = ConfigureHostingEnvironment(startupType, services);
+            var hostingEnvironment = ConfigureHostingEnvironment( startupType, services );
             int ctorCount = 0;
             var ctor = startupType.GetTypeInfo()
                                       .DeclaredConstructors
-                                      .Select(c => new
+                                      .Select( c => new
                                       {
                                           Ctor = c,
-                                          Params = c.GetParameters().Select(p => p.ParameterType).ToArray(),
-                                      })
-                                      .Select(c => { ++ctorCount; return c; })
-                                      .OrderByDescending(c => c.Params.Length)
-                                      .Select(c => new
+                                          Params = c.GetParameters().Select( p => p.ParameterType ).ToArray(),
+                                      } )
+                                      .Select( c => { ++ctorCount; return c; } )
+                                      .OrderByDescending( c => c.Params.Length )
+                                      .Select( c => new
                                       {
                                           Ctor = c.Ctor,
                                           Params = c.Params,
                                           Values = c.Params
-                                                     .Select(p => services.FirstOrDefault(s => p.IsAssignableFrom(s.ServiceType)))
-                                                     .Select(s => s?.ImplementationInstance)
-                                      })
-                                      .Where(c => c.Values.All(v => v != null))
+                                                      .Select( p => services.FirstOrDefault( s => p.IsAssignableFrom( s.ServiceType ) ) )
+                                                      .Select( s => s?.ImplementationInstance )
+                                      } )
+                                      .Where( c => c.Values.All( v => v != null ) )
                                       .FirstOrDefault();
-            if (ctorCount > 0 && ctor == null) throw new Exception($"Unable to find a constructor (out of {ctorCount}) with injectable parameters.");
-            if (ctor == null) startup = Activator.CreateInstance(startupType);
-            else startup = Activator.CreateInstance(startupType, ctor.Values.ToArray());
+            if( ctorCount > 0 && ctor == null ) throw new Exception( $"Unable to find a constructor (out of {ctorCount}) with injectable parameters." );
+            if( ctor == null ) startup = Activator.CreateInstance( startupType );
+            else startup = Activator.CreateInstance( startupType, ctor.Values.ToArray() );
             return startup;
         }
 
-        static IHostingEnvironment ConfigureHostingEnvironment(Type startup, IServiceCollection services)
+        static IHostingEnvironment ConfigureHostingEnvironment( Type startup, IServiceCollection services )
         {
             Func<ServiceDescriptor, bool> isHostingEnvironmet = service => service.ImplementationInstance is IHostingEnvironment;
-            var hostingEnvironment = (IHostingEnvironment)services.Single(isHostingEnvironmet).ImplementationInstance;
+            var hostingEnvironment = (IHostingEnvironment)services.Single( isHostingEnvironmet ).ImplementationInstance;
             var assembly = startup.GetTypeInfo().Assembly;
             hostingEnvironment.ApplicationName = assembly.GetName().Name;
             return hostingEnvironment;
@@ -109,18 +109,18 @@ namespace CK.AspNet.Tester
         static void ConfigureServices(
             object startup,
             IServiceCollection services,
-            IEnumerable<Action<IServiceCollection>> configureServices)
+            IEnumerable<Action<IServiceCollection>> configureServices )
         {
-            if (startup != null)
+            if( startup != null )
             {
-                var conf = startup.GetType().GetMethod("ConfigureServices");
-                conf?.Invoke(startup, new[] { services });
+                var conf = startup.GetType().GetMethod( "ConfigureServices" );
+                conf?.Invoke( startup, new[] { services } );
             }
-            if (configureServices != null)
+            if( configureServices != null )
             {
-                foreach (var serviceConfiguration in configureServices)
+                foreach( var serviceConfiguration in configureServices )
                 {
-                    serviceConfiguration?.Invoke(services);
+                    serviceConfiguration?.Invoke( services );
                 }
             }
         }
@@ -128,25 +128,21 @@ namespace CK.AspNet.Tester
         static void ConfigureApplication(
             object startup,
             IApplicationBuilder builder,
-            IEnumerable<Action<IApplicationBuilder>> configureApplication)
+            IEnumerable<Action<IApplicationBuilder>> configureApplication )
         {
-            if (configureApplication != null)
+            if( configureApplication != null )
             {
-                foreach (var applicationConfiguration in configureApplication)
+                foreach( var applicationConfiguration in configureApplication )
                 {
-                    applicationConfiguration?.Invoke(builder);
+                    applicationConfiguration?.Invoke( builder );
                 }
             }
-            if (startup != null)
+            if( startup != null )
             {
-                var conf = startup.GetType().GetMethod("Configure");
-                conf?.Invoke(startup, new[] { builder });
+                var conf = startup.GetType().GetMethod( "Configure" );
+                conf?.Invoke( startup, new[] { builder } );
             }
         }
 
-        public static object Create( object p1, object p2, Action<IServiceCollection> p3, Action<IApplicationBuilder> p4 )
-        {
-            throw new NotImplementedException();
-        }
     }
 }

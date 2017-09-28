@@ -12,6 +12,17 @@ namespace CK.AspNet
         readonly string _categoryName;
         readonly GrandOutput _output;
 
+        static Core.LogLevel[] _mapLevels = new Core.LogLevel[]
+        {
+            Core.LogLevel.Debug, // <= LogLevel.Trace
+            Core.LogLevel.Trace, // <= LogLevel.Debug
+            Core.LogLevel.Info,  // <= LogLevel.Info
+            Core.LogLevel.Warn,  // <= LogLevel.Warn
+            Core.LogLevel.Error, // <= LogLevel.Error
+            Core.LogLevel.Fatal, // <= LogLevel.Fatal
+            Core.LogLevel.None   // <= LogLevel.None
+        };
+
         /// <summary>
         /// Creates a new <see cref="GrandOutputLogger"/> with the given category name.
         /// </summary>
@@ -32,19 +43,27 @@ namespace CK.AspNet
         public IDisposable BeginScope<TState>( TState state )
         {
             _output.ExternalLog( Core.LogLevel.Trace, state?.ToString() );
-
-            return CK.Core.Util.EmptyDisposable;
+            return Core.Util.EmptyDisposable;
         }
 
         /// <summary>
-        /// Alwasy true.
+        /// Challenges <see cref="GrandOutput.IsExternalLogEnabled(Core.LogLevel)"/>
+        /// (using <see cref="FromAspNetCoreLogLevel(LogLevel)"/>).
         /// </summary>
-        /// <param name="logLevel"></param>
-        /// <returns></returns>
+        /// <param name="logLevel">The log level to challenge.</param>
+        /// <returns>True if this level is active, false if it should not be logged.</returns>
         public bool IsEnabled( LogLevel logLevel )
         {
-            return true;
+            return _output.IsExternalLogEnabled( FromAspNetCoreLogLevel( logLevel ) );
         }
+
+        /// <summary>
+        /// Maps the AspNet <see cref="LogLevel"/> to ActivityMonitor <see cref="Core.LogLevel"/>.
+        /// Trace and Debug are inverted.
+        /// </summary>
+        /// <param name="l">The AspNet level.</param>
+        /// <returns>The corresponding <see cref="Core.LogLevel"/>.</returns>
+        public static Core.LogLevel FromAspNetCoreLogLevel( LogLevel l ) => _mapLevels[(int)l];
 
         /// <summary>
         /// Logs to the <see cref="GrandOutput"/> as an external log entry.
@@ -57,21 +76,7 @@ namespace CK.AspNet
         /// <param name="formatter"></param>
         public void Log<TState>( LogLevel logLevel, EventId eventId, TState state, Exception exception, Func<TState, Exception, string> formatter )
         {
-            _output.ExternalLog( GetLogLevel( logLevel ), $"[{_categoryName}] {formatter( state, exception )}", exception);
-        }
-
-        static CK.Core.LogLevel GetLogLevel( LogLevel ll )
-        {
-            switch( ll )
-            {
-                case LogLevel.Debug: return CK.Core.LogLevel.Debug;
-                case LogLevel.Trace: return CK.Core.LogLevel.Trace;
-                case LogLevel.Information: return CK.Core.LogLevel.Info;
-                case LogLevel.Warning: return CK.Core.LogLevel.Warn;
-                case LogLevel.Error: return CK.Core.LogLevel.Error;
-                case LogLevel.Critical: return CK.Core.LogLevel.Fatal;
-            }
-            return CK.Core.LogLevel.None;
+            _output.ExternalLog( FromAspNetCoreLogLevel( logLevel ), $"[{_categoryName}] {formatter( state, exception )}", exception);
         }
     }
 }

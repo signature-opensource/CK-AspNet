@@ -13,33 +13,6 @@ namespace CK.AspNet
     /// </summary>
     public static class ServiceCollectionExtensions
     {
-        /// <summary>
-        /// Adds the <see cref="RequestMonitorStartupFilter" /> to the provided <paramref name="services"/>.
-        /// It will correctly registers the <see cref="Microsoft.AspNetCore.Diagnostics.DeveloperExceptionPageMiddleware"/> and the
-        /// <see cref="RequestMonitorMiddleware"/> into the application pipeline.
-        /// </summary>
-        /// <param name="services"></param>
-        /// <returns></returns>
-        public static IServiceCollection AddRequestMonitoring( this IServiceCollection services )
-        {
-            return services.AddRequestMonitoring( options => options.SwallowErrors = true );
-        }
-
-        /// <summary>
-        /// Adds the <see cref="RequestMonitorStartupFilter" /> to the provided <paramref name="services"/>.
-        /// It will correctly registers the <see cref="Microsoft.AspNetCore.Diagnostics.DeveloperExceptionPageMiddleware"/> and the
-        /// <see cref="RequestMonitorMiddleware"/> into the application pipeline.
-        /// </summary>
-        /// <param name="configure">Configuration lambda</param>
-        /// <param name="services"></param>
-        /// <returns></returns>
-        public static IServiceCollection AddRequestMonitoring( this IServiceCollection services, Action<RequestMonitorMiddlewareOptions> configure )
-        {
-            services.AddOptions();
-            services.Configure( configure );
-            services.AddSingleton<IStartupFilter, RequestMonitorStartupFilter>();
-            return services;
-        }
 
         /// <summary>
         /// Replaces all registrations of a <typeparamref name="TRegisteredType"/> with a singleton instance.

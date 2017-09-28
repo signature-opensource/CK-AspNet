@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -40,13 +40,13 @@ namespace CK.AspNet.Tester
 
         void IGrandOutputHandler.Deactivate( IActivityMonitor m ) => _config.FromSink( _builder.Builder, true );
 
-        void IGrandOutputSink.Handle( GrandOutputEventInfo logEvent )
+        void IGrandOutputHandler.Handle( IActivityMonitor m, GrandOutputEventInfo logEvent )
         {
             _builder.AppendEntry( logEvent.Entry );
             _config.FromSink( _builder.Builder, false );
         }
 
-        void IGrandOutputHandler.OnTimer( TimeSpan timerSpan ) => _config.FromSink( _builder.Builder, false );
+        void IGrandOutputHandler.OnTimer( IActivityMonitor m, TimeSpan timerSpan ) => _config.FromSink( _builder.Builder, false );
 
     }
 }

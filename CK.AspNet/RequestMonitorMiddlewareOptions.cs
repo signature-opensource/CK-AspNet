@@ -11,7 +11,7 @@ namespace CK.AspNet
     /// <summary>
     /// Options for the <see cref="RequestMonitorMiddleware"/>.
     /// </summary>
-    public class RequestMonitorMiddlewareOptions : IOptionsMonitor<RequestMonitorMiddlewareOptions>
+    public class RequestMonitorMiddlewareOptions
     {
         /// <summary>
         /// Gets or sets a replacement of the request start action.
@@ -44,17 +44,5 @@ namespace CK.AspNet
         /// </summary>
         public bool SwallowErrors { get; set; }
 
-        /// <summary>
-        /// Gets or sets whether the <see cref="RequestMonitorMiddleware"/> and the <see cref="Microsoft.AspNetCore.Diagnostics.DeveloperExceptionPageMiddleware"/>
-        /// will be automaticaly injected into the pipeline or not.
-        /// Defaults to true.
-        /// </summary>
-        public bool AutoInsertMiddlewares { get; set; } = true;
-
-        RequestMonitorMiddlewareOptions IOptionsMonitor<RequestMonitorMiddlewareOptions>.CurrentValue => this;
-
-        RequestMonitorMiddlewareOptions IOptionsMonitor<RequestMonitorMiddlewareOptions>.Get( string name ) => this;
-
-        IDisposable IOptionsMonitor<RequestMonitorMiddlewareOptions>.OnChange( Action<RequestMonitorMiddlewareOptions, string> listener ) => Util.EmptyDisposable;
     }
 }

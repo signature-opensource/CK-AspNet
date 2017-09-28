@@ -3,18 +3,21 @@
   <Import Project="..\..\Common\Shared.props" />
   
   <PropertyGroup>
-    <TargetFrameworks>net461;netcoreapp2.0</TargetFrameworks>
-    <IsPack>false</IsPack>
+    <TargetFrameworks>netcoreapp2.0;net461</TargetFrameworks>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="15.3.0" />
-    <PackageReference Include="NUnit" Version="3.8.1" />
-    <PackageReference Include="NUnit3TestAdapter" Version="3.8.0" />
-    <PackageReference Include="FluentAssertions" Version="4.19.4" />
-    <PackageReference Include="Newtonsoft.Json" Version="10.0.3" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="2.0.0" />
     <ProjectReference Include="..\..\CK.AspNet.Tester\CK.AspNet.Tester.csproj" />
+    <PackageReference Include="FluentAssertions" Version="4.19.4" />
+  </ItemGroup>
+
+  <ItemGroup Condition=" '$(TargetFramework)' == 'net461' ">
+    <PackageReference Include="NUnit" Version="[2.6.4]" />
+  </ItemGroup>
+
+  <ItemGroup Condition=" '$(TargetFramework)' == 'netcoreapp2.0' ">
+    <PackageReference Include="NUnit" Version="3.8.1" />
+    <PackageReference Include="NUnitLite" Version="3.8.1" />
   </ItemGroup>
 
 </Project>
