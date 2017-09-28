@@ -52,7 +52,7 @@ namespace Microsoft.AspNetCore.Hosting
             builder.ConfigureLogging( ( ctx, l ) =>
             {
                 var section = ctx.Configuration.GetSection( configurationPath );
-                new GrandOutputDefaultConfigurationInitializer( ctx.HostingEnvironment, section, null );
+                new GrandOutputDefaultConfigurationInitializer( ctx.HostingEnvironment, section, grandOutput );
             } );
             return builder;
         }

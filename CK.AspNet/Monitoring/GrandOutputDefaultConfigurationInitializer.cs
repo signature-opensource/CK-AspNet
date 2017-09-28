@@ -98,7 +98,7 @@ namespace CK.Monitoring
             if( gSection.Exists() )
             {
                 gSection.Bind( c );
-                var hSection = _section.GetSection( "Handlers" );
+                var hSection = gSection.GetSection( "Handlers" );
                 foreach( var hConfig in hSection.GetChildren() )
                 {
                     Type resolved = TryResolveType( hConfig.Key );
@@ -111,6 +111,7 @@ namespace CK.Monitoring
                     {
                         var config = Activator.CreateInstance( resolved );
                         hConfig.Bind( config );
+                        c.AddHandler( (IHandlerConfiguration)config );
                     }
                     catch( Exception ex )
                     {

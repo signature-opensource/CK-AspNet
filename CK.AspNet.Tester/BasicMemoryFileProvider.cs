@@ -59,9 +59,10 @@ namespace CK.AspNet.Tester
 
         void RaiseChange()
         {
-            _changeSource.Cancel();
-            _changeSource.Dispose();
+            var prev = _changeSource;
             _changeSource = new CancellationTokenSource();
+            prev.Cancel();
+            prev.Dispose();
         }
 
         public IDirectoryContents GetDirectoryContents( string subpath )

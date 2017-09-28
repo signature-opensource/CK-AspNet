@@ -14,7 +14,7 @@ namespace CK.AspNet
     public class RequestMonitorMiddleware
     {
         readonly RequestDelegate _next;
-        readonly IOptionsMonitor<RequestMonitorMiddlewareOptions> _options;
+        readonly RequestMonitorMiddlewareOptions _options;
         readonly Action<HttpContext, IActivityMonitor> _onStartRequest;
         readonly Action<HttpContext, IActivityMonitor, TaskStatus> _onEndRequest;
         readonly Action<HttpContext, IActivityMonitor, Exception> _onRequestError;
@@ -24,13 +24,13 @@ namespace CK.AspNet
         /// </summary>
         /// <param name="next">Next middleware.</param>
         /// <param name="options">Options.</param>
-        public RequestMonitorMiddleware( RequestDelegate next, IOptionsMonitor<RequestMonitorMiddlewareOptions> options )
+        public RequestMonitorMiddleware( RequestDelegate next, RequestMonitorMiddlewareOptions options )
         {
             _next = next;
             _options = options;
-            _onStartRequest = _options.CurrentValue.OnStartRequest ?? DefaultOnStartRequest;
-            _onEndRequest = _options.CurrentValue.OnEndRequest ?? DefaultOnEndRequest;
-            _onRequestError = _options.CurrentValue.OnRequestError ?? DefaultOnRequestError;
+            _onStartRequest = _options.OnStartRequest ?? DefaultOnStartRequest;
+            _onEndRequest = _options.OnEndRequest ?? DefaultOnEndRequest;
+            _onRequestError = _options.OnRequestError ?? DefaultOnRequestError;
         }
 
         /// <summary>
@@ -64,7 +64,7 @@ namespace CK.AspNet
                             _onRequestError( ctx, m, e.InnerException );
                         else _onRequestError( ctx, m, e );
                         _onEndRequest.Invoke( ctx, m, t.Status );
-                        if( _options.CurrentValue.SwallowErrors )
+                        if( _options.SwallowErrors )
                             tcs.SetResult( false );
                         else tcs.SetException( t.Exception );
                     }
@@ -79,7 +79,7 @@ namespace CK.AspNet
             {
                 _onRequestError( ctx, m, ex );
                 _onEndRequest.Invoke( ctx, m, TaskStatus.Faulted );
-                if( _options.CurrentValue.SwallowErrors )
+                if( _options.SwallowErrors )
                     tcs.SetResult( false );
                 else tcs.SetException( ex );
             }

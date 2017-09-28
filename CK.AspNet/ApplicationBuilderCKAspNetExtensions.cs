@@ -22,9 +22,7 @@ namespace CK.AspNet
         /// <returns>The application builder.</returns>
         public static IApplicationBuilder UseRequestMonitor( this IApplicationBuilder @this, RequestMonitorMiddlewareOptions options = null )
         {
-            return options != null
-                    ? @this.UseMiddleware<RequestMonitorMiddleware>( options )
-                    : @this.UseMiddleware<RequestMonitorMiddleware>();
+            return @this.UseMiddleware<RequestMonitorMiddleware>( options ?? new RequestMonitorMiddlewareOptions() );
         }
 
         /// <summary>

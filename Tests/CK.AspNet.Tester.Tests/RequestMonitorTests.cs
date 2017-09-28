@@ -49,15 +49,19 @@ namespace CK.AspNet.Tester.Tests
                 var server = new TestServer( b );
                 var client = new TestServerClient( server );
 
-                HttpResponseMessage bug = await client.Get( "?bug" );
-                Assert.That( bug.StatusCode, Is.EqualTo( HttpStatusCode.InternalServerError ) );
-                Assert.That( text.GetText().Contains( "/?bug" ) );
-                Assert.That( text.GetText().Contains( "Bug!" ) );
+                using( HttpResponseMessage bug = await client.Get( "?bug" ) )
+                {
+                    Assert.That( bug.StatusCode, Is.EqualTo( HttpStatusCode.InternalServerError ) );
+                    Assert.That( text.GetText().Contains( "/?bug" ) );
+                    Assert.That( text.GetText().Contains( "Bug!" ) );
 
-                HttpResponseMessage asyncBug = await client.Get( "?asyncBug" );
-                Assert.That( bug.StatusCode, Is.EqualTo( HttpStatusCode.InternalServerError ) );
-                Assert.That( text.GetText().Contains( "/?asyncBug" ) );
-                Assert.That( text.GetText().Contains( "AsyncBug!" ) );
+                }
+                using( HttpResponseMessage asyncBug = await client.Get( "?asyncBug" ) )
+                {
+                    Assert.That( asyncBug.StatusCode, Is.EqualTo( HttpStatusCode.InternalServerError ) );
+                    Assert.That( text.GetText().Contains( "/?asyncBug" ) );
+                    Assert.That( text.GetText().Contains( "AsyncBug!" ) );
+                }
             }
             finally
             {
@@ -95,10 +99,12 @@ namespace CK.AspNet.Tester.Tests
                 var server = new TestServer( b );
                 var client = new TestServerClient( server );
 
-                HttpResponseMessage hiddenBug = await client.Get( "?hiddenAsyncBug" );
-                Assert.That( text.GetText().Contains( "/?hiddenAsyncBug" ) );
-                Assert.That( text.GetText().Contains( "hiddenAsyncBug!" ), Is.False );
-                Assert.That( hiddenBug.StatusCode, Is.EqualTo( HttpStatusCode.NotFound ) );
+                using( HttpResponseMessage hiddenBug = await client.Get( "?hiddenAsyncBug" ) )
+                {
+                    Assert.That( hiddenBug.StatusCode, Is.EqualTo( HttpStatusCode.NotFound ) );
+                    Assert.That( text.GetText().Contains( "/?hiddenAsyncBug" ) );
+                    Assert.That( text.GetText().Contains( "hiddenAsyncBug!" ), Is.False );
+                }
             }
             finally
             {
