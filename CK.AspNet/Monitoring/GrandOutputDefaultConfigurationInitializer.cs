@@ -17,7 +17,7 @@ namespace CK.Monitoring
         readonly IConfigurationSection _section;
         readonly GrandOutput _target;
         IDisposable _changeToken;
-        bool _unhandledException;
+        bool _trackUnhandledException;
 
 #if NET461
         IDisposable _listenerSubscription;
@@ -48,17 +48,24 @@ namespace CK.Monitoring
                 }
             }
             _target = target;
+            // We do not handle CancellationTokenRegistration.Dispose here.
+            // The target is disposing: everything will be discarded, included
+            // this instance of initializer.
+            _target.DisposingToken.Register( () =>
+            {
+                _changeToken.Dispose();
+                ConfigureGlobalListeners( false, false );
+            } );
             ApplyDynamicConfiguration();
             var reloadToken = _section.GetReloadToken();
             _changeToken = reloadToken.RegisterChangeCallback( OnConfigurationChanged, this );
         }
 
-        void ApplyDynamicConfiguration()
+        void ConfigureGlobalListeners( bool trackUnhandledException, bool net461DiagnosticTrace )
         {
-            bool setUnhandledException = !String.Equals( _section["LogUnhandledExceptions"], "false", StringComparison.OrdinalIgnoreCase );
-            if( setUnhandledException != _unhandledException )
+            if( trackUnhandledException != _trackUnhandledException )
             {
-                if( setUnhandledException )
+                if( trackUnhandledException )
                 {
                     AppDomain.CurrentDomain.UnhandledException += OnUnhandledException;
                     TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
@@ -68,14 +75,12 @@ namespace CK.Monitoring
                     AppDomain.CurrentDomain.UnhandledException -= OnUnhandledException;
                     TaskScheduler.UnobservedTaskException -= OnUnobservedTaskException;
                 }
-                _unhandledException = setUnhandledException;
+                _trackUnhandledException = trackUnhandledException;
             }
-
 #if NET461
-            bool setListener = !String.Equals( _section["HandleDiagnosticsEvents"], "false", StringComparison.OrdinalIgnoreCase );
-            if( setListener != (_listenerSubscription != null) )
+            if( net461DiagnosticTrace != (_listenerSubscription != null) )
             {
-                if( setListener )
+                if( net461DiagnosticTrace )
                 {
                     _subscriptions = new ConcurrentBag<IDisposable>();
                     _listenerSubscription = DiagnosticListener.AllListeners.Subscribe( new LogObserver<DiagnosticListener>( listener =>
@@ -96,6 +101,13 @@ namespace CK.Monitoring
                 }
             }
 #endif
+        }
+
+        void ApplyDynamicConfiguration()
+        {
+            bool trackUnhandledException = !String.Equals( _section["LogUnhandledExceptions"], "false", StringComparison.OrdinalIgnoreCase );
+            bool net461DiagnosticTrace = !String.Equals( _section["HandleDiagnosticsEvents"], "false", StringComparison.OrdinalIgnoreCase );
+            ConfigureGlobalListeners( trackUnhandledException, net461DiagnosticTrace );
             var c = new GrandOutputConfiguration();
             var gSection = _section.GetSection( "GrandOutput" );
             if( gSection.Exists() )

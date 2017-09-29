@@ -4,6 +4,8 @@
   
   <PropertyGroup>
     <TargetFramework>net461</TargetFramework>
+    <GenerateBindingRedirectsOutputType>true</GenerateBindingRedirectsOutputType>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
   </PropertyGroup>
 
   <ItemGroup>
