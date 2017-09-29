@@ -18,12 +18,26 @@ using Microsoft.Extensions.Configuration.Json;
 using System.Net.Http;
 using System.IO;
 using System.Text;
+using System.Reflection;
 
 namespace CK.AspNet.Tester.Tests
 {
     [TestFixture]
     public class GrandOutputWebHostTests
     {
+        public GrandOutputWebHostTests()
+        {
+            AppDomain.CurrentDomain.AssemblyResolve += CurrentDomain_AssemblyResolve;
+        }
+
+        private Assembly CurrentDomain_AssemblyResolve( object sender, ResolveEventArgs args )
+        {
+            var failed = new AssemblyName( args.Name );
+            return failed.Version != null && string.IsNullOrWhiteSpace( failed.CultureName )
+                    ? Assembly.Load( new AssemblyName( failed.Name ) )
+                    : null;
+        }
+
         [SetUp]
         public void GrandOutput_Default_should_be_configured_with_default_values()
         {
