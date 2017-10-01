@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "NetCore": {
+      "commandName": "Project",
+      "commandLineArgs": "--wait"
+    }
+  }
+}

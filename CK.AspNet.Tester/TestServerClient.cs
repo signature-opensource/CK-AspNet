@@ -31,6 +31,11 @@ namespace CK.AspNet.Tester
         }
 
         /// <summary>
+        /// Gets a direct access to the <see cref="TestServer"/>.
+        /// </summary>
+        public TestServer Server => _testServer;
+
+        /// <summary>
         /// Gets or sets the authorization token or clears it (by setting it to null).
         /// </summary>
         public override string Token { get; set; }

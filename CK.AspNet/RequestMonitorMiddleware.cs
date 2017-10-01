@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 using CK.Core;
+using Microsoft.Extensions.Options;
 
 namespace CK.AspNet
 {
@@ -17,15 +18,6 @@ namespace CK.AspNet
         readonly Action<HttpContext, IActivityMonitor> _onStartRequest;
         readonly Action<HttpContext, IActivityMonitor, TaskStatus> _onEndRequest;
         readonly Action<HttpContext, IActivityMonitor, Exception> _onRequestError;
-
-        /// <summary>
-        /// Initializes a new <see cref="RequestMonitorMiddleware"/>.
-        /// </summary>
-        /// <param name="next">Next middleware.</param>
-        public RequestMonitorMiddleware( RequestDelegate next )
-            : this( next, new RequestMonitorMiddlewareOptions() )
-        {
-        }
 
         /// <summary>
         /// Initializes a new <see cref="RequestMonitorMiddleware"/> with options.

@@ -1,4 +1,4 @@
-﻿using CK.Core;
+using CK.Core;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
 using System;
@@ -11,7 +11,7 @@ namespace CK.AspNet
     /// <summary>
     /// Options for the <see cref="RequestMonitorMiddleware"/>.
     /// </summary>
-    public class RequestMonitorMiddlewareOptions : IOptions<RequestMonitorMiddlewareOptions>
+    public class RequestMonitorMiddlewareOptions
     {
         /// <summary>
         /// Gets or sets a replacement of the request start action.
@@ -44,6 +44,5 @@ namespace CK.AspNet
         /// </summary>
         public bool SwallowErrors { get; set; }
 
-        RequestMonitorMiddlewareOptions IOptions<RequestMonitorMiddlewareOptions>.Value => this;
     }
 }

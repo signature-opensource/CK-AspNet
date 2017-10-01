@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,6 +13,7 @@ namespace CK.AspNet
     /// </summary>
     public static class ServiceCollectionExtensions
     {
+
         /// <summary>
         /// Replaces all registrations of a <typeparamref name="TRegisteredType"/> with a singleton instance.
         /// Since this is low level functionnality, no check are done (replacement can be null) and it returns
@@ -21,14 +23,14 @@ namespace CK.AspNet
         /// <param name="services">This services.</param>
         /// <param name="replacement">Replacement instance. Can be null.</param>
         /// <returns>The number of replacements made.</returns>
-        public static int Replace<TRegisteredType>(this IServiceCollection services, TRegisteredType replacement)
+        public static int Replace<TRegisteredType>( this IServiceCollection services, TRegisteredType replacement )
         {
             int count = 0;
-            for (var i = 0; i < services.Count; i++)
+            for( var i = 0; i < services.Count; i++ )
             {
-                if (services[i].ServiceType == typeof(TRegisteredType))
+                if( services[i].ServiceType == typeof( TRegisteredType ) )
                 {
-                    services[i] = new ServiceDescriptor(typeof(TRegisteredType), replacement);
+                    services[i] = new ServiceDescriptor( typeof( TRegisteredType ), replacement );
                     ++count;
                 }
             }
@@ -43,14 +45,14 @@ namespace CK.AspNet
         /// <typeparam name="TNewType">The new mapped type.</typeparam>
         /// <param name="services">This services.</param>
         /// <returns>The number of replacements made.</returns>
-        public static int Replace<TRegisteredType,TNewType>(this IServiceCollection services)
+        public static int Replace<TRegisteredType, TNewType>( this IServiceCollection services )
         {
             int count = 0;
-            for (var i = 0; i < services.Count; i++)
+            for( var i = 0; i < services.Count; i++ )
             {
-                if (services[i].ServiceType == typeof(TRegisteredType))
+                if( services[i].ServiceType == typeof( TRegisteredType ) )
                 {
-                    services[i] = new ServiceDescriptor(typeof(TRegisteredType), typeof(TNewType), services[i].Lifetime);
+                    services[i] = new ServiceDescriptor( typeof( TRegisteredType ), typeof( TNewType ), services[i].Lifetime );
                     ++count;
                 }
             }
