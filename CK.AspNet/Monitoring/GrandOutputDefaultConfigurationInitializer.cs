@@ -108,10 +108,11 @@ namespace CK.Monitoring
             bool trackUnhandledException = !String.Equals( _section["LogUnhandledExceptions"], "false", StringComparison.OrdinalIgnoreCase );
             bool net461DiagnosticTrace = !String.Equals( _section["HandleDiagnosticsEvents"], "false", StringComparison.OrdinalIgnoreCase );
             ConfigureGlobalListeners( trackUnhandledException, net461DiagnosticTrace );
-            var c = new GrandOutputConfiguration();
+            GrandOutputConfiguration c;
             var gSection = _section.GetSection( "GrandOutput" );
             if( gSection.Exists() )
             {
+                c = new GrandOutputConfiguration();
                 gSection.Bind( c );
                 var hSection = gSection.GetSection( "Handlers" );
                 foreach( var hConfig in hSection.GetChildren() )
@@ -133,6 +134,11 @@ namespace CK.Monitoring
                         ActivityMonitor.CriticalErrorCollector.Add( ex, nameof( GrandOutputDefaultConfigurationInitializer ) );
                     }
                 }
+            }
+            else
+            {
+                c = new GrandOutputConfiguration()
+                    .AddHandler( new Handlers.TextFileConfiguration() { Path = "Text" } );
             }
             _target.ApplyConfiguration( c );
         }

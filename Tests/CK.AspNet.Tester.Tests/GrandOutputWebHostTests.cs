@@ -75,6 +75,58 @@ namespace CK.AspNet.Tester.Tests
         }
 
         [Test]
+        public async Task when_no_configuration_exists_the_default_is_a_Text_TextFile_handler_like_the_default_one_of_CK_Monitoring()
+        {
+            // Ensures that GrandOutput.Default is not working on
+            // the LogFile.RootLogPath/Text default text handler.
+            GrandOutput.EnsureActiveDefault( new GrandOutputConfiguration() );
+
+            const string c = @"{ ""Monitor"": {
+                                    ""GrandOutput"": {
+                                        ""Handlers"": {
+                                            ""TextFile"": {
+                                                ""Path"": ""conf_before_default""
+                                            }
+                                        }
+                                     }
+                                  }
+                               }";
+            string logBefore = Path.Combine( LogFile.RootLogPath, "conf_before_default" );
+            string logDefault = Path.Combine( LogFile.RootLogPath, "Text" );
+            if( Directory.Exists( logBefore ) ) Directory.Delete( logBefore, true );
+            if( Directory.Exists( logDefault ) ) Directory.Delete( logDefault, true );
+
+            var config = new DynamicJsonConfigurationSource( c );
+            using( var g = new GrandOutput( new GrandOutputConfiguration() ) )
+            {
+                Action<IActivityMonitor> autoRegisterer = m => g.EnsureGrandOutputClient( m );
+                ActivityMonitor.AutoConfiguration += autoRegisterer;
+                try
+                {
+                    using( var client = CreateServerWithUseMonitoring( config, g ) )
+                    {
+                        (await client.Get( "?sayHello&in_initial_config" )).Dispose();
+                        config.Delete();
+                        Thread.Sleep( 100 );
+                        (await client.Get( "?sayHello&in_default_config" )).Dispose();
+                    }
+                }
+                finally
+                {
+                    ActivityMonitor.AutoConfiguration -= autoRegisterer;
+                }
+            }
+
+            var log1 = Directory.EnumerateFiles( logBefore ).Single();
+            File.ReadAllText( log1 ).Should().Contain( "in_initial_config" )
+                                             .And.NotContain( "in_default_config" );
+
+            var log2 = Directory.EnumerateFiles( logDefault ).Single();
+            File.ReadAllText( log2 ).Should().NotContain( "in_initial_config" )
+                                             .And.Contain( "in_default_config" );
+        }
+
+        [Test]
         public async Task GrandOutput_dynamic_configuration_with_a_text_and_the_binary_and_then_text_log_from_Json()
         {
             const string c1 = @"{ ""Monitor"": {
@@ -129,7 +181,7 @@ namespace CK.AspNet.Tester.Tests
                         (await client.Get( "?sayHello&WhileConfig_1" )).Dispose();
                         config.SetJson( c2 );
                         Thread.Sleep( 100 );
-                        (await client.Get( "?sayHello&NOSHOW_since_we_are_in_binary" )).Dispose();
+                        (await client.Get( "?sayHello&we_are_in_binary_in_config_2" )).Dispose();
                         config.SetJson( c3 );
                         Thread.Sleep( 100 );
                         (await client.Get( "?sayHello&WhileConfig_3" )).Dispose();
@@ -143,21 +195,21 @@ namespace CK.AspNet.Tester.Tests
 
             var log1 = Directory.EnumerateFiles( logPath1 ).Single();
             File.ReadAllText( log1 ).Should().Contain( "/?sayHello&WhileConfig_1" )
-                                             .And.NotContain( "NOSHOW_since_we_are_in_binary" )
+                                             .And.NotContain( "we_are_in_binary_in_config_2" )
                                              .And.NotContain( "/?sayHello&WhileConfig_3" );
 
 
             var log2 = Directory.EnumerateFiles( logPath2 ).Single();
             log2.Should().EndWith( ".ckmon" );
             PoorASCIIStringFromBytes( File.ReadAllBytes( log2 ) )
-                    .Should().Contain( "NOSHOW_since_we_are_in_binary" )
+                    .Should().Contain( "we_are_in_binary_in_config_2" )
                     .And.NotContain( "?sayHello&WhileConfig_1" )
                     .And.NotContain( "/?sayHello&WhileConfig_3" );
 
             var log3 = Directory.EnumerateFiles( logPath3 ).Single();
             File.ReadAllText( log3 ).Should().Contain( "/?sayHello&WhileConfig_3" )
                                             .And.NotContain( "/?sayHello&WhileConfig_1" )
-                                            .And.NotContain( "NOSHOW_since_we_are_in_binary" );
+                                            .And.NotContain( "we_are_in_binary_in_config_2" );
 
         }
 

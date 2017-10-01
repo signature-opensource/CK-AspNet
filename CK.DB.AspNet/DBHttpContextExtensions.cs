@@ -1,4 +1,4 @@
-﻿using CK.Core;
+using CK.Core;
 using CK.SqlServer;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
@@ -41,7 +41,7 @@ namespace CK.AspNet
         /// <param name="this">This HttpContext.</param>
         /// <param name="monitor">
         /// Optional monitor associated to the <see cref="ISqlCallContext"/>. 
-        /// By default the context's one is used (<see cref="CKAspNetHttpContextExtensions.GetRequestMonitor(HttpContext)">HttpContext.GetRequestMonitor()</see>).
+        /// By default the context's one is used (<see cref="HttpContextCKAspNetExtensions.GetRequestMonitor(HttpContext)">HttpContext.GetRequestMonitor()</see>).
         /// </param>
         /// <returns>The ISqlCallContext to associated to the current context.</returns>
         public static ISqlCallContext GetSqlCallContext( this HttpContext @this, IActivityMonitor monitor = null )

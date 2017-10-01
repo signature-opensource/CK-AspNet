@@ -48,7 +48,7 @@ namespace CK.AspNet
 
         /// <summary>
         /// Challenges <see cref="GrandOutput.IsExternalLogEnabled(Core.LogLevel)"/>
-        /// (using <see cref="FromAspNetCoreLogLevel(LogLevel)"/>).
+        /// (using <see cref="FromAspNetCoreLogLevel(Microsoft.Extensions.Logging.LogLevel)"/>).
         /// </summary>
         /// <param name="logLevel">The log level to challenge.</param>
         /// <returns>True if this level is active, false if it should not be logged.</returns>
@@ -58,12 +58,13 @@ namespace CK.AspNet
         }
 
         /// <summary>
-        /// Maps the AspNet <see cref="LogLevel"/> to ActivityMonitor <see cref="Core.LogLevel"/>.
+        /// Maps the AspNet <see cref="Microsoft.Extensions.Logging.LogLevel"/> to
+        /// ActivityMonitor <see cref="Core.LogLevel"/>.
         /// Trace and Debug are inverted.
         /// </summary>
         /// <param name="l">The AspNet level.</param>
         /// <returns>The corresponding <see cref="Core.LogLevel"/>.</returns>
-        public static Core.LogLevel FromAspNetCoreLogLevel( LogLevel l ) => _mapLevels[(int)l];
+        public static Core.LogLevel FromAspNetCoreLogLevel( Microsoft.Extensions.Logging.LogLevel l ) => _mapLevels[(int)l];
 
         /// <summary>
         /// Logs to the <see cref="GrandOutput"/> as an external log entry.

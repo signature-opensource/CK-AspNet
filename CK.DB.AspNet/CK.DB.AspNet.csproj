@@ -8,12 +8,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="CK.SqlServer.Setup.Model" Version="$(CKDatabaseVersion)" />
+    <PackageReference Include="CK.SqlServer.Setup.Model" Version="5.0.0-d01" />
     <ProjectReference Include="..\CK.AspNet\CK.AspNet.csproj" />
-  </ItemGroup>
-
-  <ItemGroup Condition=" '$(TargetFramework)' == 'netstandard1.6' ">
-    <PackageReference Include="System.Runtime.Loader" Version="4.3.0" />
   </ItemGroup>
 
 </Project>
