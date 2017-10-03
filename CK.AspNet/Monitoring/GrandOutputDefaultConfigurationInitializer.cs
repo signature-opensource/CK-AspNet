@@ -47,11 +47,16 @@ namespace CK.Monitoring
                     LogFile.RootLogPath = Path.GetFullPath( Path.Combine( env.ContentRootPath, _section["LogPath"] ?? "Logs" ) );
                 }
             }
+            // We must find a way to get to the IApplicationLifetime.
+            // Note: DomainUnload is not triggered on the default AppDomain :(.
+            AppDomain.CurrentDomain.DomainUnload += ( o, e ) => target.Dispose();
+            // For the moment, this can do the job (at least in Kestrel).
+            AppDomain.CurrentDomain.ProcessExit += ( o, e ) => target.Dispose();
             _target = target;
             // We do not handle CancellationTokenRegistration.Dispose here.
             // The target is disposing: everything will be discarded, included
             // this instance of initializer.
-            _target.DisposingToken.Register( () =>
+            target.DisposingToken.Register( () =>
             {
                 _changeToken.Dispose();
                 ConfigureGlobalListeners( false, false );

@@ -11,6 +11,7 @@ using System.Diagnostics;
 using CK.AspNet;
 using CK.Monitoring.Handlers;
 using Microsoft.Extensions.Logging;
+using Microsoft.AspNetCore.Builder;
 
 namespace Microsoft.AspNetCore.Hosting
 {
