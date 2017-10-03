@@ -11,6 +11,7 @@ using System.Diagnostics;
 using CK.AspNet;
 using CK.Monitoring.Handlers;
 using Microsoft.Extensions.Logging;
+using Microsoft.AspNetCore.Builder;
 
 namespace Microsoft.AspNetCore.Hosting
 {
@@ -29,14 +30,28 @@ namespace Microsoft.AspNetCore.Hosting
         /// <returns>The builder.</returns>
         public static IWebHostBuilder UseMonitoring( this IWebHostBuilder builder, string configurationPath = "Monitoring" )
         {
-            builder.ConfigureLogging( ( ctx, l ) =>
-            {
-                var section = ctx.Configuration.GetSection( configurationPath );
-                new GrandOutputDefaultConfigurationInitializer( ctx.HostingEnvironment, section, null );
-            } );
-            return builder;
+            return DoUseMonitoring( builder, null, configurationPath );
         }
 
+        class PostInstanciationFilter : IStartupFilter
+        {
+            readonly GrandOutputConfigurationInitializer _initalizer;
+
+            public PostInstanciationFilter( GrandOutputConfigurationInitializer initalizer )
+            {
+                _initalizer = initalizer;
+            }
+
+            public Action<IApplicationBuilder> Configure( Action<IApplicationBuilder> next )
+            {
+                return builder =>
+                {
+                    var lifeTime = builder.ApplicationServices.GetRequiredService<IApplicationLifetime>();
+                    _initalizer.PostInitialze( lifeTime );
+                    next( builder );
+                };
+            }
+        }
         /// <summary>
         /// Uses <see cref="CK.Monitoring"/> during the web host building and initializes an instance of the <see cref="GrandOutput"/>
         /// that must not be null nor be the <see cref="GrandOutput.Default"/> and bounds the configuration from the given configuration section.
@@ -49,14 +64,24 @@ namespace Microsoft.AspNetCore.Hosting
         {
             if( grandOutput == null ) throw new ArgumentNullException( nameof( grandOutput ) );
             if( grandOutput == GrandOutput.Default ) throw new ArgumentException( "The GrandOutput must not be the default one.", nameof( grandOutput ) );
+            return DoUseMonitoring( builder, grandOutput, configurationPath );
+        }
+
+        static IWebHostBuilder DoUseMonitoring( IWebHostBuilder builder, GrandOutput grandOutput, string configurationPath )
+        {
+            // Three steps initialization:
+            // First creates the initializer instance.
+            var initializer = new GrandOutputConfigurationInitializer( grandOutput );
             builder.ConfigureLogging( ( ctx, l ) =>
             {
                 var section = ctx.Configuration.GetSection( configurationPath );
-                new GrandOutputDefaultConfigurationInitializer( ctx.HostingEnvironment, section, grandOutput );
+                // Second, give it the environment and its section.
+                initializer.Initialize( ctx.HostingEnvironment, section );
             } );
+            // Now, registers the PostInstanciationFilter as a transient object.
+            // This startup filter will inject the Applcation service IApplicationLifetime.
+            builder.ConfigureServices( services => services.AddTransient<IStartupFilter>( _ => new PostInstanciationFilter( initializer ) ) );
             return builder;
         }
-
-
     }
 }

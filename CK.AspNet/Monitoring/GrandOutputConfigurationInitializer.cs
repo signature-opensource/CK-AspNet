@@ -12,12 +12,14 @@ using System.Threading.Tasks;
 
 namespace CK.Monitoring
 {
-    internal class GrandOutputDefaultConfigurationInitializer
+    internal class GrandOutputConfigurationInitializer
     {
-        readonly IConfigurationSection _section;
         readonly GrandOutput _target;
+        IConfigurationSection _section;
         IDisposable _changeToken;
+        readonly bool _isDefaultGrandOutput;
         bool _trackUnhandledException;
+        bool _appliedConfigOnce;
 
 #if NET461
         IDisposable _listenerSubscription;
@@ -33,21 +35,27 @@ namespace CK.Monitoring
         }
 
 #endif
-        public GrandOutputDefaultConfigurationInitializer(
-            IHostingEnvironment env,
-            IConfigurationSection section,
-            GrandOutput target )
+        public GrandOutputConfigurationInitializer( GrandOutput target )
         {
-            _section = section;
             if( target == null )
             {
+                _isDefaultGrandOutput = true;
                 target = GrandOutput.EnsureActiveDefault( new GrandOutputConfiguration() );
-                if( LogFile.RootLogPath == null )
-                {
-                    LogFile.RootLogPath = Path.GetFullPath( Path.Combine( env.ContentRootPath, _section["LogPath"] ?? "Logs" ) );
-                }
             }
             _target = target;
+        }
+
+        public void Initialize( IHostingEnvironment env, IConfigurationSection section )
+        {
+            _section = section;
+            if( _isDefaultGrandOutput && LogFile.RootLogPath == null )
+            {
+                LogFile.RootLogPath = Path.GetFullPath( Path.Combine( env.ContentRootPath, _section["LogPath"] ?? "Logs" ) );
+            }
+            // Initial configuration is not avalaible at this step.
+            // We don't ApplyDynamicConfiguration here to avoid the default Text file handler to be applied.
+            var reloadToken = _section.GetReloadToken();
+            _changeToken = reloadToken.RegisterChangeCallback( OnConfigurationChanged, this );
             // We do not handle CancellationTokenRegistration.Dispose here.
             // The target is disposing: everything will be discarded, included
             // this instance of initializer.
@@ -56,9 +64,14 @@ namespace CK.Monitoring
                 _changeToken.Dispose();
                 ConfigureGlobalListeners( false, false );
             } );
-            ApplyDynamicConfiguration();
-            var reloadToken = _section.GetReloadToken();
-            _changeToken = reloadToken.RegisterChangeCallback( OnConfigurationChanged, this );
+        }
+
+        public void PostInitialze( IApplicationLifetime lifetime )
+        {
+            lifetime.ApplicationStopped.Register( () => _target.Dispose() );
+            // This is required so that default configuration with Text handler
+            // is applied if there is no section.
+            if( !_appliedConfigOnce ) ApplyDynamicConfiguration();
         }
 
         void ConfigureGlobalListeners( bool trackUnhandledException, bool net461DiagnosticTrace )
@@ -105,6 +118,7 @@ namespace CK.Monitoring
 
         void ApplyDynamicConfiguration()
         {
+            _appliedConfigOnce = true;
             bool trackUnhandledException = !String.Equals( _section["LogUnhandledExceptions"], "false", StringComparison.OrdinalIgnoreCase );
             bool net461DiagnosticTrace = !String.Equals( _section["HandleDiagnosticsEvents"], "false", StringComparison.OrdinalIgnoreCase );
             ConfigureGlobalListeners( trackUnhandledException, net461DiagnosticTrace );
@@ -120,7 +134,7 @@ namespace CK.Monitoring
                     Type resolved = TryResolveType( hConfig.Key );
                     if( resolved == null )
                     {
-                        ActivityMonitor.CriticalErrorCollector.Add( new CKException( $"Unable to resolve type '{hConfig.Key}'." ), nameof(GrandOutputDefaultConfigurationInitializer) );
+                        ActivityMonitor.CriticalErrorCollector.Add( new CKException( $"Unable to resolve type '{hConfig.Key}'." ), nameof(GrandOutputConfigurationInitializer) );
                         continue;
                     }
                     try
@@ -131,7 +145,7 @@ namespace CK.Monitoring
                     }
                     catch( Exception ex )
                     {
-                        ActivityMonitor.CriticalErrorCollector.Add( ex, nameof( GrandOutputDefaultConfigurationInitializer ) );
+                        ActivityMonitor.CriticalErrorCollector.Add( ex, nameof( GrandOutputConfigurationInitializer ) );
                     }
                 }
             }
@@ -213,8 +227,8 @@ namespace CK.Monitoring
 
         static void OnConfigurationChanged( object obj )
         {
-            Debug.Assert( obj is GrandOutputDefaultConfigurationInitializer );
-            var initializer = (GrandOutputDefaultConfigurationInitializer)obj;
+            Debug.Assert( obj is GrandOutputConfigurationInitializer );
+            var initializer = (GrandOutputConfigurationInitializer)obj;
             initializer.ApplyDynamicConfiguration();
             initializer.RenewChangeToken();
         }
