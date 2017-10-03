@@ -224,6 +224,7 @@ namespace CK.AspNet.Tester.Tests
         {
             const string c1 = @"{ ""Monitor"": {
                                     ""GrandOutput"": {
+                                        ""HandleCriticalErrors"": true,
                                         ""Handlers"": {
                                             ""TextFile"": {
                                                 ""Path"": ""unhandled_and_unobserved""
@@ -239,6 +240,7 @@ namespace CK.AspNet.Tester.Tests
             var config = new DynamicJsonConfigurationSource( c1 );
             using( var g = new GrandOutput( new GrandOutputConfiguration() ) )
             {
+                g.HandleCriticalErrors.Should().BeFalse();
                 g.HandleCriticalErrors = true;
                 Action<IActivityMonitor> autoRegisterer = m => g.EnsureGrandOutputClient( m );
                 ActivityMonitor.AutoConfiguration += autoRegisterer;
@@ -246,19 +248,23 @@ namespace CK.AspNet.Tester.Tests
                 {
                     using( var client = CreateServerWithUseMonitoring( config, g ) )
                     {
+                        g.HandleCriticalErrors.Should().BeTrue();
                         (await client.Get( "?explicitCriticalError" )).Dispose();
                         // Unable to make this works:
                         // 1 - Task exceptions are raised loooooong after the error.
                         // 2 - Thread exceptions kills the process.
                         //(await client.Get( "?hiddenAsyncBug" )).Dispose();
                         //(await client.Get( "?unhandledAppDomainException" )).Dispose();
+
+                        // Since the GrandOutput.Dispose is now correcly called thanks to IApplicationLifetime
+                        // we have to wait a little bit for the critical error to be dispatched.
+                        Thread.Sleep( 200 );
                     }
                 }
                 finally
                 {
                     ActivityMonitor.AutoConfiguration -= autoRegisterer;
                 }
-                Thread.Sleep( 200 );
             }
 
             var log = Directory.EnumerateFiles( logPath ).Single();
