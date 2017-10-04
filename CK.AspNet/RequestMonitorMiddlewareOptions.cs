@@ -15,7 +15,7 @@ namespace CK.AspNet
     {
         /// <summary>
         /// Gets or sets a replacement of the request start action.
-        /// By default, a <see cref="CK.Core.LogLevel.Info"/> with the request string is logged.
+        /// By default, nothing is logged.
         /// </summary>
         public Action<HttpContext,IActivityMonitor> OnStartRequest { get; set; }
 

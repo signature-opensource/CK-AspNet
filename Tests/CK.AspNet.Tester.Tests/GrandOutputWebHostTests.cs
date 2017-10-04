@@ -19,6 +19,9 @@ using System.Net.Http;
 using System.IO;
 using System.Text;
 using System.Reflection;
+using System.Net;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
 
 namespace CK.AspNet.Tester.Tests
 {
@@ -39,7 +42,7 @@ namespace CK.AspNet.Tester.Tests
         public async Task GrandOutput_configuration_with_a_text_log_from_Json()
         {
             var config = new DynamicJsonConfigurationSource(
-                    @"{ ""Monitor"": {
+                    @"{ ""Monitoring"": {
                             ""GrandOutput"": {
                                 ""Handlers"": {
                                     ""TextFile"": {
@@ -74,14 +77,17 @@ namespace CK.AspNet.Tester.Tests
             File.ReadAllText( log ).Should().Contain( "/?sayHello" );
         }
 
-        [Test]
-        public async Task when_no_configuration_exists_the_default_is_a_Text_TextFile_handler_like_the_default_one_of_CK_Monitoring()
+        [TestCase( "{}" )]
+        [TestCase( @"{ ""Monitor"": {} }" )]
+        [TestCase( @"{ ""Monitor"": { ""GrandOutput"" : {} } }" )]
+        [TestCase( null )]
+        public async Task when_no_configuration_exists_the_default_is_a_Text_TextFile_handler_like_the_default_one_of_CK_Monitoring( string newEmptyConfig )
         {
-            // Ensures that GrandOutput.Default is not working on
-            // the LogFile.RootLogPath/Text default text handler.
-            GrandOutput.EnsureActiveDefault( new GrandOutputConfiguration() );
+            //// Ensures that GrandOutput.Default is not working on
+            //// the LogFile.RootLogPath/Text default text handler.
+            //GrandOutput.EnsureActiveDefault( new GrandOutputConfiguration() );
 
-            const string c = @"{ ""Monitor"": {
+            const string c = @"{ ""Monitoring"": {
                                     ""GrandOutput"": {
                                         ""Handlers"": {
                                             ""TextFile"": {
@@ -106,7 +112,8 @@ namespace CK.AspNet.Tester.Tests
                     using( var client = CreateServerWithUseMonitoring( config, g ) )
                     {
                         (await client.Get( "?sayHello&in_initial_config" )).Dispose();
-                        config.Delete();
+                        if( newEmptyConfig != null ) config.SetJson( newEmptyConfig );
+                        else config.Delete();
                         Thread.Sleep( 100 );
                         (await client.Get( "?sayHello&in_default_config" )).Dispose();
                     }
@@ -126,10 +133,74 @@ namespace CK.AspNet.Tester.Tests
                                              .And.Contain( "in_default_config" );
         }
 
+        [TestCase( true )]
+        [TestCase( false )]
+        public async Task request_monitor_handles_exceptions_but_does_not_swallow_them_by_default( bool swallow )
+        {
+            var text = new TextGrandOutputHandlerConfiguration();
+            var config = new GrandOutputConfiguration();
+            config.AddHandler( text );
+            GrandOutput.EnsureActiveDefault( config );
+            int rootExceptionCount = 0;
+            try
+            {
+                var b = WebHostBuilderFactory.Create( null, null,
+                    services =>
+                    {
+                        services.AddSingleton<StupidService>();
+                    },
+                    app =>
+                    {
+                        app.Use( async ( context, next ) =>
+                        {
+                            try
+                            {
+                                await next.Invoke();
+                            }
+                            catch
+                            {
+                                ++rootExceptionCount;
+                                context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+                            }
+                        } );
+                        app.UseRequestMonitor( o => { o.SwallowErrors = swallow; } );
+                        app.UseMiddleware<StupidMiddleware>();
+                    } );
+                using( var client = new TestServerClient( new TestServer( b ) ) )
+                {
+                    using( HttpResponseMessage bug = await client.Get( "?bug" ) )
+                    {
+                        bug.StatusCode.Should().Be( HttpStatusCode.InternalServerError );
+                        text.GetText().Should().Contain( "Bug!" );
+
+                    }
+                    using( HttpResponseMessage asyncBug = await client.Get( "?asyncBug" ) )
+                    {
+                        asyncBug.StatusCode.Should().Be( HttpStatusCode.InternalServerError );
+                        text.GetText().Should().Contain( "AsyncBug!" );
+                    }
+                }
+            }
+            finally
+            {
+                GrandOutput.Default.Dispose();
+            }
+            if( swallow )
+            {
+                Assert.That( rootExceptionCount, Is.EqualTo( 0 ) );
+            }
+            else
+            {
+                Assert.That( rootExceptionCount, Is.EqualTo( 2 ) );
+            }
+        }
+
+
+
         [Test]
         public async Task GrandOutput_dynamic_configuration_with_a_text_and_the_binary_and_then_text_log_from_Json()
         {
-            const string c1 = @"{ ""Monitor"": {
+            const string c1 = @"{ ""Monitoring"": {
                                     ""GrandOutput"": {
                                         ""Handlers"": {
                                             ""TextFile"": {
@@ -140,7 +211,7 @@ namespace CK.AspNet.Tester.Tests
                                  }
                               }";
 
-            const string c2 = @"{ ""Monitor"": {
+            const string c2 = @"{ ""Monitoring"": {
                                     ""GrandOutput"": {
                                         ""Handlers"": {
                                             ""BinaryFile"": {
@@ -151,7 +222,7 @@ namespace CK.AspNet.Tester.Tests
                                  }
                               }";
 
-            const string c3 = @"{ ""Monitor"": {
+            const string c3 = @"{ ""Monitoring"": {
                                     ""GrandOutput"": {
                                         ""Handlers"": {
                                             ""TextFile"": {
@@ -180,10 +251,10 @@ namespace CK.AspNet.Tester.Tests
                     {
                         (await client.Get( "?sayHello&WhileConfig_1" )).Dispose();
                         config.SetJson( c2 );
-                        Thread.Sleep( 100 );
-                        (await client.Get( "?sayHello&we_are_in_binary_in_config_2" )).Dispose();
+                        Thread.Sleep( 200 );
+                        (await client.Get( "?sayHello&we_are_binary_in_config_2" )).Dispose();
                         config.SetJson( c3 );
-                        Thread.Sleep( 100 );
+                        Thread.Sleep( 200 );
                         (await client.Get( "?sayHello&WhileConfig_3" )).Dispose();
                     }
                 }
@@ -195,21 +266,21 @@ namespace CK.AspNet.Tester.Tests
 
             var log1 = Directory.EnumerateFiles( logPath1 ).Single();
             File.ReadAllText( log1 ).Should().Contain( "/?sayHello&WhileConfig_1" )
-                                             .And.NotContain( "we_are_in_binary_in_config_2" )
+                                             .And.NotContain( "we_are_binary_in_config_2" )
                                              .And.NotContain( "/?sayHello&WhileConfig_3" );
 
 
             var log2 = Directory.EnumerateFiles( logPath2 ).Single();
             log2.Should().EndWith( ".ckmon" );
             PoorASCIIStringFromBytes( File.ReadAllBytes( log2 ) )
-                    .Should().Contain( "we_are_in_binary_in_config_2" )
+                    .Should().Contain( "we_are_binary_in_config_2" )
                     .And.NotContain( "?sayHello&WhileConfig_1" )
                     .And.NotContain( "/?sayHello&WhileConfig_3" );
 
             var log3 = Directory.EnumerateFiles( logPath3 ).Single();
             File.ReadAllText( log3 ).Should().Contain( "/?sayHello&WhileConfig_3" )
                                             .And.NotContain( "/?sayHello&WhileConfig_1" )
-                                            .And.NotContain( "we_are_in_binary_in_config_2" );
+                                            .And.NotContain( "we_are_binary_in_config_2" );
 
         }
 
@@ -222,9 +293,8 @@ namespace CK.AspNet.Tester.Tests
         [Test]
         public async Task hidden_async_bugs_aka_Task_UnobservedExceptions_are_handled_like_AppDomain_unhandled_exceptions_as_CriticalErrors()
         {
-            const string c1 = @"{ ""Monitor"": {
+            const string c1 = @"{ ""Monitoring"": {
                                     ""GrandOutput"": {
-                                        ""HandleCriticalErrors"": true,
                                         ""Handlers"": {
                                             ""TextFile"": {
                                                 ""Path"": ""unhandled_and_unobserved""
@@ -284,7 +354,7 @@ namespace CK.AspNet.Tester.Tests
         static TestServerClient CreateServerWithUseMonitoring(
             IConfigurationSource config,
             GrandOutput grandOutput = null,
-            string monitoringConfigurationPath = "Monitor" )
+            string monitoringConfigurationPath = "Monitoring" )
         {
             var b = WebHostBuilderFactory.Create( null, null,
                 services =>
@@ -293,7 +363,11 @@ namespace CK.AspNet.Tester.Tests
                 },
                 app =>
                 {
-                    app.UseRequestMonitor();
+                    app.UseRequestMonitor( opts =>
+                    {
+                        opts.OnStartRequest = ( ctx, m ) =>
+                                    m.UnfilteredLog( null, Core.LogLevel.Info, "Request Started: " + ctx.Request.Path + ctx.Request.QueryString.ToString(), m.NextLogTime(), null );
+                    } );
                     app.UseMiddleware<StupidMiddleware>();
                 } );
             if( config != null )
@@ -314,5 +388,5 @@ namespace CK.AspNet.Tester.Tests
             return new TestServerClient( new TestServer( b ), disposeTestServer: true );
         }
 
-     }
+    }
 }

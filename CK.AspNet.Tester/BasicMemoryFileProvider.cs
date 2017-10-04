@@ -80,8 +80,7 @@ namespace CK.AspNet.Tester
         /// <param name="name">Name of the file to delete.</param>
         public void Delete( string name )
         {
-            _files.Remove( name );
-            RaiseChange();
+            if( _files.Remove( name ) ) RaiseChange();
         }
 
         void RaiseChange()

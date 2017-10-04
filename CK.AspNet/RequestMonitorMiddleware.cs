@@ -94,12 +94,11 @@ namespace CK.AspNet
 
         static void DefaultOnStartRequest( HttpContext ctx, IActivityMonitor m )
         {
-            m.UnfilteredOpenGroup( null, LogLevel.Info, null, "Request Started: " + ctx.Request.Path + ctx.Request.QueryString.ToString(), m.NextLogTime(), null );
         }
 
         static void DefaultOnEndRequest( HttpContext ctx, IActivityMonitor m, TaskStatus status )
         {
-            m.MonitorEnd( $"StatusCode: {ctx.Response.StatusCode}" + (status == TaskStatus.Canceled ? "Request canceled." : String.Empty) );
+            m.MonitorEnd();
         }
     }
 }
