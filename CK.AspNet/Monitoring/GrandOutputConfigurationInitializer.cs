@@ -2,6 +2,7 @@ using CK.Core;
 using CK.Monitoring;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -10,11 +11,12 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace CK.Monitoring
+namespace CK.AspNet
 {
     internal class GrandOutputConfigurationInitializer
     {
         readonly GrandOutput _target;
+        readonly AspNetLoggerProvider _loggerProvider;
         IConfigurationSection _section;
         IDisposable _changeToken;
         readonly bool _isDefaultGrandOutput;
@@ -43,15 +45,17 @@ namespace CK.Monitoring
                 target = GrandOutput.EnsureActiveDefault( new GrandOutputConfiguration() );
             }
             _target = target;
+            _loggerProvider = new AspNetLoggerProvider( _target );
         }
 
-        public void Initialize( IHostingEnvironment env, IConfigurationSection section )
+        public void Initialize( IHostingEnvironment env, ILoggingBuilder aspNetLogs, IConfigurationSection section )
         {
             _section = section;
             if( _isDefaultGrandOutput && LogFile.RootLogPath == null )
             {
                 LogFile.RootLogPath = Path.GetFullPath( Path.Combine( env.ContentRootPath, _section["LogPath"] ?? "Logs" ) );
             }
+            aspNetLogs.AddProvider( _loggerProvider );
             // Initial configuration is not avalaible at this step.
             // We don't ApplyDynamicConfiguration here to avoid the default Text file handler to be applied.
             var reloadToken = _section.GetReloadToken();
@@ -62,7 +66,7 @@ namespace CK.Monitoring
             _target.DisposingToken.Register( () =>
             {
                 _changeToken.Dispose();
-                ConfigureGlobalListeners( false, false );
+                ConfigureGlobalListeners( false, false, false );
             } );
         }
 
@@ -74,8 +78,9 @@ namespace CK.Monitoring
             if( !_appliedConfigOnce ) ApplyDynamicConfiguration();
         }
 
-        void ConfigureGlobalListeners( bool trackUnhandledException, bool net461DiagnosticTrace )
+        void ConfigureGlobalListeners( bool trackUnhandledException, bool net461DiagnosticTrace, bool aspNetLogs )
         {
+            _loggerProvider.Running = aspNetLogs;
             if( trackUnhandledException != _trackUnhandledException )
             {
                 if( trackUnhandledException )
@@ -121,7 +126,8 @@ namespace CK.Monitoring
             _appliedConfigOnce = true;
             bool trackUnhandledException = !String.Equals( _section["LogUnhandledExceptions"], "false", StringComparison.OrdinalIgnoreCase );
             bool net461DiagnosticTrace = !String.Equals( _section["HandleDiagnosticsEvents"], "false", StringComparison.OrdinalIgnoreCase );
-            ConfigureGlobalListeners( trackUnhandledException, net461DiagnosticTrace );
+            bool aspNetLogs = !String.Equals( _section["HandleAspNetLogs"], "false", StringComparison.OrdinalIgnoreCase );
+            ConfigureGlobalListeners( trackUnhandledException, net461DiagnosticTrace, aspNetLogs );
             GrandOutputConfiguration c;
             var gSection = _section.GetSection( "GrandOutput" );
             if( gSection.Exists() )
@@ -152,7 +158,7 @@ namespace CK.Monitoring
             else
             {
                 c = new GrandOutputConfiguration()
-                    .AddHandler( new Handlers.TextFileConfiguration() { Path = "Text" } );
+                    .AddHandler( new CK.Monitoring.Handlers.TextFileConfiguration() { Path = "Text" } );
             }
             _target.ApplyConfiguration( c );
         }
@@ -170,7 +176,7 @@ namespace CK.Monitoring
             else
             {
                 string errText = e.ExceptionObject.ToString();
-                _target.ExternalLog( LogLevel.Fatal, errText, GrandOutput.CriticalErrorTag );
+                _target.ExternalLog( Core.LogLevel.Fatal, errText, GrandOutput.CriticalErrorTag );
             }
         }
 

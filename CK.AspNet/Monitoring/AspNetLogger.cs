@@ -7,10 +7,11 @@ namespace CK.AspNet
     /// <summary>
     /// The <see cref="ILogger"/> for the <see cref="GrandOutput"/>.
     /// </summary>
-    public class GrandOutputLogger : ILogger
+    class AspNetLogger : ILogger
     {
         readonly string _categoryName;
         readonly GrandOutput _output;
+        readonly AspNetLoggerProvider _provider;
 
         static Core.LogLevel[] _mapLevels = new Core.LogLevel[]
         {
@@ -23,15 +24,11 @@ namespace CK.AspNet
             Core.LogLevel.None   // <= LogLevel.None
         };
 
-        /// <summary>
-        /// Creates a new <see cref="GrandOutputLogger"/> with the given category name.
-        /// </summary>
-        /// <param name="categoryName"></param>
-        /// <param name="output"></param>
-        public GrandOutputLogger( string categoryName, GrandOutput output )
+        public AspNetLogger( AspNetLoggerProvider provider, string categoryName, GrandOutput output )
         {
             _categoryName = categoryName ?? String.Empty;
             _output = output;
+            _provider = provider;
         }
 
         /// <summary>
@@ -42,7 +39,7 @@ namespace CK.AspNet
         /// <returns></returns>
         public IDisposable BeginScope<TState>( TState state )
         {
-            _output.ExternalLog( Core.LogLevel.Trace, state?.ToString() );
+            if( _provider.Running ) _output.ExternalLog( Core.LogLevel.Trace, state?.ToString() );
             return Core.Util.EmptyDisposable;
         }
 
@@ -54,7 +51,7 @@ namespace CK.AspNet
         /// <returns>True if this level is active, false if it should not be logged.</returns>
         public bool IsEnabled( LogLevel logLevel )
         {
-            return _output.IsExternalLogEnabled( FromAspNetCoreLogLevel( logLevel ) );
+            return _provider.Running && _output.IsExternalLogEnabled( FromAspNetCoreLogLevel( logLevel ) );
         }
 
         /// <summary>
@@ -77,7 +74,10 @@ namespace CK.AspNet
         /// <param name="formatter"></param>
         public void Log<TState>( LogLevel logLevel, EventId eventId, TState state, Exception exception, Func<TState, Exception, string> formatter )
         {
-            _output.ExternalLog( FromAspNetCoreLogLevel( logLevel ), $"[{_categoryName}] {formatter( state, exception )}", exception);
+            if( _provider.Running )
+            {
+                _output.ExternalLog( FromAspNetCoreLogLevel( logLevel ), $"[{_categoryName}] {formatter( state, exception )}", exception );
+            }
         }
     }
 }

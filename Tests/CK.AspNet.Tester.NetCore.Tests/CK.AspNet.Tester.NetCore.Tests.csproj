@@ -25,5 +25,10 @@
       <Visible>true</Visible>
     </Compile>
   </ItemGroup>
+
+
+  <ItemGroup>
+    <Compile Remove="..\CK.AspNet.Tester.Tests\RequestMonitorTests.cs" />
+  </ItemGroup>
   
 </Project>
