@@ -1,15 +1,14 @@
+using CK.AspNet;
 using CK.Core;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
 using System;
 
-namespace CK.AspNet
+namespace Microsoft.AspNetCore.Builder
 {
     /// <summary>
     /// Adds extension methods on <see cref="IApplicationBuilder"/>.
-    /// Since the extension methods here do not conflict with more generic methods, the namespace is
-    /// CK.AspNet to avoid cluttering the namespace names.
     /// </summary>
     public static class ApplicationBuilderCKAspNetExtensions
     {

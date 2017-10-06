@@ -1,15 +1,19 @@
+using Microsoft.Net.Http.Headers;
 using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace CK.AspNet.Tester
 {
     /// <summary>
     /// Generalization of <see cref="TestClient"/> and <see cref="TestServerClient"/>.
+    /// This offers a common API to test against a <see cref="Microsoft.AspNetCore.TestHost.TestServer"/>
+    /// as well as a real, external, server.
     /// </summary>
     public abstract class TestClientBase : IDisposable
     {
@@ -43,6 +47,8 @@ namespace CK.AspNet.Tester
 
         /// <summary>
         /// Gets the <see cref="CookieContainer"/>.
+        /// Response message of <see cref="DoGet"/> and <see cref="DoPost"/> must be handled
+        /// by <see cref="UpdateCookies"/> to fix the cookie container Path bug.
         /// </summary>
         public CookieContainer Cookies { get; }
 
@@ -149,7 +155,8 @@ namespace CK.AspNet.Tester
 
         /// <summary>
         /// Issues a GET request to the relative url on <see cref="BaseAddress"/> or to an absolute url.
-        /// Implementations must handle <see cref="Token"/>, <see cref="Cookies"/> (but not redirections).
+        /// Implementations must handle <see cref="Token"/>, <see cref="Cookies"/> (thanks
+        /// to protected <see cref="UpdateCookies"/> helper), but not the redirections.
         /// </summary>
         /// <param name="url">The BaseAddress relative url or an absolute url.</param>
         /// <returns>The response.</returns>
@@ -236,7 +243,8 @@ namespace CK.AspNet.Tester
         /// <summary>
         /// Issues a POST request to the relative url on <see cref="BaseAddress"/> or to an absolute url 
         /// with an <see cref="HttpContent"/>.
-        /// Implementations must handle <see cref="Token"/>, <see cref="Cookies"/> (but not the redirections).
+        /// Implementations must handle <see cref="Token"/>, <see cref="Cookies"/> (thanks
+        /// to protected <see cref="UpdateCookies"/> helper), but not the redirections.
         /// </summary>
         /// <param name="url">The BaseAddress relative url or an absolute url.</param>
         /// <param name="content">The content.</param>
@@ -264,5 +272,49 @@ namespace CK.AspNet.Tester
         /// Must dispose any resources specific to this client.
         /// </summary>
         public abstract void Dispose();
+
+        static readonly Regex _rCookiePath = new Regex( "(?<=^|;)\\s*path\\s*=\\s*(?<p>.*?);?", RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture );
+
+        /// <summary>
+        /// Corrects CookieContainer behavior.
+        /// See: https://github.com/dotnet/corefx/issues/21250#issuecomment-309613552
+        /// This fix the Cookie path bug of the CookieContainer but does not handle any other
+        /// specification from current (since 2011) https://tools.ietf.org/html/rfc6265.
+        /// </summary>
+        /// <param name="response">The response message obtained from <see cref="DoGet"/> or <see cref="DoPost"/>.</param>
+        /// <param name="absoluteUrl">The absolute url of the request.</param>
+        protected void UpdateCookies( HttpResponseMessage response, Uri absoluteUrl )
+        {
+            if( response.Headers.Contains( HeaderNames.SetCookie ) )
+            {
+                var root = new Uri( absoluteUrl.GetLeftPart( UriPartial.Authority ) );
+                var cookies = response.Headers.GetValues( HeaderNames.SetCookie );
+                foreach( var cookie in cookies )
+                {
+                    string cFinal;
+                    Uri rFinal;
+                    Match m = _rCookiePath.Match( cookie );
+                    if( m.Success )
+                    {
+                        // Last Path wins: see https://tools.ietf.org/html/rfc6265#section-5.3 §7.
+                        do
+                        {
+                            cFinal = cookie.Remove( m.Index, m.Length );
+                            rFinal = new Uri( root, m.Groups[1].Value );
+                            m = m.NextMatch();
+                        }
+                        while( m.Success );
+                    }
+                    else
+                    {
+                        cFinal = cookie;
+                        rFinal = root;
+                    }
+                    Cookies.SetCookies( rFinal, cFinal );
+                }
+            }
+        }
+
+
     }
 }
