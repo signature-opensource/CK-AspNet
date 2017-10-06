@@ -283,7 +283,7 @@ namespace CK.AspNet.Tester
         /// </summary>
         /// <param name="response">The response message obtained from <see cref="DoGet"/> or <see cref="DoPost"/>.</param>
         /// <param name="absoluteUrl">The absolute url of the request.</param>
-        protected void UpdateCookies( HttpResponseMessage response, Uri absoluteUrl )
+        protected virtual void UpdateCookies( HttpResponseMessage response, Uri absoluteUrl )
         {
             if( response.Headers.Contains( HeaderNames.SetCookie ) )
             {

@@ -129,6 +129,24 @@ namespace CK.AspNet.Tester
             }
         }
 
+        /// <summary>
+        /// Overrides the fix since the test client does not need it.
+        /// Why? This has to be investigated once.
+        /// </summary>
+        /// <param name="response">The response message obtained from <see cref="DoGet"/> or <see cref="DoPost"/>.</param>
+        /// <param name="absoluteUrl">The absolute url of the request.</param>
+        protected override void UpdateCookies( HttpResponseMessage response, Uri absoluteUrl )
+        {
+            if( response.Headers.Contains( HeaderNames.SetCookie ) )
+            {
+                var cookies = response.Headers.GetValues( HeaderNames.SetCookie );
+                foreach( var cookie in cookies )
+                {
+                    Cookies.SetCookies( absoluteUrl, cookie );
+                }
+            }
+        }
+
     }
 }
 
