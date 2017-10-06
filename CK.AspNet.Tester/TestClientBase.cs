@@ -12,6 +12,8 @@ namespace CK.AspNet.Tester
 {
     /// <summary>
     /// Generalization of <see cref="TestClient"/> and <see cref="TestServerClient"/>.
+    /// This offers a common API to test against a <see cref="Microsoft.AspNetCore.TestHost.TestServer"/>
+    /// as well as a real, external, server.
     /// </summary>
     public abstract class TestClientBase : IDisposable
     {
@@ -45,6 +47,8 @@ namespace CK.AspNet.Tester
 
         /// <summary>
         /// Gets the <see cref="CookieContainer"/>.
+        /// Response message of <see cref="DoGet"/> and <see cref="DoPost"/> must be handled
+        /// by <see cref="UpdateCookies"/> to fix the cookie container Path bug.
         /// </summary>
         public CookieContainer Cookies { get; }
 

@@ -11,7 +11,8 @@ namespace CK.AspNet.Tester
 {
     /// <summary>
     /// Client helper that wraps a <see cref="TestServer"/> and provides simple methods (synchronous)
-    /// to easily Get/Post requests, manage cookies and a token, follow redirects (or not) and Reads the response contents.
+    /// to easily Get/Post requests, manage cookies and a token, follow redirects
+    /// (or not) and Reads the response contents.
     /// </summary>
     public class TestServerClient : TestClientBase
     {
