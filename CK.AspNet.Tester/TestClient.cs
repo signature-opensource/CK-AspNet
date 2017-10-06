@@ -1,3 +1,4 @@
+using Microsoft.Net.Http.Headers;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -5,6 +6,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace CK.AspNet.Tester
@@ -62,6 +64,7 @@ namespace CK.AspNet.Tester
             if( currentToken != null && !BaseAddress.IsBaseOf( url ) ) Token = null;
             var r = await _httpClient.GetAsync( absoluteUrl );
             Token = currentToken;
+            UpdateCookies( r, absoluteUrl );
             return r;
         }
 
@@ -77,7 +80,8 @@ namespace CK.AspNet.Tester
             var absoluteUrl = new Uri( BaseAddress, url );
             string currentToken = _token;
             if( currentToken != null && !BaseAddress.IsBaseOf( url ) ) Token = null;
-            var r = await _httpClient.PostAsync( absoluteUrl, content );
+            HttpResponseMessage r = await _httpClient.PostAsync( absoluteUrl, content );
+            UpdateCookies( r, absoluteUrl );
             Token = currentToken;
             return r;
         }

@@ -5,6 +5,7 @@ using System.Net.Http;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Net.Http.Headers;
 using System.Threading.Tasks;
+using System.Text.RegularExpressions;
 
 namespace CK.AspNet.Tester
 {
@@ -127,17 +128,6 @@ namespace CK.AspNet.Tester
             }
         }
 
-        void UpdateCookies( HttpResponseMessage response, Uri absoluteUrl )
-        {
-            if( response.Headers.Contains( HeaderNames.SetCookie ) )
-            {
-                var cookies = response.Headers.GetValues( HeaderNames.SetCookie );
-                foreach( var cookie in cookies )
-                {
-                    Cookies.SetCookies( absoluteUrl, cookie );
-                }
-            }
-        }
     }
 }
 
