@@ -30,6 +30,7 @@ namespace CK.AspNet.Tester
         {
             _testServer = testServer;
             _disposeTestServer = disposeTestServer;
+            OnReceiveMessage = DefaultOnReceiveMessage;
         }
 
         /// <summary>
@@ -58,7 +59,6 @@ namespace CK.AspNet.Tester
             AddCookies( requestBuilder, absoluteUrl );
             AddToken( requestBuilder );
             var response = await requestBuilder.GetAsync();
-            UpdateCookies( response, absoluteUrl );
             return response;
         }
 
@@ -82,8 +82,28 @@ namespace CK.AspNet.Tester
              {
                  message.Content = content;
              } ).PostAsync();
-            UpdateCookies( response, absoluteUrl );
             return response;
+        }
+
+        /// <summary>
+        /// Default <see cref="TestClientBase.OnReceiveMessage"/> implementation.
+        /// Calls <see cref="TestClientBase.UpdateCookiesSimple"/> and
+        /// returns true to follow redirects.
+        /// <para>
+        /// TODO: handle external client either with a TestClient... or if we keep a simple
+        ///       HttpClient, we may use UpdateCookiesWithPathHandling if the requested uri
+        ///       is not based on this BaseAddress.
+        ///       Real Tests and more investigations are needed here (with a separate server)
+        ///       since I do NOT understand why UpdateCookiesWithPathHandling (seems to) fail with
+        //        the test server :(.
+        /// </para>
+        /// </summary>
+        /// <param name="m">The received message.</param>
+        /// <returns>True to auto follow redirects if any.</returns>
+        public virtual Task<bool> DefaultOnReceiveMessage( HttpResponseMessage m )
+        {
+            UpdateCookiesSimple( Cookies, m );
+            return Task.FromResult( true );
         }
 
         /// <summary>
@@ -129,23 +149,7 @@ namespace CK.AspNet.Tester
             }
         }
 
-        /// <summary>
-        /// Overrides the fix since the test client does not need it.
-        /// Why? This has to be investigated once.
-        /// </summary>
-        /// <param name="response">The response message obtained from <see cref="DoGet"/> or <see cref="DoPost"/>.</param>
-        /// <param name="absoluteUrl">The absolute url of the request.</param>
-        protected override void UpdateCookies( HttpResponseMessage response, Uri absoluteUrl )
-        {
-            if( response.Headers.Contains( HeaderNames.SetCookie ) )
-            {
-                var cookies = response.Headers.GetValues( HeaderNames.SetCookie );
-                foreach( var cookie in cookies )
-                {
-                    Cookies.SetCookies( absoluteUrl, cookie );
-                }
-            }
-        }
+
 
     }
 }

@@ -106,37 +106,7 @@ namespace CK.AspNet.Tester
         /// </summary>
         public abstract string Token { get; set; }
 
-        /// <summary>
-        /// Follows a redirected url once if the response's status is <see cref="HttpStatusCode.Moved"/> (301) 
-        /// or <see cref="HttpStatusCode.Found"/> (302).
-        /// </summary>
-        /// <param name="response">The initial response.</param>
-        /// <param name="throwIfNotRedirect">
-        /// When the <paramref name="response"/> is not a 301 or 302 and this is true, this method 
-        /// throws an exception. When this parameter is false, the <paramref name="response"/>
-        /// is returned (since it is the final redirected response).</param>
-        /// <returns>The redirected response.</returns>
-        /// <remarks>
-        /// This should be used with a small or 0 <see cref="MaxAutomaticRedirections"/> value since
-        /// otherwise redirections are automatically followed.
-        /// A redirection always uses the GET method.
-        /// </remarks>
-        public Task<HttpResponseMessage> FollowRedirect( HttpResponseMessage response, bool throwIfNotRedirect = false )
-        {
-            if( response.StatusCode != HttpStatusCode.Moved && response.StatusCode != HttpStatusCode.Found )
-            {
-                if( throwIfNotRedirect ) throw new Exception( "Response must be a 301 Moved or a 302 Found." );
-                return Task.FromResult( response );
-            }
-            var redirectUrl = response.Headers.Location;
-            if( !redirectUrl.IsAbsoluteUri )
-            {
-                redirectUrl = new Uri( response.RequestMessage.RequestUri, redirectUrl );
-            }
-            return Get( redirectUrl );
-        }
-
-        /// <summary>
+         /// <summary>
         /// Issues a GET request to the relative url on <see cref="BaseAddress"/> or to an absolute url.
         /// </summary>
         /// <param name="url">The BaseAddress relative url or an absolute url.</param>
@@ -156,7 +126,8 @@ namespace CK.AspNet.Tester
         /// <summary>
         /// Issues a GET request to the relative url on <see cref="BaseAddress"/> or to an absolute url.
         /// Implementations must handle <see cref="Token"/>, <see cref="Cookies"/> (thanks
-        /// to protected <see cref="UpdateCookies"/> helper), but not the redirections.
+        /// to <see cref="UpdateCookiesSimple"/> or <see cref="UpdateCookiesWithPathHandling"/> helpers
+        /// for instance), but not the redirections.
         /// </summary>
         /// <param name="url">The BaseAddress relative url or an absolute url.</param>
         /// <returns>The response.</returns>
@@ -244,7 +215,8 @@ namespace CK.AspNet.Tester
         /// Issues a POST request to the relative url on <see cref="BaseAddress"/> or to an absolute url 
         /// with an <see cref="HttpContent"/>.
         /// Implementations must handle <see cref="Token"/>, <see cref="Cookies"/> (thanks
-        /// to protected <see cref="UpdateCookies"/> helper), but not the redirections.
+        /// to <see cref="UpdateCookiesSimple"/> or <see cref="UpdateCookiesWithPathHandling"/> helpers
+        /// for instance), but not the redirections.
         /// </summary>
         /// <param name="url">The BaseAddress relative url or an absolute url.</param>
         /// <param name="content">The content.</param>
@@ -269,6 +241,64 @@ namespace CK.AspNet.Tester
         }
 
         /// <summary>
+        /// Gets or sets a <see cref="HttpResponseMessage"/> handler.
+        /// This handler will be called immediatly after the <see cref="DoPost"/> or <see cref="DoGet"/>
+        /// methods and is typically in charge of handling cookies.
+        /// This handler must return true to automatically call <see cref="AutoFollowRedirect"/>
+        /// or false if for any reason, AutoFollowRedirect must not be done.
+        /// This property MUST not be null.
+        /// </summary>
+        public Func<HttpResponseMessage,Task<bool>> OnReceiveMessage { get; set; }
+
+        async Task<HttpResponseMessage> HandleResponse( HttpResponseMessage m )
+        {
+            if( OnReceiveMessage == null ) throw new InvalidOperationException( $"{nameof(OnReceiveMessage)} must not be null." );
+            return await OnReceiveMessage( m )
+                    ? await AutoFollowRedirect( m )
+                    : m;
+        }
+
+        /// <summary>
+        /// Follows a redirected url once if the response's status is <see cref="HttpStatusCode.Moved"/> (301), 
+        /// <see cref="HttpStatusCode.Found"/> (302) or <see cref="HttpStatusCode.SeeOther"/> (303).
+        /// The <see cref="HttpStatusCode.RedirectMethod"/> (303) will raise a <see cref="NotSupportedException"/>
+        /// at this time.
+        /// </summary>
+        /// <param name="response">The initial response.</param>
+        /// <param name="throwIfNotRedirect">
+        /// When the <paramref name="response"/> is not a 301 or 302 and this is true, this method 
+        /// throws an exception. When this parameter is false, the <paramref name="response"/>
+        /// is returned (since it is the final redirected response).</param>
+        /// <returns>The redirected response.</returns>
+        /// <remarks>
+        /// This should be used with a small or 0 <see cref="MaxAutomaticRedirections"/> value since
+        /// otherwise redirections are automatically followed.
+        /// A redirection always uses the GET method.
+        /// </remarks>
+        public virtual Task<HttpResponseMessage> FollowRedirect( HttpResponseMessage response, bool throwIfNotRedirect = false )
+        {
+            if( response.StatusCode == HttpStatusCode.TemporaryRedirect )
+            {
+                throw new NotSupportedException( "307 TemporaryRedirect is not supported." );
+            }
+            if( response.StatusCode != HttpStatusCode.Moved
+                && response.StatusCode != HttpStatusCode.Found
+                && response.StatusCode != HttpStatusCode.SeeOther )
+            {
+                if( throwIfNotRedirect ) throw new Exception( "Response must be a 301 Moved, 302 Found or 303 See Other." );
+                return Task.FromResult( response );
+            }
+            var redirectUrl = response.Headers.Location;
+            if( !redirectUrl.IsAbsoluteUri )
+            {
+                redirectUrl = new Uri( response.RequestMessage.RequestUri, redirectUrl );
+            }
+            response.Dispose();
+            return DoGet( redirectUrl );
+        }
+
+
+        /// <summary>
         /// Must dispose any resources specific to this client.
         /// </summary>
         public abstract void Dispose();
@@ -281,10 +311,11 @@ namespace CK.AspNet.Tester
         /// This fix the Cookie path bug of the CookieContainer but does not handle any other
         /// specification from current (since 2011) https://tools.ietf.org/html/rfc6265.
         /// </summary>
+        /// <param name="container">The cookie container to update.</param>
         /// <param name="response">The response message obtained from <see cref="DoGet"/> or <see cref="DoPost"/>.</param>
-        /// <param name="absoluteUrl">The absolute url of the request.</param>
-        protected virtual void UpdateCookies( HttpResponseMessage response, Uri absoluteUrl )
+        static public void UpdateCookiesWithPathHandling( CookieContainer container, HttpResponseMessage response )
         {
+            var absoluteUrl = GetCheckedRequestAbsoluteUri( container, response );
             if( response.Headers.Contains( HeaderNames.SetCookie ) )
             {
                 var root = new Uri( absoluteUrl.GetLeftPart( UriPartial.Authority ) );
@@ -310,11 +341,44 @@ namespace CK.AspNet.Tester
                         cFinal = cookie;
                         rFinal = root;
                     }
-                    Cookies.SetCookies( rFinal, cFinal );
+                    container.SetCookies( rFinal, cFinal );
                 }
             }
         }
 
+        /// <summary>
+        /// Update cookie container by simply handling Set-Cookie response headers.
+        /// </summary>
+        /// <param name="container">The cookie container to update.</param>
+        /// <param name="response">The response message obtained from <see cref="DoGet"/> or <see cref="DoPost"/>.</param>
+        static public void UpdateCookiesSimple( CookieContainer container, HttpResponseMessage response )
+        {
+            var absoluteUrl = GetCheckedRequestAbsoluteUri( container, response );
+            if( response.Headers.Contains( HeaderNames.SetCookie ) )
+            {
+                var cookies = response.Headers.GetValues( HeaderNames.SetCookie );
+                foreach( var cookie in cookies )
+                {
+                    container.SetCookies( absoluteUrl, cookie );
+                }
+            }
+        }
+
+        /// <summary>
+        /// Helper that checks its parameters and returns the request uri.
+        /// </summary>
+        /// <param name="container">A cookie container that must not be null./</param>
+        /// <param name="response">The received response.</param>
+        /// <returns>The requested uri.</returns>
+        public static Uri GetCheckedRequestAbsoluteUri( CookieContainer container, HttpResponseMessage response )
+        {
+            if( container == null ) throw new ArgumentNullException( nameof( container ) );
+            if( response == null ) throw new ArgumentNullException( nameof( response ) );
+            var uri = response.RequestMessage.RequestUri;
+            if( uri == null ) throw new ArgumentNullException( "response.RequestMessage.RequestUri" );
+            if( !uri.IsAbsoluteUri ) throw new ArgumentException( "Uri must be absolute.", "response.RequestMessage.RequestUri" );
+            return uri;
+        }
 
     }
 }

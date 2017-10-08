@@ -32,6 +32,7 @@ namespace CK.AspNet.Tester
                 CookieContainer = Cookies,
                 AllowAutoRedirect = false
             } );
+            OnReceiveMessage = DefaultOnReceiveMessage;
         }
 
         /// <summary>
@@ -64,8 +65,20 @@ namespace CK.AspNet.Tester
             if( currentToken != null && !BaseAddress.IsBaseOf( url ) ) Token = null;
             var r = await _httpClient.GetAsync( absoluteUrl );
             Token = currentToken;
-            UpdateCookies( r, absoluteUrl );
             return r;
+        }
+
+        /// <summary>
+        /// Default <see cref="TestClientBase.OnReceiveMessage"/> implementation.
+        /// Calls <see cref="TestClientBase.UpdateCookiesWithPathHandling"/> and
+        /// returns true to follow redirects.
+        /// </summary>
+        /// <param name="m">The received message.</param>
+        /// <returns>True to auto follow redirects if any.</returns>
+        public virtual Task<bool> DefaultOnReceiveMessage( HttpResponseMessage m )
+        {
+            UpdateCookiesWithPathHandling( Cookies, m );
+            return Task.FromResult( true );
         }
 
         /// <summary>
@@ -81,7 +94,6 @@ namespace CK.AspNet.Tester
             string currentToken = _token;
             if( currentToken != null && !BaseAddress.IsBaseOf( url ) ) Token = null;
             HttpResponseMessage r = await _httpClient.PostAsync( absoluteUrl, content );
-            UpdateCookies( r, absoluteUrl );
             Token = currentToken;
             return r;
         }
