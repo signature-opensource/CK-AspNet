@@ -132,6 +132,7 @@ namespace CK.AspNet
             var gSection = _section.GetSection( "GrandOutput" );
             if( gSection.Exists() )
             {
+                var ctorPotentialParams = new[] { typeof( IConfigurationSection ) };
                 c = new GrandOutputConfiguration();
                 gSection.Bind( c );
                 var hSection = gSection.GetSection( "Handlers" );
@@ -145,8 +146,14 @@ namespace CK.AspNet
                     }
                     try
                     {
-                        var config = Activator.CreateInstance( resolved );
-                        hConfig.Bind( config );
+                        var ctorWithConfig = resolved.GetConstructor( ctorPotentialParams );
+                        object config;
+                        if( ctorWithConfig != null ) config = ctorWithConfig.Invoke( new[] { hConfig } );
+                        else
+                        {
+                            config = Activator.CreateInstance( resolved );
+                            hConfig.Bind( config );
+                        }
                         c.AddHandler( (IHandlerConfiguration)config );
                     }
                     catch( Exception ex )

@@ -11,7 +11,7 @@ using System.Xml.Linq;
 using System.Threading;
 using CK.Core;
 
-namespace CK.AspNet.Tester.Tests
+namespace CK.AspNet.Tests
 {
     public class StupidMiddleware
     {

@@ -1,9 +1,8 @@
-using CK.Core;
 using NUnitLite;
 using System.Globalization;
 using System.Reflection;
 
-namespace CK.AspNet.Tester.NetCore.Tests
+namespace CK.AspNet.NetCore.Tests
 {
     public static class Program
     {

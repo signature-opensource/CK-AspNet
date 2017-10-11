@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -7,7 +7,7 @@ using CK.Core;
 using CK.Monitoring;
 using System.Threading;
 
-namespace CK.AspNet.Tester
+namespace CK.AspNet.Tests
 {
     /// <summary>
     /// This configuration object can be used to get the current text
@@ -68,7 +68,7 @@ namespace CK.AspNet.Tester
         }
 
         /// <summary>
-        /// Clonea a linked configuration here so that this configuration object or the original one can be used to 
+        /// Clones a linked configuration here so that this configuration object or the original one can be used to 
         /// retrieve the current handler text.
         /// </summary>
         /// <returns>A clone object.</returns>

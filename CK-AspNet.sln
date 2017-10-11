@@ -15,19 +15,17 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{1A7E3E39-6483-4802-8B27-C4D245D35D09}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CK.AspNet.Tester", "CK.AspNet.Tester\CK.AspNet.Tester.csproj", "{87577DD0-98DF-4109-9B4B-4D24385071D0}"
-EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CK.AspNet", "CK.AspNet\CK.AspNet.csproj", "{4780D989-B430-427E-96F3-2E16BB687523}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CK.AspNet.Tester.Tests", "Tests\CK.AspNet.Tester.Tests\CK.AspNet.Tester.Tests.csproj", "{29BB9615-4CA6-4FE7-9D83-E1A2375E596D}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CK.AspNet.Tests", "Tests\CK.AspNet.Tests\CK.AspNet.Tests.csproj", "{29BB9615-4CA6-4FE7-9D83-E1A2375E596D}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CK.DB.AspNet", "CK.DB.AspNet\CK.DB.AspNet.csproj", "{538EC8DB-EF75-41E5-BEBA-09C787AEC57A}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CodeCakeBuilder", "CodeCakeBuilder\CodeCakeBuilder.csproj", "{FD4817B6-3CD7-4E74-AA10-7CA95FDFCF2D}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CK.AspNet.Tester.NetCore.Tests", "Tests\CK.AspNet.Tester.NetCore.Tests\CK.AspNet.Tester.NetCore.Tests.csproj", "{DCE63365-89AB-4734-852F-5300A1386810}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CK.AspNet.NetCore.Tests", "Tests\CK.AspNet.NetCore.Tests\CK.AspNet.NetCore.Tests.csproj", "{DCE63365-89AB-4734-852F-5300A1386810}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebApp", "Tests\WebApp\WebApp.csproj", "{90BEF218-C7A4-4BC0-BCEC-8DDC1A0B2F0C}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WebApp", "Tests\WebApp\WebApp.csproj", "{90BEF218-C7A4-4BC0-BCEC-8DDC1A0B2F0C}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -35,10 +33,6 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{87577DD0-98DF-4109-9B4B-4D24385071D0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{87577DD0-98DF-4109-9B4B-4D24385071D0}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{87577DD0-98DF-4109-9B4B-4D24385071D0}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{87577DD0-98DF-4109-9B4B-4D24385071D0}.Release|Any CPU.Build.0 = Release|Any CPU
 		{4780D989-B430-427E-96F3-2E16BB687523}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{4780D989-B430-427E-96F3-2E16BB687523}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{4780D989-B430-427E-96F3-2E16BB687523}.Release|Any CPU.ActiveCfg = Release|Any CPU
