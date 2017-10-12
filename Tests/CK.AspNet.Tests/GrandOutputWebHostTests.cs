@@ -111,7 +111,7 @@ namespace CK.AspNet.Tests
                         (await client.Get( "?sayHello&in_initial_config" )).Dispose();
                         if( newEmptyConfig != null ) config.SetJson( newEmptyConfig );
                         else config.Delete();
-                        Thread.Sleep( 100 );
+                        await Task.Delay( 150 );
                         (await client.Get( "?sayHello&in_default_config" )).Dispose();
                     }
                 }
@@ -175,7 +175,7 @@ namespace CK.AspNet.Tests
                     {
                         (await client.Get( "?sayHello&trace1" )).Dispose();
                         config.SetJson( c2 );
-                        Thread.Sleep( 100 );
+                        await Task.Delay( 150 );
                         (await client.Get( "?sayHello&trace2" )).Dispose();
                     }
                 }
@@ -311,10 +311,10 @@ namespace CK.AspNet.Tests
                     {
                         (await client.Get( "?sayHello&WhileConfig_1" )).Dispose();
                         config.SetJson( c2 );
-                        Thread.Sleep( 200 );
+                        await Task.Delay( 200 );
                         (await client.Get( "?sayHello&we_are_binary_in_config_2" )).Dispose();
                         config.SetJson( c3 );
-                        Thread.Sleep( 200 );
+                        await Task.Delay( 200 );
                         (await client.Get( "?sayHello&WhileConfig_3" )).Dispose();
                     }
                 }
@@ -388,7 +388,7 @@ namespace CK.AspNet.Tests
 
                         // Since the GrandOutput.Dispose is now correcly called thanks to IApplicationLifetime
                         // we have to wait a little bit for the critical error to be dispatched.
-                        Thread.Sleep( 200 );
+                        await Task.Delay( 200 );
                     }
                 }
                 finally
