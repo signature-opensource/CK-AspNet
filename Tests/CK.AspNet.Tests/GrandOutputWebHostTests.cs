@@ -22,8 +22,9 @@ using System.Reflection;
 using System.Net;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
+using CK.AspNet.Tester;
 
-namespace CK.AspNet.Tester.Tests
+namespace CK.AspNet.Tests
 {
     [TestFixture]
     public class GrandOutputWebHostTests
@@ -83,10 +84,6 @@ namespace CK.AspNet.Tester.Tests
         [TestCase( null )]
         public async Task when_no_configuration_exists_the_default_is_a_Text_TextFile_handler_like_the_default_one_of_CK_Monitoring( string newEmptyConfig )
         {
-            //// Ensures that GrandOutput.Default is not working on
-            //// the LogFile.RootLogPath/Text default text handler.
-            //GrandOutput.EnsureActiveDefault( new GrandOutputConfiguration() );
-
             const string c = @"{ ""Monitoring"": {
                                     ""GrandOutput"": {
                                         ""Handlers"": {
@@ -114,7 +111,7 @@ namespace CK.AspNet.Tester.Tests
                         (await client.Get( "?sayHello&in_initial_config" )).Dispose();
                         if( newEmptyConfig != null ) config.SetJson( newEmptyConfig );
                         else config.Delete();
-                        Thread.Sleep( 100 );
+                        await Task.Delay( 150 );
                         (await client.Get( "?sayHello&in_default_config" )).Dispose();
                     }
                 }
@@ -131,6 +128,69 @@ namespace CK.AspNet.Tester.Tests
             var log2 = Directory.EnumerateFiles( logDefault ).Single();
             File.ReadAllText( log2 ).Should().NotContain( "in_initial_config" )
                                              .And.Contain( "in_default_config" );
+        }
+
+        [Test]
+        public async Task configuration_with_IConfigurationSection_injection()
+        {
+            const string c1 = @"{
+                                    ""Monitoring"":
+                                    {
+                                        ""GrandOutput"":
+                                        {
+                                            ""Handlers"":
+                                            {
+                                                ""HandlerWithConfigSection"": { ""Message"": ""Hello 1"" },
+                                                ""TextFile"": { ""Path"": ""IConfigurationSection_injection"" }
+                                            }
+                                        }
+                                    }
+                               }";
+
+            const string c2 = @"{
+                                    ""Monitoring"":
+                                    {
+                                        ""GrandOutput"":
+                                        {
+                                            ""Handlers"":
+                                            {
+                                                ""HandlerWithConfigSection"": { ""Message"": ""Hello 2"" },
+                                                ""TextFile"": { ""Path"": ""IConfigurationSection_injection"" }
+                                            }
+                                        }
+                                    }
+                               }";
+
+            string logPath = Path.Combine( LogFile.RootLogPath, "IConfigurationSection_injection" );
+            if( Directory.Exists( logPath ) ) Directory.Delete( logPath, true );
+
+            var config = new DynamicJsonConfigurationSource( c1 );
+            using( var g = new GrandOutput( new GrandOutputConfiguration() ) )
+            {
+                Action<IActivityMonitor> autoRegisterer = m => g.EnsureGrandOutputClient( m );
+                ActivityMonitor.AutoConfiguration += autoRegisterer;
+                try
+                {
+                    using( var client = CreateServerWithUseMonitoring( config, g ) )
+                    {
+                        (await client.Get( "?sayHello&trace1" )).Dispose();
+                        config.SetJson( c2 );
+                        await Task.Delay( 150 );
+                        (await client.Get( "?sayHello&trace2" )).Dispose();
+                    }
+                }
+                finally
+                {
+                    ActivityMonitor.AutoConfiguration -= autoRegisterer;
+                }
+            }
+
+            var log = Directory.EnumerateFiles( logPath).Single();
+            string text = File.ReadAllText( log );
+            text.Should().Contain( "Activating: Hello 1." )
+                .And.Contain( "trace1")
+                .And.Contain( "Applying: Hello 1 => Hello 2.")
+                .And.Contain( "trace2" );
         }
 
         [TestCase( true )]
@@ -251,10 +311,10 @@ namespace CK.AspNet.Tester.Tests
                     {
                         (await client.Get( "?sayHello&WhileConfig_1" )).Dispose();
                         config.SetJson( c2 );
-                        Thread.Sleep( 200 );
+                        await Task.Delay( 200 );
                         (await client.Get( "?sayHello&we_are_binary_in_config_2" )).Dispose();
                         config.SetJson( c3 );
-                        Thread.Sleep( 200 );
+                        await Task.Delay( 200 );
                         (await client.Get( "?sayHello&WhileConfig_3" )).Dispose();
                     }
                 }
@@ -328,7 +388,7 @@ namespace CK.AspNet.Tester.Tests
 
                         // Since the GrandOutput.Dispose is now correcly called thanks to IApplicationLifetime
                         // we have to wait a little bit for the critical error to be dispatched.
-                        Thread.Sleep( 200 );
+                        await Task.Delay( 200 );
                     }
                 }
                 finally

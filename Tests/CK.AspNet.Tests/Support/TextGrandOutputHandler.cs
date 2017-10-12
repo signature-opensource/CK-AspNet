@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using CK.Core;
 using CK.Monitoring;
 
-namespace CK.AspNet.Tester
+namespace CK.AspNet.Tests
 {
     /// <summary>
     /// Handler associated to <see cref="TextGrandOutputHandlerConfiguration"/>.
