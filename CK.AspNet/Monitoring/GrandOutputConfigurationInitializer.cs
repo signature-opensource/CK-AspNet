@@ -138,6 +138,15 @@ namespace CK.AspNet
                 var hSection = gSection.GetSection( "Handlers" );
                 foreach( var hConfig in hSection.GetChildren() )
                 {
+                    // Checks for single value and not section.
+                    // This is required for handlers that have no configuration properties:
+                    // "Handlers": { "Console": true } does the job.
+                    // The only case of "falsiness" we consider here is "false":
+                    // we ignore the key is this case.
+                    string value = hConfig.Value;
+                    if( !String.IsNullOrWhiteSpace( value )
+                        && String.Equals( value, "False", StringComparison.OrdinalIgnoreCase ) ) continue;
+
                     Type resolved = TryResolveType( hConfig.Key );
                     if( resolved == null )
                     {
