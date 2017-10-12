@@ -5,7 +5,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Folder Include="WebAppLogs\" />
     <Folder Include="wwwroot\" />
   </ItemGroup>
 
