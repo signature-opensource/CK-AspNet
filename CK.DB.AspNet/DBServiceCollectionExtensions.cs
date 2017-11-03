@@ -1,10 +1,9 @@
 using CK.Core;
-using Microsoft.Extensions.DependencyInjection;
 using System;
 using CK.SqlServer.Setup;
 using System.Reflection;
 
-namespace CK.AspNet
+namespace Microsoft.Extensions.DependencyInjection
 {
     /// <summary>
     /// Adds extension methods on <see cref="IServiceCollection"/>.
