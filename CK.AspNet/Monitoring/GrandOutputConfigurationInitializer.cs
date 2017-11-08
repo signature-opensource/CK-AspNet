@@ -21,7 +21,9 @@ namespace CK.AspNet
         IDisposable _changeToken;
         readonly bool _isDefaultGrandOutput;
         bool _trackUnhandledException;
+#if DEBUG
         bool _appliedConfigOnce;
+#endif
 
 #if NET461
         IDisposable _listenerSubscription;
@@ -56,8 +58,6 @@ namespace CK.AspNet
                 LogFile.RootLogPath = Path.GetFullPath( Path.Combine( env.ContentRootPath, _section["LogPath"] ?? "Logs" ) );
             }
             aspNetLogs.AddProvider( _loggerProvider );
-            // Initial configuration is not avalaible at this step.
-            // We don't ApplyDynamicConfiguration here to avoid the default Text file handler to be applied.
             var reloadToken = _section.GetReloadToken();
             _changeToken = reloadToken.RegisterChangeCallback( OnConfigurationChanged, this );
             // We do not handle CancellationTokenRegistration.Dispose here.
@@ -68,14 +68,15 @@ namespace CK.AspNet
                 _changeToken.Dispose();
                 ConfigureGlobalListeners( false, false, false );
             } );
+            // This is required so that default configuration with Text handler
+            // is applied if there is no section.
+            Debug.Assert( !_appliedConfigOnce );
+            ApplyDynamicConfiguration();
         }
 
         public void PostInitialze( IApplicationLifetime lifetime )
         {
             lifetime.ApplicationStopped.Register( () => _target.Dispose() );
-            // This is required so that default configuration with Text handler
-            // is applied if there is no section.
-            if( !_appliedConfigOnce ) ApplyDynamicConfiguration();
         }
 
         void ConfigureGlobalListeners( bool trackUnhandledException, bool net461DiagnosticTrace, bool aspNetLogs )
@@ -123,7 +124,9 @@ namespace CK.AspNet
 
         void ApplyDynamicConfiguration()
         {
+#if DEBUG
             _appliedConfigOnce = true;
+#endif
             bool trackUnhandledException = !String.Equals( _section["LogUnhandledExceptions"], "false", StringComparison.OrdinalIgnoreCase );
             bool net461DiagnosticTrace = !String.Equals( _section["HandleDiagnosticsEvents"], "false", StringComparison.OrdinalIgnoreCase );
             bool aspNetLogs = !String.Equals( _section["HandleAspNetLogs"], "false", StringComparison.OrdinalIgnoreCase );
