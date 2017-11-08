@@ -21,9 +21,6 @@ namespace CK.AspNet
         IDisposable _changeToken;
         readonly bool _isDefaultGrandOutput;
         bool _trackUnhandledException;
-#if DEBUG
-        bool _appliedConfigOnce;
-#endif
 
 #if NET461
         IDisposable _listenerSubscription;
@@ -70,7 +67,6 @@ namespace CK.AspNet
             } );
             // This is required so that default configuration with Text handler
             // is applied if there is no section.
-            Debug.Assert( !_appliedConfigOnce );
             ApplyDynamicConfiguration();
         }
 
@@ -124,9 +120,6 @@ namespace CK.AspNet
 
         void ApplyDynamicConfiguration()
         {
-#if DEBUG
-            _appliedConfigOnce = true;
-#endif
             bool trackUnhandledException = !String.Equals( _section["LogUnhandledExceptions"], "false", StringComparison.OrdinalIgnoreCase );
             bool net461DiagnosticTrace = !String.Equals( _section["HandleDiagnosticsEvents"], "false", StringComparison.OrdinalIgnoreCase );
             bool aspNetLogs = !String.Equals( _section["HandleAspNetLogs"], "false", StringComparison.OrdinalIgnoreCase );
