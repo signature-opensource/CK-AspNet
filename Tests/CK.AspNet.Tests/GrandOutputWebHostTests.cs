@@ -30,32 +30,16 @@ namespace CK.AspNet.Tests
     public class GrandOutputWebHostTests
     {
         [SetUp]
-        public void GrandOutput_Default_should_be_configured_with_default_values()
+        public void cleanup_default_text_logs()
         {
-            using( var client = CreateServerWithUseMonitoring( null ) )
-            {
-                LogFile.RootLogPath.Should().NotBeNull().And.EndWith( Path.DirectorySeparatorChar + "Logs" + Path.DirectorySeparatorChar );
-                GrandOutput.Default.Should().NotBeNull();
-            }
+            string logDefault = Path.Combine( LogFile.RootLogPath, "Text" );
+            if( Directory.Exists( logDefault ) ) Directory.Delete( logDefault, true );
         }
 
         [Test]
         public async Task GrandOutput_configuration_with_a_text_log_from_Json()
         {
-            var config = new DynamicJsonConfigurationSource(
-                    @"{ ""Monitoring"": {
-                            ""GrandOutput"": {
-                                ""Handlers"": {
-                                    ""TextFile"": {
-                                        ""Path"": ""GrandOutput_configuration_from_Json""
-                                    }
-                                }
-                            }
-                         }
-                      }" );
-
-            string logPath = Path.Combine( LogFile.RootLogPath, "GrandOutput_configuration_from_Json" );
-            if( Directory.Exists( logPath ) ) Directory.Delete( logPath, true );
+            var config = CreateDynamicJsonConfigurationSource( "GrandOutput_configuration_from_Json", out string logPath );
 
             using( var g = new GrandOutput( new GrandOutputConfiguration() ) )
             {
@@ -84,22 +68,11 @@ namespace CK.AspNet.Tests
         [TestCase( null )]
         public async Task when_no_configuration_exists_the_default_is_a_Text_TextFile_handler_like_the_default_one_of_CK_Monitoring( string newEmptyConfig )
         {
-            const string c = @"{ ""Monitoring"": {
-                                    ""GrandOutput"": {
-                                        ""Handlers"": {
-                                            ""TextFile"": {
-                                                ""Path"": ""conf_before_default""
-                                            }
-                                        }
-                                     }
-                                  }
-                               }";
-            string logBefore = Path.Combine( LogFile.RootLogPath, "conf_before_default" );
+            var config = CreateDynamicJsonConfigurationSource( "conf_before_default", out string logBefore );
+
             string logDefault = Path.Combine( LogFile.RootLogPath, "Text" );
-            if( Directory.Exists( logBefore ) ) Directory.Delete( logBefore, true );
             if( Directory.Exists( logDefault ) ) Directory.Delete( logDefault, true );
 
-            var config = new DynamicJsonConfigurationSource( c );
             using( var g = new GrandOutput( new GrandOutputConfiguration() ) )
             {
                 Action<IActivityMonitor> autoRegisterer = m => g.EnsureGrandOutputClient( m );
@@ -353,21 +326,8 @@ namespace CK.AspNet.Tests
         [Test]
         public async Task hidden_async_bugs_aka_Task_UnobservedExceptions_are_handled_like_AppDomain_unhandled_exceptions_as_CriticalErrors()
         {
-            const string c1 = @"{ ""Monitoring"": {
-                                    ""GrandOutput"": {
-                                        ""Handlers"": {
-                                            ""TextFile"": {
-                                                ""Path"": ""unhandled_and_unobserved""
-                                            }
-                                        }
-                                    }
-                                 }
-                              }";
-
-            string logPath = Path.Combine( LogFile.RootLogPath, "unhandled_and_unobserved" );
-            if( Directory.Exists( logPath ) ) Directory.Delete( logPath, true );
-
-            var config = new DynamicJsonConfigurationSource( c1 );
+            string logPath;
+            var config = CreateDynamicJsonConfigurationSource( "unhandled_and_unobserved", out logPath );
             using( var g = new GrandOutput( new GrandOutputConfiguration() ) )
             {
                 g.HandleCriticalErrors.Should().BeFalse();
@@ -400,8 +360,27 @@ namespace CK.AspNet.Tests
             var log = Directory.EnumerateFiles( logPath ).Single();
             File.ReadAllText( log ).Should()
                     .Contain( "I'm a Critical error." );
-                    //.And.Contain( "I'm an horrible HiddenAsyncBug!" );
-                    //.And.Contain( "I'm an unhandled exception." );
+            //.And.Contain( "I'm an horrible HiddenAsyncBug!" );
+            //.And.Contain( "I'm an unhandled exception." );
+        }
+
+        public static DynamicJsonConfigurationSource CreateDynamicJsonConfigurationSource( string folderNameForTextLogs, out string logPath )
+        {
+            string c1 = $@"{{ ""Monitoring"": {{
+                                    ""GrandOutput"": {{
+                                        ""Handlers"": {{
+                                            ""TextFile"": {{
+                                                ""Path"": ""{folderNameForTextLogs}""
+                                            }}
+                                        }}
+                                    }}
+                                 }}
+                              }}";
+
+            logPath = Path.Combine( LogFile.RootLogPath, folderNameForTextLogs );
+            if( Directory.Exists( logPath ) ) Directory.Delete( logPath, true );
+
+            return new DynamicJsonConfigurationSource( c1 );
         }
 
         /// <summary>
@@ -411,7 +390,7 @@ namespace CK.AspNet.Tests
         /// <param name="grandOutput">Explicit instance (null for the GrandOutput.Default).</param>
         /// <param name="monitoringConfigurationPath">Path to the monitoring configuration.</param>
         /// <returns>The test server client.</returns>
-        static TestServerClient CreateServerWithUseMonitoring(
+        public static TestServerClient CreateServerWithUseMonitoring(
             IConfigurationSource config,
             GrandOutput grandOutput = null,
             string monitoringConfigurationPath = "Monitoring" )
