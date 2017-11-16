@@ -12,6 +12,9 @@ using CK.AspNet;
 using CK.Monitoring.Handlers;
 using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using System.Linq;
+using Microsoft.AspNetCore.Http;
 
 namespace Microsoft.AspNetCore.Hosting
 {
@@ -109,11 +112,13 @@ namespace Microsoft.AspNetCore.Hosting
                 initializer.Initialize( ctx.HostingEnvironment, loggingBuilder, section );
             } );
             // Now, registers the PostInstanciationFilter as a transient object.
-            // This startup filter will inject the Applcation service IApplicationLifetime.
-            builder.ConfigureServices( services => services.AddTransient<IStartupFilter>( _ => new PostInstanciationFilter( initializer ) ) );
-            return builder;
+            // This startup filter will inject the Application service IApplicationLifetime.
+            return AddPostInstanciationStartupFilter( builder, initializer );
         }
 
+        /// <summary>
+        /// Initialize from IConfigurationSection instead of configurationPath.
+        /// </summary>
         static IWebHostBuilder DoUseMonitoring( IWebHostBuilder builder, GrandOutput grandOutput, IConfigurationSection configuration )
         {
             var initializer = new GrandOutputConfigurationInitializer( grandOutput );
@@ -121,8 +126,17 @@ namespace Microsoft.AspNetCore.Hosting
             {
                 initializer.Initialize( ctx.HostingEnvironment, loggingBuilder, configuration );
             } );
-            builder.ConfigureServices( services => services.AddTransient<IStartupFilter>( _ => new PostInstanciationFilter( initializer ) ) );
-            return builder;
+            return AddPostInstanciationStartupFilter( builder, initializer );
         }
+
+
+        static IWebHostBuilder AddPostInstanciationStartupFilter( IWebHostBuilder builder, GrandOutputConfigurationInitializer initializer )
+        {
+            return builder.ConfigureServices( services =>
+            {
+                services.AddTransient<IStartupFilter>( _ => new PostInstanciationFilter( initializer ) );
+            } );
+        }
+
     }
 }

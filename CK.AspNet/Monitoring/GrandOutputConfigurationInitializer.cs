@@ -67,7 +67,7 @@ namespace CK.AspNet
             } );
             // This is required so that default configuration with Text handler
             // is applied if there is no section.
-            ApplyDynamicConfiguration();
+            ApplyDynamicConfiguration( true );
         }
 
         public void PostInitialze( IApplicationLifetime lifetime )
@@ -118,7 +118,7 @@ namespace CK.AspNet
 #endif
         }
 
-        void ApplyDynamicConfiguration()
+        void ApplyDynamicConfiguration( bool initialConfigMustWaitForApplication )
         {
             bool trackUnhandledException = !String.Equals( _section["LogUnhandledExceptions"], "false", StringComparison.OrdinalIgnoreCase );
             bool net461DiagnosticTrace = !String.Equals( _section["HandleDiagnosticsEvents"], "false", StringComparison.OrdinalIgnoreCase );
@@ -172,7 +172,7 @@ namespace CK.AspNet
                 c = new GrandOutputConfiguration()
                     .AddHandler( new CK.Monitoring.Handlers.TextFileConfiguration() { Path = "Text" } );
             }
-            _target.ApplyConfiguration( c );
+            _target.ApplyConfiguration( c, initialConfigMustWaitForApplication );
         }
 
         void OnUnobservedTaskException( object sender, UnobservedTaskExceptionEventArgs e )
@@ -198,7 +198,7 @@ namespace CK.AspNet
             if( name.IndexOf( ',' ) >= 0 )
             {
                 // It must be an assembly qualified name.
-                // Weaken its name and tty to load it.
+                // Weaken its name and try to load it.
                 // If it fails and the name does not end with "Configuration" tries it.
                 string fullTypeName, assemblyFullName, assemblyName, versionCultureAndPublicKeyToken;
                 if( SimpleTypeFinder.SplitAssemblyQualifiedName( name, out fullTypeName, out assemblyFullName )
@@ -237,7 +237,7 @@ namespace CK.AspNet
             return resolved;
         }
 
-        Type IsHandlerConfiguration( Type candidate )
+        static Type IsHandlerConfiguration( Type candidate )
         {
             if( typeof( IHandlerConfiguration ).IsAssignableFrom( candidate ) ) return candidate;
             return null;
@@ -247,7 +247,7 @@ namespace CK.AspNet
         {
             Debug.Assert( obj is GrandOutputConfigurationInitializer );
             var initializer = (GrandOutputConfigurationInitializer)obj;
-            initializer.ApplyDynamicConfiguration();
+            initializer.ApplyDynamicConfiguration( false );
             initializer.RenewChangeToken();
         }
 
