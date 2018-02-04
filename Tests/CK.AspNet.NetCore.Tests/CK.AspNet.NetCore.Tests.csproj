@@ -13,24 +13,18 @@
   </ItemGroup>
   
   <ItemGroup>
-    <PackageReference Include="CK.AspNet.Tester" Version="1.2.2" />
+    <PackageReference Include="CK.AspNet.Tester" Version="1.2.3" />
     <PackageReference Include="FluentAssertions" Version="4.19.4" />
-    <PackageReference Include="NUnit" Version="3.8.1" />
-    <PackageReference Include="NUnitLite" Version="3.8.1" />
-    <PackageReference Include="CK.ActivityMonitor.SimpleSender" Version="9.0.0" />
+    <PackageReference Include="NUnit" Version="3.9.0" />
+    <PackageReference Include="NUnitLite" Version="3.9.0" />
+    <PackageReference Include="CK.ActivityMonitor.SimpleSender" Version="9.0.4" />
   </ItemGroup>
-
 
   <ItemGroup>
     <Compile Include="..\$(OriginProjectName)\**\*.cs" Exclude="..\$(OriginProjectName)\obj\**;..\$(OriginProjectName)\bin\**">
       <Link>Include\%(RecursiveDir)%(Filename)%(Extension)</Link>
       <Visible>true</Visible>
     </Compile>
-  </ItemGroup>
-
-
-  <ItemGroup>
-    <Compile Remove="..\CK.AspNet.Tester.Tests\RequestMonitorTests.cs" />
   </ItemGroup>
   
 </Project>

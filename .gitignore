@@ -253,3 +253,4 @@ paket-files/
 CodeCakeBuilder/Tools/
 Tests/WebApp/WebAppLogs/
 Tests/CK.AspNet.Tests/TestResult*.xml
+Tests/WebAppNet461/Logs/
