@@ -143,10 +143,36 @@ namespace CK.AspNet
                     if( !String.IsNullOrWhiteSpace( value )
                         && String.Equals( value, "False", StringComparison.OrdinalIgnoreCase ) ) continue;
 
-                    Type resolved = TryResolveType( hConfig.Key );
+                    // Resolve configuration type using one of two available strings:
+                    // 1. From "ConfigurationType" property, inside the value object
+                    Type resolved = null;
+                    string configTypeProperty = hConfig.GetValue( "ConfigurationType", string.Empty );
+                    if( string.IsNullOrEmpty( configTypeProperty ) )
+                    {
+                        // No ConfigurationType property:
+                        // Resolve using the key, outside the value object
+                        resolved = TryResolveType( hConfig.Key );
+                    }
+                    else
+                    {
+                        // With ConfigurationType property:
+                        // Try and resolve property and key, in that order
+                        resolved = TryResolveType( configTypeProperty );
+                        if( resolved == null )
+                        {
+                            resolved = TryResolveType( hConfig.Key );
+                        }
+                    }
                     if( resolved == null )
                     {
-                        ActivityMonitor.CriticalErrorCollector.Add( new CKException( $"Unable to resolve type '{hConfig.Key}'." ), nameof(GrandOutputConfigurationInitializer) );
+                        if( string.IsNullOrEmpty( configTypeProperty ) )
+                        {
+                            ActivityMonitor.CriticalErrorCollector.Add( new CKException( $"Unable to resolve type '{hConfig.Key}'." ), nameof( GrandOutputConfigurationInitializer ) );
+                        }
+                        else
+                        {
+                            ActivityMonitor.CriticalErrorCollector.Add( new CKException( $"Unable to resolve type '{configTypeProperty}' (from Handlers.{hConfig.Key}.ConfigurationType) or '{hConfig.Key}'." ), nameof( GrandOutputConfigurationInitializer ) );
+                        }
                         continue;
                     }
                     try

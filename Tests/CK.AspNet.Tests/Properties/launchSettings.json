@@ -1,11 +1,6 @@
 {
   "profiles": {
-    "GUI Debug": {
-      "commandName": "Executable",
-      "executablePath": "%USERPROFILE%\\.nuget\\packages\\nunit.runners.net4\\2.6.4\\tools\\nunit.exe",
-      "commandLineArgs": "CK.AspNet.Tests.dll"
-    },
-    "GUI Release": {
+    "NUnit.Runners.Net4": {
       "commandName": "Executable",
       "executablePath": "%USERPROFILE%\\.nuget\\packages\\nunit.runners.net4\\2.6.4\\tools\\nunit.exe",
       "commandLineArgs": "CK.AspNet.Tests.dll"
