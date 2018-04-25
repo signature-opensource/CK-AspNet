@@ -9,11 +9,11 @@
     <ProjectReference Include="..\..\CK.AspNet\CK.AspNet.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="CK.AspNet.Tester" Version="1.2.4-Cblank-0021" />
+    <PackageReference Include="CK.AspNet.Tester" Version="1.2.4-Cblank-0027" />
     <PackageReference Include="FluentAssertions" Version="5.2.0" />
     <PackageReference Include="NUnit" Version="3.10.1" />
     <PackageReference Include="NUnitLite" Version="3.10.1" />
-    <PackageReference Include="CK.ActivityMonitor.SimpleSender" Version="9.0.5-Cblank-0035" />
+    <PackageReference Include="CK.ActivityMonitor.SimpleSender" Version="9.0.5-Cblank-0036" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\$(OriginProjectName)\**\*.cs" Exclude="..\$(OriginProjectName)\obj\**;..\$(OriginProjectName)\bin\**">
