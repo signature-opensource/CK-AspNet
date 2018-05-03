@@ -364,6 +364,59 @@ namespace CK.AspNet.Tests
             //.And.Contain( "I'm an unhandled exception." );
         }
 
+
+
+        [Test]
+        public async Task GrandOutput_dynamic_configuration_with_a_handler_using_the_configurationtype_property()
+        {
+            const string c1 = @"{ ""Monitoring"": {
+                                    ""GrandOutput"": {
+                                        ""Handlers"": {
+                                            ""Handler1"": {
+                                                ""ConfigurationType"": ""TextFile"",
+                                                ""Path"": ""configurationtype_prop_test_1""
+                                            },
+                                            ""TextFile"": {
+                                                ""ConfigurationType"": ""NonexistingTypeUsesKeyInstead!"",
+                                                ""Path"": ""configurationtype_prop_test_2""
+                                            }
+                                        }
+                                    }
+                                 }
+                              }";
+
+            var config = new DynamicJsonConfigurationSource( c1 );
+
+            string logPath1 = Path.Combine( LogFile.RootLogPath, "configurationtype_prop_test_1" );
+            string logPath2 = Path.Combine( LogFile.RootLogPath, "configurationtype_prop_test_2" );
+            if( Directory.Exists( logPath1 ) ) Directory.Delete( logPath1, true );
+            if( Directory.Exists( logPath2 ) ) Directory.Delete( logPath2, true );
+
+            using( var g = new GrandOutput( new GrandOutputConfiguration() ) )
+            {
+                Action<IActivityMonitor> autoRegisterer = m => g.EnsureGrandOutputClient( m );
+                ActivityMonitor.AutoConfiguration += autoRegisterer;
+
+                try
+                {
+                    using( var client = CreateServerWithUseMonitoring( config, g ) )
+                    {
+                        (await client.Get( "?sayHello&configurationtype_prop_test" )).Dispose();
+                    }
+                }
+                finally
+                {
+                    ActivityMonitor.AutoConfiguration -= autoRegisterer;
+                }
+            }
+
+            var log1 = Directory.EnumerateFiles( logPath1 ).Single();
+            File.ReadAllText( log1 ).Should().Contain( "/?sayHello&configurationtype_prop_test" );
+
+            var log2 = Directory.EnumerateFiles( logPath2 ).Single();
+            File.ReadAllText( log2 ).Should().Contain( "/?sayHello&configurationtype_prop_test" );
+        }
+
         public static DynamicJsonConfigurationSource CreateDynamicJsonConfigurationSource( string folderNameForTextLogs, out string logPath )
         {
             string c1 = $@"{{ ""Monitoring"": {{
