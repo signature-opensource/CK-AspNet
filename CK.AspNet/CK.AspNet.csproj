@@ -5,13 +5,13 @@
     <Description>Helpers for AspNet Core applications.</Description>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="CK.Monitoring" Version="9.0.0" />
+    <PackageReference Include="CK.Monitoring" Version="9.0.1" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.Hosting" Version="2.0.1" />
-    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="2.0.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Hosting" Version="2.0.3" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="2.0.2" />
   </ItemGroup>
   <ItemGroup Condition=" '$(TargetFramework)' == 'net461'">
-    <PackageReference Include="Microsoft.Extensions.DiagnosticAdapter" Version="2.0.0" />
+    <PackageReference Include="Microsoft.Extensions.DiagnosticAdapter" Version="2.0.1" />
   </ItemGroup>
 </Project>
