@@ -177,7 +177,7 @@ namespace CK.AspNet.Tests
             int rootExceptionCount = 0;
             try
             {
-                var b = WebHostBuilderFactory.Create( null, null,
+                var b = Tester.WebHostBuilderFactory.Create( null, null,
                     services =>
                     {
                         services.AddSingleton<StupidService>();
@@ -448,7 +448,7 @@ namespace CK.AspNet.Tests
             GrandOutput grandOutput = null,
             string monitoringConfigurationPath = "Monitoring" )
         {
-            var b = WebHostBuilderFactory.Create( null, null,
+            var b = Tester.WebHostBuilderFactory.Create( null, null,
                 services =>
                 {
                     services.AddSingleton<StupidService>();
