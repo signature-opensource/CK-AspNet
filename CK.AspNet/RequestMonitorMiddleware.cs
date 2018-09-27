@@ -39,10 +39,8 @@ namespace CK.AspNet
         /// </summary>
         /// <param name="ctx">The current context.</param>
         /// <returns>The awaitable.</returns>
-        public Task Invoke( HttpContext ctx )
+        public Task Invoke( HttpContext ctx, IActivityMonitor m )
         {
-            IActivityMonitor m = new ActivityMonitor();
-            ctx.Items.Add( typeof( IActivityMonitor ), m );
             _onStartRequest.Invoke( ctx, m );
             // There is no non generic TaskCompletionSource.
             TaskCompletionSource<bool> tcs = new TaskCompletionSource<bool>();

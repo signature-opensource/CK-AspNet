@@ -59,7 +59,8 @@ namespace CK.AspNet.Tests
             }
 
             var log = Directory.EnumerateFiles( logPath ).Single();
-            File.ReadAllText( log ).Should().Contain( "/?sayHello" );
+            var text = File.ReadAllText( log );
+            text.Should().Contain( "/?sayHello" ).And.Contain( "StupidMiddleware is here!" );
         }
 
         [TestCase( "{}" )]
@@ -96,11 +97,13 @@ namespace CK.AspNet.Tests
 
             var log1 = Directory.EnumerateFiles( logBefore ).Single();
             File.ReadAllText( log1 ).Should().Contain( "in_initial_config" )
-                                             .And.NotContain( "in_default_config" );
+                                             .And.NotContain( "in_default_config" )
+                                             .And.Contain( "StupidMiddleware is here!" );
 
             var log2 = Directory.EnumerateFiles( logDefault ).Single();
             File.ReadAllText( log2 ).Should().NotContain( "in_initial_config" )
-                                             .And.Contain( "in_default_config" );
+                                             .And.Contain( "in_default_config" )
+                                             .And.Contain( "StupidMiddleware is here!" );
         }
 
         [Test]
@@ -181,6 +184,7 @@ namespace CK.AspNet.Tests
                     services =>
                     {
                         services.AddSingleton<StupidService>();
+                        services.AddScoped<IActivityMonitor>( sp => new ActivityMonitor() );
                     },
                     app =>
                     {

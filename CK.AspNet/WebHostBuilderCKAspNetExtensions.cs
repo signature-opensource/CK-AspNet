@@ -1,20 +1,10 @@
+using CK.AspNet;
 using CK.Core;
 using CK.Monitoring;
-using Microsoft.AspNetCore.Hosting;
-using System;
-using System.Collections.Generic;
-using System.Text;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Configuration;
-using System.IO;
-using System.Diagnostics;
-using CK.AspNet;
-using CK.Monitoring.Handlers;
-using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.DependencyInjection.Extensions;
-using System.Linq;
-using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using System;
 
 namespace Microsoft.AspNetCore.Hosting
 {
@@ -135,6 +125,7 @@ namespace Microsoft.AspNetCore.Hosting
             return builder.ConfigureServices( services =>
             {
                 services.AddTransient<IStartupFilter>( _ => new PostInstanciationFilter( initializer ) );
+                services.AddScoped<IActivityMonitor>( sp => new ActivityMonitor() );
             } );
         }
 
