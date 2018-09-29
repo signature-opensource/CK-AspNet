@@ -13,8 +13,8 @@ namespace Microsoft.AspNetCore.Builder
     public static class ApplicationBuilderCKAspNetExtensions
     {
         /// <summary>
-        /// Configures the <see cref="RequestMonitorMiddleware"/> that will associate a <see cref="IActivityMonitor"/>
-        /// to each request.
+        /// Configures the <see cref="RequestMonitorMiddleware"/> that will catch any exceptions from the following
+        /// middlewares to the request's <see cref="IActivityMonitor"/>
         /// </summary>
         /// <param name="this">This application builder.</param>
         /// <param name="options">Optional configuration.</param>
@@ -25,8 +25,8 @@ namespace Microsoft.AspNetCore.Builder
         }
 
         /// <summary>
-        /// Configures the <see cref="RequestMonitorMiddleware"/> that will associate a <see cref="IActivityMonitor"/>
-        /// to each request.
+        /// Configures the <see cref="RequestMonitorMiddleware"/> that will catch any exceptions from the following
+        /// middlewares to the request's <see cref="IActivityMonitor"/>
         /// </summary>
         /// <param name="this">This application builder.</param>
         /// <param name="options">Configuration for options.</param>
