@@ -62,7 +62,7 @@ namespace Microsoft.AspNetCore.Hosting
         /// that must not be null nor be the <see cref="GrandOutput.Default"/> and bounds the configuration to a configuration section.
         /// This automatically registers a <see cref="IActivityMonitor"/> as a scoped service in the services.
         /// </summary>
-        /// <param name="builder">Web host builder</param>
+        /// <param name="builder">This Web host builder</param>
         /// <param name="grandOutput">The target <see cref="GrandOutput"/>.</param>
         /// <param name="section">The configuration section.</param>
         /// <returns>The builder.</returns>
@@ -73,6 +73,21 @@ namespace Microsoft.AspNetCore.Hosting
             if( section == null ) throw new ArgumentNullException( nameof( section ) );
             return DoUseMonitoring( builder, grandOutput, section );
         }
+
+        /// <summary>
+        /// Automatically provides a <see cref="ScopedHttpContext"/> service that enables scoped services
+        /// to use the HttpContext.
+        /// </summary>
+        /// <remarks>
+        /// This is much more efficient than the HttpContextAccessor. HttpContextAccessor remains the only
+        /// way to have a singleton service depends on the HttpContext and must NEVER be used. Singleton
+        /// services that MAY need the HttpContxt must be designed with explicit HttpContext method parameter 
+        /// injection.
+        /// A contrario, Scoped services CAN easily depend on the HttpContext thanks to this ScopedHttpContext.
+        /// </remarks>
+        /// <param name="builder">This Web host builder.</param>
+        /// <returns>The builder.</returns>
+        public static IWebHostBuilder UseScopedHttpContext( this IWebHostBuilder builder ) => ScopedHttpContext.Install( builder );
 
         class PostInstanciationFilter : IStartupFilter
         {
