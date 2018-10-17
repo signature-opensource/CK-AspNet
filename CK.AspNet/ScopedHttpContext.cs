@@ -2,7 +2,9 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using System;
+using System.Diagnostics;
 using System.Threading.Tasks;
 
 namespace CK.AspNet
@@ -12,14 +14,14 @@ namespace CK.AspNet
     /// This must be installed thanks to <see cref="WebHostBuilderCKAspNetExtensions.UseScopedHttpContext(IWebHostBuilder)"/>
     /// extension method.
     /// </summary>
-    public class ScopedHttpContext
+    public sealed class ScopedHttpContext
     {
         /// <summary>
         /// Gets the current HttpContext of the request.
         /// </summary>
         public HttpContext HttpContext { get; internal set; }
 
-        class Middleware
+        sealed class Middleware
         {
             readonly RequestDelegate _next;
 
@@ -30,18 +32,25 @@ namespace CK.AspNet
 
             public Task Invoke( HttpContext c, ScopedHttpContext p )
             {
+                Debug.Assert( p.HttpContext == null );
                 p.HttpContext = c;
                 return _next.Invoke( c );
             }
         }
 
-        class MiddleWareInstaller : IStartupFilter
+        sealed class MiddleWareInstaller : IStartupFilter
         {
+            static readonly string _uniqueKey = typeof( MiddleWareInstaller ).FullName;
+
             public Action<IApplicationBuilder> Configure( Action<IApplicationBuilder> next )
             {
                 return builder =>
                 {
-                    builder.UseMiddleware<Middleware>();
+                    if( !builder.Properties.ContainsKey( _uniqueKey ) )
+                    {
+                        builder.Properties.Add( _uniqueKey, null );
+                        builder.UseMiddleware<Middleware>();
+                    }
                     next( builder );
                 };
             }
@@ -49,11 +58,10 @@ namespace CK.AspNet
 
         internal static IWebHostBuilder Install( IWebHostBuilder builder )
         {
-
             return builder.ConfigureServices( services =>
             {
                 services.AddTransient<IStartupFilter>( _ => new MiddleWareInstaller() )
-                        .AddScoped<ScopedHttpContext>();
+                        .TryAddScoped<ScopedHttpContext>();
             } );
         }
 

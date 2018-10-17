@@ -78,6 +78,32 @@ namespace CK.AspNet.Tests
             testDone.Should().BeTrue();
         }
 
+#if DEBUG
+        // This test relies on a Debug.Assert in the injected middleware:
+        // it is useless in Release.
+        [Test]
+        public async Task duplicated_UseScopedHttpContext_are_ignored()
+        {
+            var builder = new WebHostBuilder();
+            builder.UseScopedHttpContext();
+            builder.UseScopedHttpContext();
+            builder.Configure( app =>
+            {
+                app.Run( context =>
+                {
+                    context.Response.StatusCode = (int)HttpStatusCode.Unused;
+                    return Task.CompletedTask;
+                } );
+            } );
+            using( var client = new TestServerClient( new TestServer( builder ) ) )
+            {
+                using( HttpResponseMessage test = await client.Get( "" ) )
+                {
+                    test.StatusCode.Should().Be( HttpStatusCode.Unused );
+                }
+            }
+        }
+#endif
 
     }
 }

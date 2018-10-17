@@ -4,6 +4,7 @@ using CK.Monitoring;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using System;
 
 namespace Microsoft.AspNetCore.Hosting
@@ -143,7 +144,7 @@ namespace Microsoft.AspNetCore.Hosting
             return builder.ConfigureServices( services =>
             {
                 services.AddTransient<IStartupFilter>( _ => new PostInstanciationFilter( initializer ) );
-                services.AddScoped<IActivityMonitor>( sp => new ActivityMonitor() );
+                services.TryAddScoped<IActivityMonitor>( sp => new ActivityMonitor() );
             } );
         }
 

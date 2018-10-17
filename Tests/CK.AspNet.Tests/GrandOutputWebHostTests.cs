@@ -196,7 +196,7 @@ namespace CK.AspNet.Tests
                             {
                                 await next.Invoke();
                             }
-                            catch( Exception ex )
+                            catch( Exception )
                             {
                                 ++rootExceptionCount;
                                 context.Response.StatusCode = StatusCodes.Status500InternalServerError;
