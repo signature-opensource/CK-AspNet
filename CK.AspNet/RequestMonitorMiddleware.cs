@@ -11,7 +11,7 @@ namespace CK.AspNet
     /// <summary>
     /// Handles monitor creation associated to the context.
     /// </summary>
-    public class RequestMonitorMiddleware
+    public sealed class RequestMonitorMiddleware
     {
         readonly RequestDelegate _next;
         readonly RequestMonitorMiddlewareOptions _options;

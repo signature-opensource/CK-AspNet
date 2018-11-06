@@ -8,7 +8,7 @@ namespace CK.AspNet
     /// This <see cref="ILoggerProvider"/> implementation routes
     /// logs to GrandOutput.ExternalLogs.
     /// </summary>
-    class AspNetLoggerProvider : ILoggerProvider
+    sealed class AspNetLoggerProvider : ILoggerProvider
     {
         readonly GrandOutput _grandOutput;
         internal bool Running;

@@ -7,7 +7,7 @@ namespace CK.AspNet
     /// <summary>
     /// The <see cref="ILogger"/> for the <see cref="GrandOutput"/>.
     /// </summary>
-    class AspNetLogger : ILogger
+    sealed class AspNetLogger : ILogger
     {
         readonly string _categoryName;
         readonly GrandOutput _output;
