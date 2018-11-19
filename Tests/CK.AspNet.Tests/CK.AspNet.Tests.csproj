@@ -11,7 +11,7 @@
   <ItemGroup>
     <PackageReference Include="CK.AspNet.Tester" Version="2.1.3--0017-local" />
     <PackageReference Include="FluentAssertions" Version="5.4.1" />
-    <PackageReference Include="CK.ActivityMonitor.SimpleSender" Version="10.1.2--0036-local" />
+    <PackageReference Include="CK.ActivityMonitor.SimpleSender" Version="10.1.2--0038-local" />
     <PackageReference Include="NUnit" Version="[2.6.4]" />
   </ItemGroup>
   <ItemGroup>
