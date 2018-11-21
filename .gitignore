@@ -254,3 +254,8 @@ CodeCakeBuilder/Tools/
 Tests/WebApp/WebAppLogs/
 Tests/CK.AspNet.Tests/TestResult*.xml
 Tests/WebAppNet461/Logs/
+
+Tests/**/TestResult*.xml
+CodeCakeBuilder/UnitTestsDone.*.txt
+Tests/**/Logs/
+Tests/**/CKSetup-WorkingDir/
