@@ -9,9 +9,9 @@
     <ProjectReference Include="..\..\CK.AspNet\CK.AspNet.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="CK.AspNet.Tester" Version="2.1.3--0031-develop" />
+    <PackageReference Include="CK.AspNet.Tester" Version="2.1.3--0032-develop" />
     <PackageReference Include="FluentAssertions" Version="5.4.1" />
-    <PackageReference Include="CK.ActivityMonitor.SimpleSender" Version="10.1.2--0072-develop" />
+    <PackageReference Include="CK.ActivityMonitor.SimpleSender" Version="10.1.2--0074-develop" />
     <PackageReference Include="NUnit" Version="[2.6.4]" />
   </ItemGroup>
   <ItemGroup>
