@@ -59,7 +59,8 @@ namespace CK.AspNet.Tests
             }
 
             var log = Directory.EnumerateFiles( logPath ).Single();
-            File.ReadAllText( log ).Should().Contain( "/?sayHello" );
+            var text = File.ReadAllText( log );
+            text.Should().Contain( "/?sayHello" ).And.Contain( "StupidMiddleware is here!" );
         }
 
         [TestCase( "{}" )]
@@ -96,11 +97,13 @@ namespace CK.AspNet.Tests
 
             var log1 = Directory.EnumerateFiles( logBefore ).Single();
             File.ReadAllText( log1 ).Should().Contain( "in_initial_config" )
-                                             .And.NotContain( "in_default_config" );
+                                             .And.NotContain( "in_default_config" )
+                                             .And.Contain( "StupidMiddleware is here!" );
 
             var log2 = Directory.EnumerateFiles( logDefault ).Single();
             File.ReadAllText( log2 ).Should().NotContain( "in_initial_config" )
-                                             .And.Contain( "in_default_config" );
+                                             .And.Contain( "in_default_config" )
+                                             .And.Contain( "StupidMiddleware is here!" );
         }
 
         [Test]
@@ -181,6 +184,9 @@ namespace CK.AspNet.Tests
                     services =>
                     {
                         services.AddSingleton<StupidService>();
+                        // This test does not use the IWebHostBuilder.UseMonitoring().
+                        // We must inject the IActivityMonitor explicitly.
+                        services.AddScoped<IActivityMonitor>( _ => new ActivityMonitor() );
                     },
                     app =>
                     {
@@ -190,7 +196,7 @@ namespace CK.AspNet.Tests
                             {
                                 await next.Invoke();
                             }
-                            catch
+                            catch( Exception )
                             {
                                 ++rootExceptionCount;
                                 context.Response.StatusCode = StatusCodes.Status500InternalServerError;
@@ -204,13 +210,14 @@ namespace CK.AspNet.Tests
                     using( HttpResponseMessage bug = await client.Get( "?bug" ) )
                     {
                         bug.StatusCode.Should().Be( HttpStatusCode.InternalServerError );
-                        text.GetText().Should().Contain( "Bug!" );
-
+                        var t = text.GetText();
+                        t.Should().Contain( "Bug!" );
                     }
                     using( HttpResponseMessage asyncBug = await client.Get( "?asyncBug" ) )
                     {
                         asyncBug.StatusCode.Should().Be( HttpStatusCode.InternalServerError );
-                        text.GetText().Should().Contain( "AsyncBug!" );
+                        var t = text.GetText();
+                        t.Should().Contain( "AsyncBug!" );
                     }
                 }
             }
@@ -437,7 +444,7 @@ namespace CK.AspNet.Tests
         }
 
         /// <summary>
-        /// Creates a TestServerClient with the GrandOutput.Default or witn a explicit instance.
+        /// Creates a TestServerClient with the GrandOutput.Default or with a explicit instance.
         /// </summary>
         /// <param name="config">Configuration to use. Can be null.</param>
         /// <param name="grandOutput">Explicit instance (null for the GrandOutput.Default).</param>

@@ -13,7 +13,7 @@ using System.Threading.Tasks;
 
 namespace CK.AspNet
 {
-    internal class GrandOutputConfigurationInitializer
+    sealed class GrandOutputConfigurationInitializer
     {
         readonly GrandOutput _target;
         readonly AspNetLoggerProvider _loggerProvider;
@@ -26,7 +26,7 @@ namespace CK.AspNet
         IDisposable _listenerSubscription;
         ConcurrentBag<IDisposable> _subscriptions;
 
-        class LogObserver<T> : IObserver<T>
+        sealed class LogObserver<T> : IObserver<T>
         {
             Action<T> _callback;
             public LogObserver( Action<T> callback ) { _callback = callback; }
@@ -141,7 +141,7 @@ namespace CK.AspNet
                     // we ignore the key is this case.
                     string value = hConfig.Value;
                     if( !String.IsNullOrWhiteSpace( value )
-                        && String.Equals( value, "False", StringComparison.OrdinalIgnoreCase ) ) continue;
+                        && String.Equals( value, "false", StringComparison.OrdinalIgnoreCase ) ) continue;
 
                     // Resolve configuration type using one of two available strings:
                     // 1. From "ConfigurationType" property, inside the value object

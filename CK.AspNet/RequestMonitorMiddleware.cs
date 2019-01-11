@@ -11,7 +11,7 @@ namespace CK.AspNet
     /// <summary>
     /// Handles monitor creation associated to the context.
     /// </summary>
-    public class RequestMonitorMiddleware
+    public sealed class RequestMonitorMiddleware
     {
         readonly RequestDelegate _next;
         readonly RequestMonitorMiddlewareOptions _options;
@@ -38,14 +38,13 @@ namespace CK.AspNet
         /// and handles error or cancelation.
         /// </summary>
         /// <param name="ctx">The current context.</param>
+        /// <param name="m">The request scoped monitor.</param>
         /// <returns>The awaitable.</returns>
-        public Task Invoke( HttpContext ctx )
+        public Task Invoke( HttpContext ctx, IActivityMonitor m = null )
         {
-            IActivityMonitor m = new ActivityMonitor();
-            ctx.Items.Add( typeof( IActivityMonitor ), m );
             _onStartRequest.Invoke( ctx, m );
             // There is no non generic TaskCompletionSource.
-            TaskCompletionSource<bool> tcs = new TaskCompletionSource<bool>();
+            TaskCompletionSource<object> tcs = new TaskCompletionSource<object>();
             // Try/catch is required to handle any synchronous exception.
             try
             {
@@ -65,7 +64,7 @@ namespace CK.AspNet
                         else _onRequestError( ctx, m, e );
                         _onEndRequest.Invoke( ctx, m, t.Status );
                         if( _options.SwallowErrors )
-                            tcs.SetResult( false );
+                            tcs.SetResult( null );
                         else tcs.SetException( t.Exception );
                     }
                     else
@@ -80,7 +79,7 @@ namespace CK.AspNet
                 _onRequestError( ctx, m, ex );
                 _onEndRequest.Invoke( ctx, m, TaskStatus.Faulted );
                 if( _options.SwallowErrors )
-                    tcs.SetResult( false );
+                    tcs.SetResult( null );
                 else tcs.SetException( ex );
             }
             return tcs.Task;

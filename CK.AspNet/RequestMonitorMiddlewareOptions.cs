@@ -11,7 +11,7 @@ namespace CK.AspNet
     /// <summary>
     /// Options for the <see cref="RequestMonitorMiddleware"/>.
     /// </summary>
-    public class RequestMonitorMiddlewareOptions
+    public sealed class RequestMonitorMiddlewareOptions
     {
         /// <summary>
         /// Gets or sets a replacement of the request start action.
