@@ -14,7 +14,8 @@ namespace CK.AspNet.Tests
     public class TextGrandOutputHandler : IGrandOutputHandler
     {
         TextGrandOutputHandlerConfiguration _config;
-        readonly MulticastLogEntryTextBuilder _builder = new MulticastLogEntryTextBuilder();
+        readonly MulticastLogEntryTextBuilder _formatter = new MulticastLogEntryTextBuilder( false, false );
+        readonly StringBuilder _builder = new StringBuilder();
 
         /// <summary>
         /// Initializes a new <see cref="TextGrandOutputHandler"/>.
@@ -23,6 +24,7 @@ namespace CK.AspNet.Tests
         public TextGrandOutputHandler( TextGrandOutputHandlerConfiguration config )
         {
             _config = config;
+            _builder = new StringBuilder();
         }
 
         bool IGrandOutputHandler.Activate( IActivityMonitor m ) => true;
@@ -38,15 +40,15 @@ namespace CK.AspNet.Tests
             return false;
         }
 
-        void IGrandOutputHandler.Deactivate( IActivityMonitor m ) => _config.FromSink( _builder.Builder, true );
+        void IGrandOutputHandler.Deactivate( IActivityMonitor m ) => _config.FromSink( _builder, true );
 
         void IGrandOutputHandler.Handle( IActivityMonitor m, GrandOutputEventInfo logEvent )
         {
-            _builder.AppendEntry( logEvent.Entry );
-            _config.FromSink( _builder.Builder, false );
+            _builder.Append( _formatter.FormatEntryString( logEvent.Entry ) );
+            _config.FromSink( _builder, false );
         }
 
-        void IGrandOutputHandler.OnTimer( IActivityMonitor m, TimeSpan timerSpan ) => _config.FromSink( _builder.Builder, false );
+        void IGrandOutputHandler.OnTimer( IActivityMonitor m, TimeSpan timerSpan ) => _config.FromSink( _builder, false );
 
     }
 }
