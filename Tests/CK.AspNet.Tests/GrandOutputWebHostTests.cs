@@ -29,7 +29,7 @@ namespace CK.AspNet.Tests
     [TestFixture]
     public class GrandOutputWebHostTests
     {
-        [SetUp]
+        [OneTimeSetUp]
         public void cleanup_default_text_logs()
         {
             string logDefault = Path.Combine( LogFile.RootLogPath, "Text" );
