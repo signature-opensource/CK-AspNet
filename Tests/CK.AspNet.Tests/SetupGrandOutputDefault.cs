@@ -13,11 +13,7 @@ namespace CK.AspNet.Tests
     [SetUpFixture]
     public class SetupGrandOutputDefault
     {
-#if NET461
-        [SetUp]
-#else
         [OneTimeSetUp]
-#endif
         public void GrandOutput_Default_should_be_configured_with_default_values()
         {
             using( var client = GrandOutputWebHostTests.CreateServerWithUseMonitoring( null ) )
