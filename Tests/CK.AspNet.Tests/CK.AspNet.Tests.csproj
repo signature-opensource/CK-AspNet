@@ -1,9 +1,10 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <Import Project="..\..\Common\Shared.props" />
   <PropertyGroup>
     <TargetFramework>net461</TargetFramework>
     <GenerateBindingRedirectsOutputType>true</GenerateBindingRedirectsOutputType>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+    <IsPackable>false</IsPackable>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\CK.AspNet\CK.AspNet.csproj" />
