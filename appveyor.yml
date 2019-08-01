@@ -21,7 +21,5 @@ artifacts:
     name: Visual studio test results file
   - path: '**\Tests\**\TestResult*.xml'
     name: NUnit tests result files
-  - path: '**\Tests\**\TestResult*.xml'
-    name: NUnit tests result files
   - path: '**Tests\**\Logs\**\*'
     name: Log files
