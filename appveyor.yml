@@ -23,5 +23,5 @@ artifacts:
     name: NUnit tests result files
   - path: '**\Tests\**\TestResult*.xml'
     name: NUnit tests result files
-  - path: '**Tests\**\Logs\**'
+  - path: '**Tests\**\Logs\**\*'
     name: Log files
