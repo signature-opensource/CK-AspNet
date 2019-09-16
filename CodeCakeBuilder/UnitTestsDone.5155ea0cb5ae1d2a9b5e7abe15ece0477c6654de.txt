@@ -1,0 +1,1 @@
+C:/Dev/CK/CK-AspNet-Projects/CK-AspNet/Tests/CK.AspNet.Tests/bin/Debug/net461/CK.AspNet.Tests.dll
