@@ -23,7 +23,7 @@ namespace WebApp
             {
                 app.UseDeveloperExceptionPage();
             }
-            app.UseRequestMonitor();
+            app.UseGuardRequestMonitor();
 
             app.Run( async ( context ) =>
              {
