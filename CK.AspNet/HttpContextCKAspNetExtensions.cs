@@ -9,7 +9,7 @@ namespace CK.AspNet
         [Obsolete(
 @"IActivityMonitor is now registered as a scoped service in the DI container.
 Please use injection instead of serviceProvider.GetService<IActivityMonitor>()
-(that is service locator anti-pattern).", true )]
+(this GetRequestMonitor is service locator anti-pattern).", true )]
         public static IActivityMonitor GetRequestMonitor( this HttpContext @this )
         {
             return @this.RequestServices.GetService<IActivityMonitor>( false );

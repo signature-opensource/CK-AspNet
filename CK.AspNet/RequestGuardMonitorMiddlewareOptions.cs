@@ -9,9 +9,9 @@ using System.Threading.Tasks;
 namespace CK.AspNet
 {
     /// <summary>
-    /// Options for the <see cref="RequestMonitorMiddleware"/>.
+    /// Options for the <see cref="RequestGuardMonitorMiddleware"/>.
     /// </summary>
-    public sealed class RequestMonitorMiddlewareOptions
+    public sealed class RequestGuardMonitorMiddlewareOptions
     {
         /// <summary>
         /// Gets or sets a replacement of the request start action.
@@ -26,7 +26,7 @@ namespace CK.AspNet
         /// the exception).
         /// By default, <see cref="ActivityMonitorExtension.MonitorEnd"/> is called on the the request monitor.
         /// </summary>
-        public Action<HttpContext, IActivityMonitor,TaskStatus> OnEndRequest { get; set; }
+        public Action<HttpContext, IActivityMonitor, TaskStatus> OnEndRequest { get; set; }
 
         /// <summary>
         /// Gets or sets a replacement of the request error action.
@@ -39,7 +39,7 @@ namespace CK.AspNet
         /// <summary>
         /// Gets or sets whether exceptions triggered by the next middlewares in the pipeline
         /// must be thrown or only handled by <see cref="OnRequestError"/>.
-        /// Defaults to false: middlewares registered before the <see cref="RequestMonitorMiddleware"/> will
+        /// Defaults to false: middlewares registered before the <see cref="RequestGuardMonitorMiddleware"/> will
         /// by default also receive exceptions.
         /// </summary>
         public bool SwallowErrors { get; set; }

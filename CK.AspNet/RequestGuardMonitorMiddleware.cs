@@ -4,27 +4,31 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 using CK.Core;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Options;
 
 namespace CK.AspNet
 {
     /// <summary>
-    /// Handles monitor creation associated to the context.
+    /// Acts as an error guard in midleware pipeline: any exceptions raised by next middlewares are
+    /// logged into the current (scoped) request monitor that is installed by <see cref="WebHostBuilderCKAspNetExtensions.UseMonitoring(IWebHostBuilder, string)">WebHostBuilder.UseMonitoring</see>
+    /// extension method.
+    /// By default, execution errors are not swallowed but this can be changed thanks to the <see cref="RequestGuardMonitorMiddlewareOptions.SwallowErrors"/> option.
     /// </summary>
-    public sealed class RequestMonitorMiddleware
+    public sealed class RequestGuardMonitorMiddleware
     {
         readonly RequestDelegate _next;
-        readonly RequestMonitorMiddlewareOptions _options;
+        readonly RequestGuardMonitorMiddlewareOptions _options;
         readonly Action<HttpContext, IActivityMonitor> _onStartRequest;
         readonly Action<HttpContext, IActivityMonitor, TaskStatus> _onEndRequest;
         readonly Action<HttpContext, IActivityMonitor, Exception> _onRequestError;
 
         /// <summary>
-        /// Initializes a new <see cref="RequestMonitorMiddleware"/> with options.
+        /// Initializes a new <see cref="RequestGuardMonitorMiddleware"/> with options.
         /// </summary>
         /// <param name="next">Next middleware.</param>
         /// <param name="options">Options.</param>
-        public RequestMonitorMiddleware( RequestDelegate next, RequestMonitorMiddlewareOptions options )
+        public RequestGuardMonitorMiddleware( RequestDelegate next, RequestGuardMonitorMiddlewareOptions options )
         {
             _next = next;
             _options = options;
@@ -34,13 +38,13 @@ namespace CK.AspNet
         }
 
         /// <summary>
-        /// Creates and configures the monitor, invokes the next request handler 
-        /// and handles error or cancelation.
+        /// Invokes the next request handler and logs any error.
+        /// The exception is rethrown or swallowed depending on <see cref="RequestGuardMonitorMiddlewareOptions.SwallowErrors"/>.
         /// </summary>
         /// <param name="ctx">The current context.</param>
         /// <param name="m">The request scoped monitor.</param>
         /// <returns>The awaitable.</returns>
-        public Task Invoke( HttpContext ctx, IActivityMonitor m = null )
+        public Task Invoke( HttpContext ctx, IActivityMonitor m )
         {
             _onStartRequest.Invoke( ctx, m );
             // There is no non generic TaskCompletionSource.
