@@ -202,7 +202,7 @@ namespace CK.AspNet.Tests
                                 context.Response.StatusCode = StatusCodes.Status500InternalServerError;
                             }
                         } );
-                        app.UseRequestMonitor( o => { o.SwallowErrors = swallow; } );
+                        app.UseGuardRequestMonitor( o => { o.SwallowErrors = swallow; } );
                         app.UseMiddleware<StupidMiddleware>();
                     } );
                 using( var client = new TestServerClient( new TestServer( b ) ) )
@@ -462,7 +462,7 @@ namespace CK.AspNet.Tests
                 },
                 app =>
                 {
-                    app.UseRequestMonitor( opts =>
+                    app.UseGuardRequestMonitor( opts =>
                     {
                         opts.OnStartRequest = ( ctx, m ) =>
                                     m.UnfilteredLog( null, Core.LogLevel.Info, "Request Started: " + ctx.Request.Path + ctx.Request.QueryString.ToString(), m.NextLogTime(), null );
