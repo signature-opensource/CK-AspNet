@@ -23,8 +23,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CodeCakeBuilder", "CodeCake
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WebApp", "Tests\WebApp\WebApp.csproj", "{90BEF218-C7A4-4BC0-BCEC-8DDC1A0B2F0C}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WebAppNet461", "Tests\WebAppNet461\WebAppNet461.csproj", "{9C6FC867-8641-46EC-805C-94057FC2F98D}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -47,10 +45,6 @@ Global
 		{90BEF218-C7A4-4BC0-BCEC-8DDC1A0B2F0C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{90BEF218-C7A4-4BC0-BCEC-8DDC1A0B2F0C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{90BEF218-C7A4-4BC0-BCEC-8DDC1A0B2F0C}.Release|Any CPU.Build.0 = Release|Any CPU
-		{9C6FC867-8641-46EC-805C-94057FC2F98D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{9C6FC867-8641-46EC-805C-94057FC2F98D}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{9C6FC867-8641-46EC-805C-94057FC2F98D}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{9C6FC867-8641-46EC-805C-94057FC2F98D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -58,7 +52,6 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{29BB9615-4CA6-4FE7-9D83-E1A2375E596D} = {1A7E3E39-6483-4802-8B27-C4D245D35D09}
 		{90BEF218-C7A4-4BC0-BCEC-8DDC1A0B2F0C} = {1A7E3E39-6483-4802-8B27-C4D245D35D09}
-		{9C6FC867-8641-46EC-805C-94057FC2F98D} = {1A7E3E39-6483-4802-8B27-C4D245D35D09}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {39625DF9-0D4A-49B5-83F8-14557B157E88}
