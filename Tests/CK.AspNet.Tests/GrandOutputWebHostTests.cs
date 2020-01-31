@@ -23,6 +23,7 @@ using System.Net;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using CK.AspNet.Tester;
+using CK.Monitoring.Hosting;
 
 namespace CK.AspNet.Tests
 {
@@ -184,7 +185,7 @@ namespace CK.AspNet.Tests
                     services =>
                     {
                         services.AddSingleton<StupidService>();
-                        // This test does not use the IWebHostBuilder.UseMonitoring().
+                        // This test does not use the IHostBuilder.UseMonitoring().
                         // We must inject the IActivityMonitor explicitly.
                         services.AddScoped<IActivityMonitor>( _ => new ActivityMonitor() );
                     },
@@ -476,14 +477,14 @@ namespace CK.AspNet.Tests
                     configBuilder.Add( config );
                 } );
             }
-            if( grandOutput == null )
-            {
-                b.UseMonitoring( monitoringConfigurationPath );
-            }
-            else
-            {
-                b.UseMonitoring( grandOutput, monitoringConfigurationPath );
-            }
+            //if( grandOutput == null )
+            //{
+            //    b.UseMonitoring( monitoringConfigurationPath );
+            //}
+            //else
+            //{
+            //    b.UseMonitoring( grandOutput, monitoringConfigurationPath );
+            //}
             return new TestServerClient( new TestServer( b ), disposeTestServer: true );
         }
 
