@@ -5,8 +5,8 @@
     <Description>Helpers for AspNet Core applications.</Description>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="CK.Monitoring" Version="12.0.0-a00-00-0004-develop" />
-    <PackageReference Include="CK.Monitoring.Hosting" Version="12.0.0-a00-00-0004-develop" />
+    <PackageReference Include="CK.Monitoring" Version="0.0.0--02nr9cw-local+v12.0.0-a" />
+    <PackageReference Include="CK.Monitoring.Hosting" Version="0.0.0--02nr9cw-local+v12.0.0-a" />
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 </Project>
