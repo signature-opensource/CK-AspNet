@@ -35,49 +35,42 @@ namespace CK.AspNet.Tests
         public async Task there_is_no_scoped_HttpContext_injection_by_default( string mode )
         {
             bool testDone = false;
-            var webBuilder = new HostBuilder();
-            webBuilder.ConfigureServices( services =>
-            {
-                services.AddScoped<HttpContextDependentService>();
-            } );
-
-            webBuilder.ConfigureWebHostDefaults( configure =>
-            {
-                configure.Configure( conf =>
-                 {
-                     conf.Use( ( context, next ) =>
-                     {
-                         try
-                         {
-                             var s = context.RequestServices.GetService<HttpContextDependentService>( true );
-                             s.HttpContextIsHere.Should().BeTrue();
-                             mode.Should().Be( "WithScopedHttpContext" );
-                             testDone = true;
-                         }
-                         catch( InvalidOperationException ex )
-                         {
-                             ex.Message.Should().Be( "Unable to resolve service for type 'CK.AspNet.ScopedHttpContext' while attempting to activate 'CK.AspNet.Tests.HttpContextDependentService'." );
-                             mode.Should().Be( "NoScopedHttpContext" );
-                             testDone = true;
-                         }
-                         return next();
-                     } );
-                     conf.Run( context =>
-                     {
-                         context.Response.StatusCode = (int)HttpStatusCode.Unused;
-                         return Task.CompletedTask;
-                     } );
-                 } );
-
-            } );
 
             using( IHost host = await new HostBuilder().ConfigureWebHost( webBuilder =>
             {
+                webBuilder
+                .ConfigureServices( services => services.AddScoped<HttpContextDependentService>() )
+                .Configure( conf =>
+                    {
+                        conf.Use( ( context, next ) =>
+                        {
+                            try
+                            {
+                                var s = context.RequestServices.GetService<HttpContextDependentService>( true );
+                                s.HttpContextIsHere.Should().BeTrue();
+                                mode.Should().Be( "WithScopedHttpContext" );
+                                testDone = true;
+                            }
+                            catch( InvalidOperationException ex )
+                            {
+                                ex.Message.Should().Be( "Unable to resolve service for type 'CK.AspNet.ScopedHttpContext' while attempting to activate 'CK.AspNet.Tests.HttpContextDependentService'." );
+                                mode.Should().Be( "NoScopedHttpContext" );
+                                testDone = true;
+                            }
+                            return next();
+                        } );
+                        conf.Run( context =>
+                        {
+                            context.Response.StatusCode = (int)HttpStatusCode.Unused;
+                            return Task.CompletedTask;
+                        } );
+                    }
+                ).UseTestServer();
                 if( mode == "WithScopedHttpContext" )
                 {
                     webBuilder.UseScopedHttpContext();
                 }
-                webBuilder.UseTestServer();
+                
             } ).StartAsync() )
             using( var client = new TestServerClient( host ) )
             using( HttpResponseMessage test = await client.Get( "" ) )
