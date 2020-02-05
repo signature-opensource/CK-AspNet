@@ -16,7 +16,7 @@ namespace CK.AspNet.Tests
         [OneTimeSetUp]
         public void GrandOutput_Default_should_be_configured_with_default_values()
         {
-            using( var client = GrandOutputWebHostTests.CreateServerWithUseMonitoring( null ) )
+            using( Tester.TestServerClient client = GrandOutputWebHostTests.CreateServerWithUseMonitoring( null ) )
             {
                 LogFile.RootLogPath.Should().NotBeNull().And.EndWith( Path.DirectorySeparatorChar + "Logs" + Path.DirectorySeparatorChar );
                 GrandOutput.Default.Should().NotBeNull();
