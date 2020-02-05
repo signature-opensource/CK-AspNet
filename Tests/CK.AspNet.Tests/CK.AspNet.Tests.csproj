@@ -12,6 +12,7 @@
     <PackageReference Include="FluentAssertions" Version="5.9.0" />
     <PackageReference Include="CK.ActivityMonitor.SimpleSender" Version="13.0.0-a00-00-0018-develop" />
     <PackageReference Include="CK.Monitoring.Hosting" Version="12.0.0-a00-00-0019-develop" />
+    <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="3.1.1" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.4.0" />
     <PackageReference Include="NUnit" Version="3.12.0" />
     <PackageReference Include="NUnit3TestAdapter" Version="3.16.1" />

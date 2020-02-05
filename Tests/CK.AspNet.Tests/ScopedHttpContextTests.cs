@@ -79,7 +79,7 @@ namespace CK.AspNet.Tests
                 }
                 webBuilder.UseTestServer();
             } ).StartAsync() )
-            using( var client = new TestServerClient( host.GetTestServer() ) )
+            using( var client = new TestServerClient( host ) )
             using( HttpResponseMessage test = await client.Get( "" ) )
             {
                 test.StatusCode.Should().Be( HttpStatusCode.Unused );
@@ -109,7 +109,7 @@ namespace CK.AspNet.Tests
                     } );
                 }
             ).StartAsync() )
-            using( var client = new TestServerClient( host.GetTestServer() ) )
+            using( var client = new TestServerClient( host ) )
             {
                 using( HttpResponseMessage test = await client.Get( "" ) )
                 {
