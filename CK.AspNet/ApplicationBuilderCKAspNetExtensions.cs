@@ -1,10 +1,10 @@
-using CK.AspNet;
 using CK.Core;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
 using System;
 using Microsoft.AspNetCore.Hosting;
+using CK.AspNet;
 
 namespace Microsoft.AspNetCore.Builder
 {
@@ -13,16 +13,10 @@ namespace Microsoft.AspNetCore.Builder
     /// </summary>
     public static class ApplicationBuilderCKAspNetExtensions
     {
-        [Obsolete( "Use 'UseGuardRequestMonitor' instead.", true)]
-        public static IApplicationBuilder UseRequestMonitor( this IApplicationBuilder @this, RequestGuardMonitorMiddlewareOptions options = null ) => UseGuardRequestMonitor( @this, options );
-
-        [Obsolete( "Use 'UseGuardRequestMonitor' instead.", true)]
-        public static IApplicationBuilder UseRequestMonitor( this IApplicationBuilder @this, Action<RequestGuardMonitorMiddlewareOptions> options ) => UseGuardRequestMonitor( @this, options );
-
         /// <summary>
         /// Configures the <see cref="RequestGuardMonitorMiddleware"/> that will catch any exceptions from the following
         /// middlewares to the request's <see cref="IActivityMonitor"/>.
-        /// Note that <see cref="WebHostBuilderCKAspNetExtensions.UseMonitoring(IWebHostBuilder, string)">WebHostBuilder.UseMonitoring</see> must have been
+        /// Note that <see cref="WebHostBuilderCKAspNetExtensions.UseMonitoring(IHostBuilder, string)">WebHostBuilder.UseMonitoring</see> must have been
         /// called on the builder.
         /// </summary>
         /// <param name="this">This application builder.</param>
@@ -36,7 +30,7 @@ namespace Microsoft.AspNetCore.Builder
         /// <summary>
         /// Configures the <see cref="RequestGuardMonitorMiddleware"/> that will catch any exceptions from the following
         /// middlewares to the request's <see cref="IActivityMonitor"/>.
-        /// Note that <see cref="WebHostBuilderCKAspNetExtensions.UseMonitoring(IWebHostBuilder, string)">WebHostBuilder.UseMonitoring</see> must have been
+        /// Note that <see cref="WebHostBuilderCKAspNetExtensions.UseMonitoring(IHostBuilder, string)">WebHostBuilder.UseMonitoring</see> must have been
         /// called on the builder.
         /// </summary>
         /// <param name="this">This application builder.</param>
