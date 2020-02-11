@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using CK.AspNet;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Hosting;
 
 namespace WebApp
 {
@@ -17,7 +18,7 @@ namespace WebApp
         {
         }
 
-        public void Configure( IApplicationBuilder app, IHostingEnvironment env )
+        public void Configure( IApplicationBuilder app, IWebHostEnvironment env )
         {
             if( env.IsDevelopment() )
             {

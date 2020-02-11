@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace WebApp
@@ -15,19 +16,21 @@ namespace WebApp
         public static void Main( string[] args )
         {
             {
-                var host = new WebHostBuilder()
-                    .UseKestrel()
-                    .UseContentRoot( Directory.GetCurrentDirectory() )
-                    .ConfigureLogging( b =>
-                    {
-                        b.SetMinimumLevel( Microsoft.Extensions.Logging.LogLevel.Trace );
-                    } )
-                    .ConfigureAppConfiguration( c => c.AddJsonFile( "appsettings.json", true, true ) )
+                var host = Host.CreateDefaultBuilder( args )
+                    .ConfigureWebHostDefaults(
+                        webHostBuilder => webHostBuilder
+                        .UseKestrel()
+                        .UseContentRoot( Directory.GetCurrentDirectory() )
+                        .ConfigureLogging( b =>
+                        {
+                            b.SetMinimumLevel( LogLevel.Trace );
+                        } )
+                        .ConfigureAppConfiguration( c => c.AddJsonFile( "appsettings.json", true, true ) )
+                        .UseIISIntegration()
+                        .UseStartup<Startup>()
+                    )
                     .UseMonitoring()
-                    .UseIISIntegration()
-                    .UseStartup<Startup>()
                     .Build();
-
                 host.Run();
             }
         }
