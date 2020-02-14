@@ -8,10 +8,10 @@
     <ProjectReference Include="..\..\CK.AspNet\CK.AspNet.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="CK.AspNet.Tester" Version="3.0.1--0000-develop" />
+    <PackageReference Include="CK.AspNet.Tester" Version="3.0.1--0001-develop" />
     <PackageReference Include="FluentAssertions" Version="5.10.2" />
     <PackageReference Include="CK.ActivityMonitor.SimpleSender" Version="13.0.1--0003-develop" />
-    <PackageReference Include="CK.Monitoring.Hosting" Version="12.0.1--0004-develop" />
+    <PackageReference Include="CK.Monitoring.Hosting" Version="12.0.1--0007-develop" />
     <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="3.1.1" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.5.0" />
     <PackageReference Include="NUnit" Version="3.12.0" />
