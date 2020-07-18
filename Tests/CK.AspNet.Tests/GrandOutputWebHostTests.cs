@@ -23,6 +23,8 @@ using System.Net;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using CK.AspNet.Tester;
+using CK.Monitoring.Hosting;
+using Microsoft.Extensions.Hosting;
 
 namespace CK.AspNet.Tests
 {
@@ -161,11 +163,11 @@ namespace CK.AspNet.Tests
                 }
             }
 
-            var log = Directory.EnumerateFiles( logPath).Single();
+            var log = Directory.EnumerateFiles( logPath ).Single();
             string text = File.ReadAllText( log );
             text.Should().Contain( "Activating: Hello 1." )
-                .And.Contain( "trace1")
-                .And.Contain( "Applying: Hello 1 => Hello 2.")
+                .And.Contain( "trace1" )
+                .And.Contain( "Applying: Hello 1 => Hello 2." )
                 .And.Contain( "trace2" );
         }
 
@@ -184,7 +186,7 @@ namespace CK.AspNet.Tests
                     services =>
                     {
                         services.AddSingleton<StupidService>();
-                        // This test does not use the IWebHostBuilder.UseMonitoring().
+                        // This test does not use the IHostBuilder.UseMonitoring().
                         // We must inject the IActivityMonitor explicitly.
                         services.AddScoped<IActivityMonitor>( _ => new ActivityMonitor() );
                     },
@@ -202,10 +204,10 @@ namespace CK.AspNet.Tests
                                 context.Response.StatusCode = StatusCodes.Status500InternalServerError;
                             }
                         } );
-                        app.UseRequestMonitor( o => { o.SwallowErrors = swallow; } );
+                        app.UseGuardRequestMonitor( o => { o.SwallowErrors = swallow; } );
                         app.UseMiddleware<StupidMiddleware>();
                     } );
-                using( var client = new TestServerClient( new TestServer( b ) ) )
+                using( var client = new TestServerClient( b.Start() ) )
                 {
                     using( HttpResponseMessage bug = await client.Get( "?bug" ) )
                     {
@@ -462,13 +464,14 @@ namespace CK.AspNet.Tests
                 },
                 app =>
                 {
-                    app.UseRequestMonitor( opts =>
+                    app.UseGuardRequestMonitor( opts =>
                     {
                         opts.OnStartRequest = ( ctx, m ) =>
                                     m.UnfilteredLog( null, Core.LogLevel.Info, "Request Started: " + ctx.Request.Path + ctx.Request.QueryString.ToString(), m.NextLogTime(), null );
                     } );
                     app.UseMiddleware<StupidMiddleware>();
-                } );
+                },
+                conf => conf.UseTestServer() );
             if( config != null )
             {
                 b.ConfigureAppConfiguration( ( ctx, configBuilder ) =>
@@ -484,7 +487,7 @@ namespace CK.AspNet.Tests
             {
                 b.UseMonitoring( grandOutput, monitoringConfigurationPath );
             }
-            return new TestServerClient( new TestServer( b ), disposeTestServer: true );
+            return new TestServerClient( b.Start(), disposeHost: true );
         }
 
     }

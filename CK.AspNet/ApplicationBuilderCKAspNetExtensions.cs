@@ -1,9 +1,10 @@
-using CK.AspNet;
 using CK.Core;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
 using System;
+using Microsoft.AspNetCore.Hosting;
+using CK.AspNet;
 
 namespace Microsoft.AspNetCore.Builder
 {
@@ -13,29 +14,33 @@ namespace Microsoft.AspNetCore.Builder
     public static class ApplicationBuilderCKAspNetExtensions
     {
         /// <summary>
-        /// Configures the <see cref="RequestMonitorMiddleware"/> that will catch any exceptions from the following
-        /// middlewares to the request's <see cref="IActivityMonitor"/>
+        /// Configures the <see cref="RequestGuardMonitorMiddleware"/> that will catch any exceptions from the following
+        /// middlewares to the request's <see cref="IActivityMonitor"/>.
+        /// Note that <see cref="WebHostBuilderCKAspNetExtensions.UseMonitoring(IHostBuilder, string)">WebHostBuilder.UseMonitoring</see> must have been
+        /// called on the builder.
         /// </summary>
         /// <param name="this">This application builder.</param>
         /// <param name="options">Optional configuration.</param>
         /// <returns>The application builder.</returns>
-        public static IApplicationBuilder UseRequestMonitor( this IApplicationBuilder @this, RequestMonitorMiddlewareOptions options = null )
+        public static IApplicationBuilder UseGuardRequestMonitor( this IApplicationBuilder @this, RequestGuardMonitorMiddlewareOptions options = null )
         {
-            return @this.UseMiddleware<RequestMonitorMiddleware>( options ?? new RequestMonitorMiddlewareOptions() );
+            return @this.UseMiddleware<RequestGuardMonitorMiddleware>( options ?? new RequestGuardMonitorMiddlewareOptions() );
         }
 
         /// <summary>
-        /// Configures the <see cref="RequestMonitorMiddleware"/> that will catch any exceptions from the following
-        /// middlewares to the request's <see cref="IActivityMonitor"/>
+        /// Configures the <see cref="RequestGuardMonitorMiddleware"/> that will catch any exceptions from the following
+        /// middlewares to the request's <see cref="IActivityMonitor"/>.
+        /// Note that <see cref="WebHostBuilderCKAspNetExtensions.UseMonitoring(IHostBuilder, string)">WebHostBuilder.UseMonitoring</see> must have been
+        /// called on the builder.
         /// </summary>
         /// <param name="this">This application builder.</param>
         /// <param name="options">Configuration for options.</param>
         /// <returns>The application builder.</returns>
-        public static IApplicationBuilder UseRequestMonitor( this IApplicationBuilder @this, Action<RequestMonitorMiddlewareOptions> options )
+        public static IApplicationBuilder UseGuardRequestMonitor( this IApplicationBuilder @this, Action<RequestGuardMonitorMiddlewareOptions> options )
         {
-            var o = new RequestMonitorMiddlewareOptions();
+            var o = new RequestGuardMonitorMiddlewareOptions();
             options( o );
-            return @this.UseMiddleware<RequestMonitorMiddleware>( o );
+            return @this.UseMiddleware<RequestGuardMonitorMiddleware>( o );
         }
     }
 }

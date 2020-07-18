@@ -1,17 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <Import Project="..\Common\Shared.props" />
   <PropertyGroup>
-    <TargetFrameworks>netstandard2.0;net461</TargetFrameworks>
+    <TargetFrameworks>netcoreapp3.1</TargetFrameworks>
     <Description>Helpers for AspNet Core applications.</Description>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="CK.Monitoring" Version="0.0.0--02fzo65-local+v10.2.1" />
-  </ItemGroup>
-  <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.Hosting" Version="2.2.0" />
-    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="2.2.0" />
-  </ItemGroup>
-  <ItemGroup Condition=" '$(TargetFramework)' == 'net461'">
-    <PackageReference Include="Microsoft.Extensions.DiagnosticAdapter" Version="2.2.0" />
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="CK.Monitoring.Hosting" Version="0.0.0--02wpt36-local+v12.3.1" />
   </ItemGroup>
 </Project>
