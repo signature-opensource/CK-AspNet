@@ -33,7 +33,7 @@
 
   <!--<StandardProperties>-->
   <PropertyGroup>
-    <RepositoryUrl>https://github.com/Invenietis/CK-AspNet.git</RepositoryUrl>
+    <RepositoryUrl>https://github.com/Invenietis/CK-AspNet</RepositoryUrl>
     <ProductName>CK</ProductName>
     <Company>Signature Code</Company>
     <Authors>Signature Code</Authors>
