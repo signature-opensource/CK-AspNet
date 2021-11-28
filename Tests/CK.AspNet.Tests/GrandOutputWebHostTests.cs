@@ -331,50 +331,6 @@ namespace CK.AspNet.Tests
             return new String( bytes.Where( b => b > 8 && b < 127 ).Select( b => (char)b ).ToArray() );
         }
 
-
-        [Test]
-        public async Task hidden_async_bugs_aka_Task_UnobservedExceptions_are_handled_like_AppDomain_unhandled_exceptions_as_CriticalErrors()
-        {
-            string logPath;
-            var config = CreateDynamicJsonConfigurationSource( "unhandled_and_unobserved", out logPath );
-            using( var g = new GrandOutput( new GrandOutputConfiguration() ) )
-            {
-                g.HandleCriticalErrors.Should().BeFalse();
-                g.HandleCriticalErrors = true;
-                Action<IActivityMonitor> autoRegisterer = m => g.EnsureGrandOutputClient( m );
-                ActivityMonitor.AutoConfiguration += autoRegisterer;
-                try
-                {
-                    using( var client = CreateServerWithUseMonitoring( config, g ) )
-                    {
-                        g.HandleCriticalErrors.Should().BeTrue();
-                        (await client.Get( "?explicitCriticalError" )).Dispose();
-                        // Unable to make this works:
-                        // 1 - Task exceptions are raised loooooong after the error.
-                        // 2 - Thread exceptions kills the process.
-                        //(await client.Get( "?hiddenAsyncBug" )).Dispose();
-                        //(await client.Get( "?unhandledAppDomainException" )).Dispose();
-
-                        // Since the GrandOutput.Dispose is now correcly called thanks to IApplicationLifetime
-                        // we have to wait a little bit for the critical error to be dispatched.
-                        await Task.Delay( 200 );
-                    }
-                }
-                finally
-                {
-                    ActivityMonitor.AutoConfiguration -= autoRegisterer;
-                }
-            }
-
-            var log = Directory.EnumerateFiles( logPath ).Single();
-            File.ReadAllText( log ).Should()
-                    .Contain( "I'm a Critical error." );
-            //.And.Contain( "I'm an horrible HiddenAsyncBug!" );
-            //.And.Contain( "I'm an unhandled exception." );
-        }
-
-
-
         [Test]
         public async Task GrandOutput_dynamic_configuration_with_a_handler_using_the_configurationtype_property()
         {
@@ -467,7 +423,7 @@ namespace CK.AspNet.Tests
                     app.UseGuardRequestMonitor( opts =>
                     {
                         opts.OnStartRequest = ( ctx, m ) =>
-                                    m.UnfilteredLog( null, Core.LogLevel.Info, "Request Started: " + ctx.Request.Path + ctx.Request.QueryString.ToString(), m.NextLogTime(), null );
+                                    m.UnfilteredLog( Core.LogLevel.Info, null, $"Request Started: {ctx.Request.Path}{ctx.Request.QueryString}", null );
                     } );
                     app.UseMiddleware<StupidMiddleware>();
                 },
