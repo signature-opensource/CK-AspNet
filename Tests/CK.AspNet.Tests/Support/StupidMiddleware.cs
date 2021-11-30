@@ -75,12 +75,6 @@ namespace CK.AspNet.Tests
                 t.Start();
                 return context.Response.WriteAsync( "Will break the started thread." );
             }
-            if( context.Request.Query.ContainsKey( "explicitCriticalError" ) )
-            {
-                context.Response.StatusCode = StatusCodes.Status202Accepted;
-                ActivityMonitor.CriticalErrorCollector.Add( new Exception( "I'm a Critical error." ), "Test" );
-                return context.Response.WriteAsync( "Adds a Critical error to the CriticalErrorCollector." );
-            }
             return _next.Invoke( context );
         }
 
