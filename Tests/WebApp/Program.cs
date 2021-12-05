@@ -29,7 +29,7 @@ namespace WebApp
                         .UseIISIntegration()
                         .UseStartup<Startup>()
                     )
-                    .UseMonitoring()
+                    .UseCKMonitoring()
                     .Build();
                 host.Run();
             }

@@ -39,7 +39,7 @@ namespace CK.AspNet.Tests
         }
 
         [Test]
-        public async Task GrandOutput_configuration_with_a_text_log_from_Json()
+        public async Task GrandOutput_configuration_with_a_text_log_from_Json_Async()
         {
             var config = CreateDynamicJsonConfigurationSource( "GrandOutput_configuration_from_Json", out string logPath );
 
@@ -49,7 +49,7 @@ namespace CK.AspNet.Tests
                 ActivityMonitor.AutoConfiguration += autoRegisterer;
                 try
                 {
-                    using( var client = CreateServerWithUseMonitoring( config, g ) )
+                    using( var client = CreateServerWithUseMonitoring( config, (g,"CK-Monitoring") ) )
                     {
                         (await client.Get( "?sayHello" )).Dispose();
                     }
@@ -69,7 +69,7 @@ namespace CK.AspNet.Tests
         [TestCase( @"{ ""Monitor"": {} }" )]
         [TestCase( @"{ ""Monitor"": { ""GrandOutput"" : {} } }" )]
         [TestCase( null )]
-        public async Task when_no_configuration_exists_the_default_is_a_Text_TextFile_handler_like_the_default_one_of_CK_Monitoring( string newEmptyConfig )
+        public async Task when_no_configuration_exists_the_default_is_a_Text_TextFile_handler_like_the_default_one_of_CK_Monitoring_Async( string newEmptyConfig )
         {
             var config = CreateDynamicJsonConfigurationSource( "conf_before_default", out string logBefore );
 
@@ -82,7 +82,7 @@ namespace CK.AspNet.Tests
                 ActivityMonitor.AutoConfiguration += autoRegisterer;
                 try
                 {
-                    using( var client = CreateServerWithUseMonitoring( config, g ) )
+                    using( var client = CreateServerWithUseMonitoring( config, (g,"CK-Monitoring") ) )
                     {
                         (await client.Get( "?sayHello&in_initial_config" )).Dispose();
                         if( newEmptyConfig != null ) config.SetJson( newEmptyConfig );
@@ -109,10 +109,10 @@ namespace CK.AspNet.Tests
         }
 
         [Test]
-        public async Task configuration_with_IConfigurationSection_injection()
+        public async Task configuration_with_IConfigurationSection_injection_Async()
         {
             const string c1 = @"{
-                                    ""Monitoring"":
+                                    ""Non-Default-Monitoring"":
                                     {
                                         ""GrandOutput"":
                                         {
@@ -126,7 +126,7 @@ namespace CK.AspNet.Tests
                                }";
 
             const string c2 = @"{
-                                    ""Monitoring"":
+                                    ""Non-Default-Monitoring"":
                                     {
                                         ""GrandOutput"":
                                         {
@@ -149,7 +149,7 @@ namespace CK.AspNet.Tests
                 ActivityMonitor.AutoConfiguration += autoRegisterer;
                 try
                 {
-                    using( var client = CreateServerWithUseMonitoring( config, g ) )
+                    using( var client = CreateServerWithUseMonitoring( config, (g, "Non-Default-Monitoring") ) )
                     {
                         (await client.Get( "?sayHello&trace1" )).Dispose();
                         config.SetJson( c2 );
@@ -173,7 +173,7 @@ namespace CK.AspNet.Tests
 
         [TestCase( true )]
         [TestCase( false )]
-        public async Task request_monitor_handles_exceptions_but_does_not_swallow_them_by_default( bool swallow )
+        public async Task request_monitor_handles_exceptions_but_does_not_swallow_them_by_default_Async( bool swallow )
         {
             var text = new TextGrandOutputHandlerConfiguration();
             var config = new GrandOutputConfiguration();
@@ -240,9 +240,9 @@ namespace CK.AspNet.Tests
 
 
         [Test]
-        public async Task GrandOutput_dynamic_configuration_with_a_text_and_the_binary_and_then_text_log_from_Json()
+        public async Task GrandOutput_dynamic_configuration_with_a_text_and_the_binary_and_then_text_log_from_Json_Async()
         {
-            const string c1 = @"{ ""Monitoring"": {
+            const string c1 = @"{ ""Non-Default-Monitoring"": {
                                     ""GrandOutput"": {
                                         ""Handlers"": {
                                             ""TextFile"": {
@@ -253,7 +253,7 @@ namespace CK.AspNet.Tests
                                  }
                               }";
 
-            const string c2 = @"{ ""Monitoring"": {
+            const string c2 = @"{ ""Non-Default-Monitoring"": {
                                     ""GrandOutput"": {
                                         ""Handlers"": {
                                             ""BinaryFile"": {
@@ -264,7 +264,7 @@ namespace CK.AspNet.Tests
                                  }
                               }";
 
-            const string c3 = @"{ ""Monitoring"": {
+            const string c3 = @"{ ""Non-Default-Monitoring"": {
                                     ""GrandOutput"": {
                                         ""Handlers"": {
                                             ""TextFile"": {
@@ -289,7 +289,7 @@ namespace CK.AspNet.Tests
                 ActivityMonitor.AutoConfiguration += autoRegisterer;
                 try
                 {
-                    using( var client = CreateServerWithUseMonitoring( config, g ) )
+                    using( var client = CreateServerWithUseMonitoring( config, (g, "Non-Default-Monitoring") ) )
                     {
                         (await client.Get( "?sayHello&WhileConfig_1" )).Dispose();
                         config.SetJson( c2 );
@@ -332,9 +332,9 @@ namespace CK.AspNet.Tests
         }
 
         [Test]
-        public async Task GrandOutput_dynamic_configuration_with_a_handler_using_the_configurationtype_property()
+        public async Task GrandOutput_dynamic_configuration_with_a_handler_using_the_configurationtype_property_Async()
         {
-            const string c1 = @"{ ""Monitoring"": {
+            const string c1 = @"{ ""Non-Default-Monitoring"": {
                                     ""GrandOutput"": {
                                         ""Handlers"": {
                                             ""Handler1"": {
@@ -364,7 +364,7 @@ namespace CK.AspNet.Tests
 
                 try
                 {
-                    using( var client = CreateServerWithUseMonitoring( config, g ) )
+                    using( var client = CreateServerWithUseMonitoring( config, (g, "Non-Default-Monitoring") ) )
                     {
                         (await client.Get( "?sayHello&configurationtype_prop_test" )).Dispose();
                     }
@@ -384,7 +384,7 @@ namespace CK.AspNet.Tests
 
         public static DynamicJsonConfigurationSource CreateDynamicJsonConfigurationSource( string folderNameForTextLogs, out string logPath )
         {
-            string c1 = $@"{{ ""Monitoring"": {{
+            string c1 = $@"{{ ""CK-Monitoring"": {{
                                     ""GrandOutput"": {{
                                         ""Handlers"": {{
                                             ""TextFile"": {{
@@ -405,13 +405,10 @@ namespace CK.AspNet.Tests
         /// Creates a TestServerClient with the GrandOutput.Default or with a explicit instance.
         /// </summary>
         /// <param name="config">Configuration to use. Can be null.</param>
-        /// <param name="grandOutput">Explicit instance (null for the GrandOutput.Default).</param>
-        /// <param name="monitoringConfigurationPath">Path to the monitoring configuration.</param>
+        /// <param name="nonDefaultGrandOutput">Explicit non default GrandOutput. When null GrandOutput.Default using "CK-Monitoring" section is configured.</param>
         /// <returns>The test server client.</returns>
-        public static TestServerClient CreateServerWithUseMonitoring(
-            IConfigurationSource config,
-            GrandOutput grandOutput = null,
-            string monitoringConfigurationPath = "Monitoring" )
+        public static TestServerClient CreateServerWithUseMonitoring( IConfigurationSource config,
+                                                                      (GrandOutput G, string ConfigSectionName)? nonDefaultGrandOutput = null )
         {
             var b = Tester.WebHostBuilderFactory.Create( null, null,
                 services =>
@@ -435,13 +432,13 @@ namespace CK.AspNet.Tests
                     configBuilder.Add( config );
                 } );
             }
-            if( grandOutput == null )
+            if( nonDefaultGrandOutput == null )
             {
-                b.UseMonitoring( monitoringConfigurationPath );
+                b.UseCKMonitoring();
             }
             else
             {
-                b.UseMonitoring( grandOutput, monitoringConfigurationPath );
+                b.UseMonitoring( nonDefaultGrandOutput.Value.G, nonDefaultGrandOutput.Value.ConfigSectionName );
             }
             return new TestServerClient( b.Start(), disposeHost: true );
         }

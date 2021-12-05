@@ -52,7 +52,7 @@ namespace CK.AspNet
             // Try/catch is required to handle any synchronous exception.
             try
             {
-                _next.Invoke( ctx ).ContinueWith( t =>
+                _ = _next.Invoke( ctx ).ContinueWith( t =>
                 {
                     if( t.Status == TaskStatus.RanToCompletion )
                     {
@@ -76,7 +76,7 @@ namespace CK.AspNet
                         _onEndRequest.Invoke( ctx, m, t.Status );
                         tcs.SetCanceled();
                     }
-                } );
+                }, TaskScheduler.Default );
             }
             catch( Exception ex )
             {
