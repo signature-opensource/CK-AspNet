@@ -24,7 +24,7 @@ namespace CK.AspNet.Tests
             _s = s;
         }
 
-        public Task Invoke( HttpContext context, IActivityMonitor monitor )
+        public Task InvokeAsync( HttpContext context, IActivityMonitor monitor )
         {
             monitor.Warn( "StupidMiddleware is here!" );
             if( context.Request.Query.ContainsKey( "sayHello" ) )
@@ -56,15 +56,15 @@ namespace CK.AspNet.Tests
             }
             if( context.Request.Query.ContainsKey( "asyncBug" ) )
             {
-                return AsyncBug();
+                return BugAsync();
             }
             if( context.Request.Query.ContainsKey( "hiddenAsyncBug" ) )
             {
                 context.Response.StatusCode = StatusCodes.Status202Accepted;
-                Task.Delay( 100 ).ContinueWith( t =>
+                _ = Task.Delay( 100 ).ContinueWith( t =>
                 {
                     throw new Exception( "I'm an horrible HiddenAsyncBug!" );
-                } );
+                }, TaskScheduler.Default );
                 return context.Response.WriteAsync( "Will break the started Task." );
             }
             if( context.Request.Query.ContainsKey( "unhandledAppDomainException" ) )
@@ -78,7 +78,7 @@ namespace CK.AspNet.Tests
             return _next.Invoke( context );
         }
 
-        async Task AsyncBug()
+        async Task BugAsync()
         {
             await Task.Delay( 100 );
             throw new Exception( "AsyncBug!" );

@@ -44,7 +44,7 @@ namespace CK.AspNet
         /// <param name="ctx">The current context.</param>
         /// <param name="m">The request scoped monitor.</param>
         /// <returns>The awaitable.</returns>
-        public Task Invoke( HttpContext ctx, IActivityMonitor m )
+        public Task InvokeAsync( HttpContext ctx, IActivityMonitor m )
         {
             _onStartRequest.Invoke( ctx, m );
             // There is no non generic TaskCompletionSource.
@@ -52,7 +52,7 @@ namespace CK.AspNet
             // Try/catch is required to handle any synchronous exception.
             try
             {
-                _next.Invoke( ctx ).ContinueWith( t =>
+                _ = _next.Invoke( ctx ).ContinueWith( t =>
                 {
                     if( t.Status == TaskStatus.RanToCompletion )
                     {
@@ -76,7 +76,7 @@ namespace CK.AspNet
                         _onEndRequest.Invoke( ctx, m, t.Status );
                         tcs.SetCanceled();
                     }
-                } );
+                }, TaskScheduler.Default );
             }
             catch( Exception ex )
             {

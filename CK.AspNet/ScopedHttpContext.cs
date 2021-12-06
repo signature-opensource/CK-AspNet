@@ -31,7 +31,7 @@ namespace CK.AspNet
                 _next = next;
             }
 
-            public Task Invoke( HttpContext c, ScopedHttpContext p )
+            public Task InvokeAsync( HttpContext c, ScopedHttpContext p )
             {
                 Debug.Assert( p.HttpContext == null );
                 p.HttpContext = c;
