@@ -24,7 +24,7 @@ namespace CK.AspNet.Tests
             _s = s;
         }
 
-        public Task Invoke( HttpContext context, IActivityMonitor monitor )
+        public Task InvokeAsync( HttpContext context, IActivityMonitor monitor )
         {
             monitor.Warn( "StupidMiddleware is here!" );
             if( context.Request.Query.ContainsKey( "sayHello" ) )
