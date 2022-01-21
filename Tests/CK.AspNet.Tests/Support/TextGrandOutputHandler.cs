@@ -42,9 +42,9 @@ namespace CK.AspNet.Tests
 
         void IGrandOutputHandler.Deactivate( IActivityMonitor m ) => _config.FromSink( _builder, true );
 
-        void IGrandOutputHandler.Handle( IActivityMonitor m, GrandOutputEventInfo logEvent )
+        void IGrandOutputHandler.Handle( IActivityMonitor m, IMulticastLogEntry logEvent )
         {
-            _builder.Append( _formatter.FormatEntryString( logEvent.Entry ) );
+            _builder.Append( _formatter.FormatEntryString( logEvent ) );
             _config.FromSink( _builder, false );
         }
 

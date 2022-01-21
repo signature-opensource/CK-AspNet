@@ -40,7 +40,7 @@ namespace CK.AspNet.Tests
         {
         }
 
-        public void Handle( IActivityMonitor m, GrandOutputEventInfo logEvent )
+        public void Handle( IActivityMonitor m, IMulticastLogEntry logEvent )
         {
         }
 
