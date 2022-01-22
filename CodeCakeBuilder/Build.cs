@@ -17,7 +17,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using CK.Text;
 using Cake.Common.Tools.NUnit;
 
 namespace CodeCake
