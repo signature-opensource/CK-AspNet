@@ -27,28 +27,37 @@ namespace CK.AspNet.Tests
             _builder = new StringBuilder();
         }
 
-        bool IGrandOutputHandler.Activate( IActivityMonitor m ) => true;
+        ValueTask<bool> IGrandOutputHandler.ActivateAsync( IActivityMonitor m ) => ValueTask.FromResult( true );
 
-        bool IGrandOutputHandler.ApplyConfiguration( IActivityMonitor m, IHandlerConfiguration c )
+        ValueTask<bool> IGrandOutputHandler.ApplyConfigurationAsync(IActivityMonitor m, IHandlerConfiguration c)
         {
             TextGrandOutputHandlerConfiguration config = c as TextGrandOutputHandlerConfiguration;
             if( config != null )
             {
                 _config = config;
-                return true;
+                return ValueTask.FromResult( true );
             }
-            return false;
+            return ValueTask.FromResult( false );
         }
 
-        void IGrandOutputHandler.Deactivate( IActivityMonitor m ) => _config.FromSink( _builder, true );
+        ValueTask IGrandOutputHandler.DeactivateAsync( IActivityMonitor m )
+        {
+            _config.FromSink( _builder, true );
+            return ValueTask.CompletedTask;
+        }
 
-        void IGrandOutputHandler.Handle( IActivityMonitor m, IMulticastLogEntry logEvent )
+        ValueTask IGrandOutputHandler.HandleAsync(IActivityMonitor m, IMulticastLogEntry logEvent)
         {
             _builder.Append( _formatter.FormatEntryString( logEvent ) );
             _config.FromSink( _builder, false );
+            return ValueTask.CompletedTask;
         }
 
-        void IGrandOutputHandler.OnTimer( IActivityMonitor m, TimeSpan timerSpan ) => _config.FromSink( _builder, false );
+        ValueTask IGrandOutputHandler.OnTimerAsync( IActivityMonitor m, TimeSpan timerSpan )
+        {
+            _config.FromSink( _builder, false );
+            return ValueTask.CompletedTask;
+        }
 
     }
 }
