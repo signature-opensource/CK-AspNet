@@ -30,6 +30,7 @@ namespace CK.AspNet.Tests
 
         /// <summary>
         /// Gets the current text collected from the handler.
+        /// This waits for the first next entry that reaches the handlers.
         /// </summary>
         /// <returns></returns>
         public string GetText()

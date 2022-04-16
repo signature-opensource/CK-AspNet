@@ -25,6 +25,7 @@ using Microsoft.Extensions.Logging;
 using CK.AspNet.Tester;
 using CK.Monitoring.Hosting;
 using Microsoft.Extensions.Hosting;
+using System.Diagnostics;
 
 namespace CK.AspNet.Tests
 {
@@ -89,6 +90,7 @@ namespace CK.AspNet.Tests
                         else config.Delete();
                         await Task.Delay( 150 );
                         (await client.Get( "?sayHello&in_default_config" )).Dispose();
+                        await Task.Delay( 150 );
                     }
                 }
                 finally
@@ -212,12 +214,14 @@ namespace CK.AspNet.Tests
                     using( HttpResponseMessage bug = await client.Get( "?bug" ) )
                     {
                         bug.StatusCode.Should().Be( HttpStatusCode.InternalServerError );
+                        await Task.Delay( 100 );
                         var t = text.GetText();
                         t.Should().Contain( "Bug!" );
                     }
                     using( HttpResponseMessage asyncBug = await client.Get( "?asyncBug" ) )
                     {
                         asyncBug.StatusCode.Should().Be( HttpStatusCode.InternalServerError );
+                        await Task.Delay( 100 );
                         var t = text.GetText();
                         t.Should().Contain( "AsyncBug!" );
                     }
