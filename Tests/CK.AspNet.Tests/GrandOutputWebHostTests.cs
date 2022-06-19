@@ -52,7 +52,7 @@ namespace CK.AspNet.Tests
                 {
                     using( var client = CreateServerWithUseMonitoring( config, (g,"CK-Monitoring") ) )
                     {
-                        (await client.Get( "?sayHello" )).Dispose();
+                        (await client.GetAsync( "?sayHello" )).Dispose();
                     }
                 }
                 finally
@@ -85,11 +85,11 @@ namespace CK.AspNet.Tests
                 {
                     using( var client = CreateServerWithUseMonitoring( config, (g,"CK-Monitoring") ) )
                     {
-                        (await client.Get( "?sayHello&in_initial_config" )).Dispose();
+                        (await client.GetAsync( "?sayHello&in_initial_config" )).Dispose();
                         if( newEmptyConfig != null ) config.SetJson( newEmptyConfig );
                         else config.Delete();
                         await Task.Delay( 150 );
-                        (await client.Get( "?sayHello&in_default_config" )).Dispose();
+                        (await client.GetAsync( "?sayHello&in_default_config" )).Dispose();
                         await Task.Delay( 150 );
                     }
                 }
@@ -153,10 +153,10 @@ namespace CK.AspNet.Tests
                 {
                     using( var client = CreateServerWithUseMonitoring( config, (g, "Non-Default-Monitoring") ) )
                     {
-                        (await client.Get( "?sayHello&trace1" )).Dispose();
+                        (await client.GetAsync( "?sayHello&trace1" )).Dispose();
                         config.SetJson( c2 );
                         await Task.Delay( 150 );
-                        (await client.Get( "?sayHello&trace2" )).Dispose();
+                        (await client.GetAsync( "?sayHello&trace2" )).Dispose();
                     }
                 }
                 finally
@@ -211,14 +211,14 @@ namespace CK.AspNet.Tests
                     } );
                 using( var client = new TestServerClient( b.Start() ) )
                 {
-                    using( HttpResponseMessage bug = await client.Get( "?bug" ) )
+                    using( HttpResponseMessage bug = await client.GetAsync( "?bug" ) )
                     {
                         bug.StatusCode.Should().Be( HttpStatusCode.InternalServerError );
                         await Task.Delay( 100 );
                         var t = text.GetText();
                         t.Should().Contain( "Bug!" );
                     }
-                    using( HttpResponseMessage asyncBug = await client.Get( "?asyncBug" ) )
+                    using( HttpResponseMessage asyncBug = await client.GetAsync( "?asyncBug" ) )
                     {
                         asyncBug.StatusCode.Should().Be( HttpStatusCode.InternalServerError );
                         await Task.Delay( 100 );
@@ -295,13 +295,13 @@ namespace CK.AspNet.Tests
                 {
                     using( var client = CreateServerWithUseMonitoring( config, (g, "Non-Default-Monitoring") ) )
                     {
-                        (await client.Get( "?sayHello&WhileConfig_1" )).Dispose();
+                        (await client.GetAsync( "?sayHello&WhileConfig_1" )).Dispose();
                         config.SetJson( c2 );
                         await Task.Delay( 200 );
-                        (await client.Get( "?sayHello&we_are_binary_in_config_2" )).Dispose();
+                        (await client.GetAsync( "?sayHello&we_are_binary_in_config_2" )).Dispose();
                         config.SetJson( c3 );
                         await Task.Delay( 200 );
-                        (await client.Get( "?sayHello&WhileConfig_3" )).Dispose();
+                        (await client.GetAsync( "?sayHello&WhileConfig_3" )).Dispose();
                     }
                 }
                 finally
@@ -370,7 +370,7 @@ namespace CK.AspNet.Tests
                 {
                     using( var client = CreateServerWithUseMonitoring( config, (g, "Non-Default-Monitoring") ) )
                     {
-                        (await client.Get( "?sayHello&configurationtype_prop_test" )).Dispose();
+                        (await client.GetAsync( "?sayHello&configurationtype_prop_test" )).Dispose();
                     }
                 }
                 finally

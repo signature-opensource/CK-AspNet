@@ -11,7 +11,7 @@ namespace CK.AspNet
 {
     /// <summary>
     /// Acts as an error guard in middleware pipeline: any exceptions raised by next middlewares are
-    /// logged into the current (scoped) request monitor that is installed by <see cref="WebHostBuilderCKAspNetExtensions.UseMonitoring(IHostBuilder, string)">WebHostBuilder.UseMonitoring</see>
+    /// logged into the current (scoped) request monitor that is installed by <see cref="Microsoft.Extensions.Hosting.HostBuilderMonitoringHostExtensions.UseCKMonitoring(Microsoft.Extensions.Hosting.IHostBuilder)">HostBuilder.UseCKMonitoring</see>.
     /// extension method.
     /// By default, execution errors are not swallowed but this can be changed thanks to the <see cref="RequestGuardMonitorMiddlewareOptions.SwallowErrors"/> option.
     /// </summary>
