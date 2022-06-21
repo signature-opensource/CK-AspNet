@@ -12,7 +12,7 @@ namespace CK.AspNet
 {
     /// <summary>
     /// Provides the <see cref="HttpContext"/> as a scoped dependency.
-    /// This must be installed thanks to <see cref="WebHostBuilderCKAspNetExtensions.UseScopedHttpContext(IHostBuilder)"/>
+    /// This must be installed thanks to <see cref="WebHostBuilderCKAspNetExtensions.UseScopedHttpContext(IWebHostBuilder)"/>
     /// extension method.
     /// </summary>
     public sealed class ScopedHttpContext
@@ -31,7 +31,7 @@ namespace CK.AspNet
                 _next = next;
             }
 
-            public Task Invoke( HttpContext c, ScopedHttpContext p )
+            public Task InvokeAsync( HttpContext c, ScopedHttpContext p )
             {
                 Debug.Assert( p.HttpContext == null );
                 p.HttpContext = c;

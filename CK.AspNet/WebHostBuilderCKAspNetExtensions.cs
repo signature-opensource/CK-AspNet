@@ -6,6 +6,9 @@ using System.Text;
 
 namespace Microsoft.AspNetCore.Hosting
 {
+    /// <summary>
+    /// Provides <see cref="UseScopedHttpContext(IWebHostBuilder)"/> on web host.
+    /// </summary>
     public static class WebHostBuilderCKAspNetExtensions
     {
         /// <summary>
@@ -15,9 +18,11 @@ namespace Microsoft.AspNetCore.Hosting
         /// <remarks>
         /// This is much more efficient than the HttpContextAccessor. HttpContextAccessor remains the only
         /// way to have a singleton service depends on the HttpContext and must NEVER be used. Singleton
-        /// services that MAY need the HttpContxt must be designed with explicit HttpContext method parameter 
+        /// services that MAY need the HttpContext must be designed with explicit HttpContext method parameter 
         /// injection.
-        /// A contrario, Scoped services CAN easily depend on the HttpContext thanks to this ScopedHttpContext.
+        /// <para>
+        /// Scoped services however CAN easily depend on the HttpContext thanks to this ScopedHttpContext.
+        /// </para>
         /// </remarks>
         /// <param name="builder">This Web host builder.</param>
         /// <returns>The builder.</returns>

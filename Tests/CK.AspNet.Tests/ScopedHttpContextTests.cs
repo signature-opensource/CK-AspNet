@@ -32,7 +32,7 @@ namespace CK.AspNet.Tests
     {
         [TestCase( "NoScopedHttpContext" )]
         [TestCase( "WithScopedHttpContext" )]
-        public async Task there_is_no_scoped_HttpContext_injection_by_default( string mode )
+        public async Task there_is_no_scoped_HttpContext_injection_by_default_Async( string mode )
         {
             bool testDone = false;
 
@@ -73,7 +73,7 @@ namespace CK.AspNet.Tests
                 
             } ).StartAsync() )
             using( var client = new TestServerClient( host ) )
-            using( HttpResponseMessage test = await client.Get( "" ) )
+            using( HttpResponseMessage test = await client.GetAsync( "" ) )
             {
                 test.StatusCode.Should().Be( HttpStatusCode.Unused );
             }
@@ -84,7 +84,7 @@ namespace CK.AspNet.Tests
         // This test relies on a Debug.Assert in the injected middleware:
         // it is useless in Release.
         [Test]
-        public async Task duplicated_UseScopedHttpContext_are_ignored()
+        public async Task duplicated_UseScopedHttpContext_are_ignored_Async()
         {
             using( var host = await new HostBuilder().ConfigureWebHost(
                 builder =>
@@ -104,7 +104,7 @@ namespace CK.AspNet.Tests
             ).StartAsync() )
             using( var client = new TestServerClient( host ) )
             {
-                using( HttpResponseMessage test = await client.Get( "" ) )
+                using( HttpResponseMessage test = await client.GetAsync( "" ) )
                 {
                     test.StatusCode.Should().Be( HttpStatusCode.Unused );
                 }

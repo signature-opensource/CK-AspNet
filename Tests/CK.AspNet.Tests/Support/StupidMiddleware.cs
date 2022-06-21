@@ -24,31 +24,35 @@ namespace CK.AspNet.Tests
             _s = s;
         }
 
-        public Task Invoke( HttpContext context, IActivityMonitor monitor )
+        public async Task InvokeAsync( HttpContext context, IActivityMonitor monitor )
         {
             monitor.Warn( "StupidMiddleware is here!" );
             if( context.Request.Query.ContainsKey( "sayHello" ) )
             {
                 context.Response.StatusCode = StatusCodes.Status200OK;
-                return context.Response.WriteAsync( "Hello! " + _s.GetText() );
+                await context.Response.WriteAsync( "Hello! " + _s.GetText() );
+                return;
             }
             if( context.Request.Query.ContainsKey( "readHeader" ) )
             {
                 string name = context.Request.Query["name"];
                 StringValues header = context.Request.Headers[name];
-                return context.Response.WriteAsync( $"header '{name}': '{header}'" );
+                await context.Response.WriteAsync( $"header '{name}': '{header}'" );
+                return;
             }
             if( context.Request.Query.ContainsKey( "rewriteJSON" ) )
             {
                 if( !HttpMethods.IsPost( context.Request.Method ) ) context.Response.StatusCode = StatusCodes.Status405MethodNotAllowed;
-                string content = new StreamReader( context.Request.Body ).ReadToEnd();
-                return context.Response.WriteAsync( $"JSON: '{JObject.Parse( content ).ToString( Newtonsoft.Json.Formatting.None )}'" );
+                string content = await new StreamReader( context.Request.Body ).ReadToEndAsync();
+                await context.Response.WriteAsync( $"JSON: '{JObject.Parse( content ).ToString( Newtonsoft.Json.Formatting.None )}'" );
+                return;
             }
             if( context.Request.Query.ContainsKey( "rewriteXElement" ) )
             {
                 if( !HttpMethods.IsPost( context.Request.Method ) ) context.Response.StatusCode = StatusCodes.Status405MethodNotAllowed;
-                string content = new StreamReader( context.Request.Body ).ReadToEnd();
-                return context.Response.WriteAsync( $"XElement: '{XElement.Parse( content ).ToString( SaveOptions.DisableFormatting )}'" );
+                string content = await new StreamReader( context.Request.Body ).ReadToEndAsync();
+                await context.Response.WriteAsync( $"XElement: '{XElement.Parse( content ).ToString( SaveOptions.DisableFormatting )}'" );
+                return;
             }
             if( context.Request.Query.ContainsKey( "bug" ) )
             {
@@ -56,16 +60,18 @@ namespace CK.AspNet.Tests
             }
             if( context.Request.Query.ContainsKey( "asyncBug" ) )
             {
-                return AsyncBug();
+                await BugAsync();
+                return;
             }
             if( context.Request.Query.ContainsKey( "hiddenAsyncBug" ) )
             {
                 context.Response.StatusCode = StatusCodes.Status202Accepted;
-                Task.Delay( 100 ).ContinueWith( t =>
+                _ = Task.Delay( 100 ).ContinueWith( t =>
                 {
                     throw new Exception( "I'm an horrible HiddenAsyncBug!" );
-                } );
-                return context.Response.WriteAsync( "Will break the started Task." );
+                }, TaskScheduler.Default );
+                await context.Response.WriteAsync( "Will break the started Task." );
+                return;
             }
             if( context.Request.Query.ContainsKey( "unhandledAppDomainException" ) )
             {
@@ -73,18 +79,13 @@ namespace CK.AspNet.Tests
                 var t = new Thread( () => throw new Exception( "I'm an unhandled exception." ) );
                 t.IsBackground = true;
                 t.Start();
-                return context.Response.WriteAsync( "Will break the started thread." );
+                await context.Response.WriteAsync( "Will break the started thread." );
+                return;
             }
-            if( context.Request.Query.ContainsKey( "explicitCriticalError" ) )
-            {
-                context.Response.StatusCode = StatusCodes.Status202Accepted;
-                ActivityMonitor.CriticalErrorCollector.Add( new Exception( "I'm a Critical error." ), "Test" );
-                return context.Response.WriteAsync( "Adds a Critical error to the CriticalErrorCollector." );
-            }
-            return _next.Invoke( context );
+            await _next.Invoke( context );
         }
 
-        async Task AsyncBug()
+        async Task BugAsync()
         {
             await Task.Delay( 100 );
             throw new Exception( "AsyncBug!" );

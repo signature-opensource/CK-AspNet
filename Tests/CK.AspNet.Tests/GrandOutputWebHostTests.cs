@@ -25,6 +25,7 @@ using Microsoft.Extensions.Logging;
 using CK.AspNet.Tester;
 using CK.Monitoring.Hosting;
 using Microsoft.Extensions.Hosting;
+using System.Diagnostics;
 
 namespace CK.AspNet.Tests
 {
@@ -39,7 +40,7 @@ namespace CK.AspNet.Tests
         }
 
         [Test]
-        public async Task GrandOutput_configuration_with_a_text_log_from_Json()
+        public async Task GrandOutput_configuration_with_a_text_log_from_Json_Async()
         {
             var config = CreateDynamicJsonConfigurationSource( "GrandOutput_configuration_from_Json", out string logPath );
 
@@ -49,9 +50,9 @@ namespace CK.AspNet.Tests
                 ActivityMonitor.AutoConfiguration += autoRegisterer;
                 try
                 {
-                    using( var client = CreateServerWithUseMonitoring( config, g ) )
+                    using( var client = CreateServerWithUseMonitoring( config, (g,"CK-Monitoring") ) )
                     {
-                        (await client.Get( "?sayHello" )).Dispose();
+                        (await client.GetAsync( "?sayHello" )).Dispose();
                     }
                 }
                 finally
@@ -69,7 +70,7 @@ namespace CK.AspNet.Tests
         [TestCase( @"{ ""Monitor"": {} }" )]
         [TestCase( @"{ ""Monitor"": { ""GrandOutput"" : {} } }" )]
         [TestCase( null )]
-        public async Task when_no_configuration_exists_the_default_is_a_Text_TextFile_handler_like_the_default_one_of_CK_Monitoring( string newEmptyConfig )
+        public async Task when_no_configuration_exists_the_default_is_a_Text_TextFile_handler_like_the_default_one_of_CK_Monitoring_Async( string newEmptyConfig )
         {
             var config = CreateDynamicJsonConfigurationSource( "conf_before_default", out string logBefore );
 
@@ -82,13 +83,14 @@ namespace CK.AspNet.Tests
                 ActivityMonitor.AutoConfiguration += autoRegisterer;
                 try
                 {
-                    using( var client = CreateServerWithUseMonitoring( config, g ) )
+                    using( var client = CreateServerWithUseMonitoring( config, (g,"CK-Monitoring") ) )
                     {
-                        (await client.Get( "?sayHello&in_initial_config" )).Dispose();
+                        (await client.GetAsync( "?sayHello&in_initial_config" )).Dispose();
                         if( newEmptyConfig != null ) config.SetJson( newEmptyConfig );
                         else config.Delete();
                         await Task.Delay( 150 );
-                        (await client.Get( "?sayHello&in_default_config" )).Dispose();
+                        (await client.GetAsync( "?sayHello&in_default_config" )).Dispose();
+                        await Task.Delay( 150 );
                     }
                 }
                 finally
@@ -109,10 +111,10 @@ namespace CK.AspNet.Tests
         }
 
         [Test]
-        public async Task configuration_with_IConfigurationSection_injection()
+        public async Task configuration_with_IConfigurationSection_injection_Async()
         {
             const string c1 = @"{
-                                    ""Monitoring"":
+                                    ""Non-Default-Monitoring"":
                                     {
                                         ""GrandOutput"":
                                         {
@@ -126,7 +128,7 @@ namespace CK.AspNet.Tests
                                }";
 
             const string c2 = @"{
-                                    ""Monitoring"":
+                                    ""Non-Default-Monitoring"":
                                     {
                                         ""GrandOutput"":
                                         {
@@ -149,12 +151,12 @@ namespace CK.AspNet.Tests
                 ActivityMonitor.AutoConfiguration += autoRegisterer;
                 try
                 {
-                    using( var client = CreateServerWithUseMonitoring( config, g ) )
+                    using( var client = CreateServerWithUseMonitoring( config, (g, "Non-Default-Monitoring") ) )
                     {
-                        (await client.Get( "?sayHello&trace1" )).Dispose();
+                        (await client.GetAsync( "?sayHello&trace1" )).Dispose();
                         config.SetJson( c2 );
                         await Task.Delay( 150 );
-                        (await client.Get( "?sayHello&trace2" )).Dispose();
+                        (await client.GetAsync( "?sayHello&trace2" )).Dispose();
                     }
                 }
                 finally
@@ -173,7 +175,7 @@ namespace CK.AspNet.Tests
 
         [TestCase( true )]
         [TestCase( false )]
-        public async Task request_monitor_handles_exceptions_but_does_not_swallow_them_by_default( bool swallow )
+        public async Task request_monitor_handles_exceptions_but_does_not_swallow_them_by_default_Async( bool swallow )
         {
             var text = new TextGrandOutputHandlerConfiguration();
             var config = new GrandOutputConfiguration();
@@ -209,15 +211,17 @@ namespace CK.AspNet.Tests
                     } );
                 using( var client = new TestServerClient( b.Start() ) )
                 {
-                    using( HttpResponseMessage bug = await client.Get( "?bug" ) )
+                    using( HttpResponseMessage bug = await client.GetAsync( "?bug" ) )
                     {
                         bug.StatusCode.Should().Be( HttpStatusCode.InternalServerError );
+                        await Task.Delay( 100 );
                         var t = text.GetText();
                         t.Should().Contain( "Bug!" );
                     }
-                    using( HttpResponseMessage asyncBug = await client.Get( "?asyncBug" ) )
+                    using( HttpResponseMessage asyncBug = await client.GetAsync( "?asyncBug" ) )
                     {
                         asyncBug.StatusCode.Should().Be( HttpStatusCode.InternalServerError );
+                        await Task.Delay( 100 );
                         var t = text.GetText();
                         t.Should().Contain( "AsyncBug!" );
                     }
@@ -240,9 +244,9 @@ namespace CK.AspNet.Tests
 
 
         [Test]
-        public async Task GrandOutput_dynamic_configuration_with_a_text_and_the_binary_and_then_text_log_from_Json()
+        public async Task GrandOutput_dynamic_configuration_with_a_text_and_the_binary_and_then_text_log_from_Json_Async()
         {
-            const string c1 = @"{ ""Monitoring"": {
+            const string c1 = @"{ ""Non-Default-Monitoring"": {
                                     ""GrandOutput"": {
                                         ""Handlers"": {
                                             ""TextFile"": {
@@ -253,7 +257,7 @@ namespace CK.AspNet.Tests
                                  }
                               }";
 
-            const string c2 = @"{ ""Monitoring"": {
+            const string c2 = @"{ ""Non-Default-Monitoring"": {
                                     ""GrandOutput"": {
                                         ""Handlers"": {
                                             ""BinaryFile"": {
@@ -264,7 +268,7 @@ namespace CK.AspNet.Tests
                                  }
                               }";
 
-            const string c3 = @"{ ""Monitoring"": {
+            const string c3 = @"{ ""Non-Default-Monitoring"": {
                                     ""GrandOutput"": {
                                         ""Handlers"": {
                                             ""TextFile"": {
@@ -289,15 +293,15 @@ namespace CK.AspNet.Tests
                 ActivityMonitor.AutoConfiguration += autoRegisterer;
                 try
                 {
-                    using( var client = CreateServerWithUseMonitoring( config, g ) )
+                    using( var client = CreateServerWithUseMonitoring( config, (g, "Non-Default-Monitoring") ) )
                     {
-                        (await client.Get( "?sayHello&WhileConfig_1" )).Dispose();
+                        (await client.GetAsync( "?sayHello&WhileConfig_1" )).Dispose();
                         config.SetJson( c2 );
                         await Task.Delay( 200 );
-                        (await client.Get( "?sayHello&we_are_binary_in_config_2" )).Dispose();
+                        (await client.GetAsync( "?sayHello&we_are_binary_in_config_2" )).Dispose();
                         config.SetJson( c3 );
                         await Task.Delay( 200 );
-                        (await client.Get( "?sayHello&WhileConfig_3" )).Dispose();
+                        (await client.GetAsync( "?sayHello&WhileConfig_3" )).Dispose();
                     }
                 }
                 finally
@@ -331,54 +335,10 @@ namespace CK.AspNet.Tests
             return new String( bytes.Where( b => b > 8 && b < 127 ).Select( b => (char)b ).ToArray() );
         }
 
-
         [Test]
-        public async Task hidden_async_bugs_aka_Task_UnobservedExceptions_are_handled_like_AppDomain_unhandled_exceptions_as_CriticalErrors()
+        public async Task GrandOutput_dynamic_configuration_with_a_handler_using_the_configurationtype_property_Async()
         {
-            string logPath;
-            var config = CreateDynamicJsonConfigurationSource( "unhandled_and_unobserved", out logPath );
-            using( var g = new GrandOutput( new GrandOutputConfiguration() ) )
-            {
-                g.HandleCriticalErrors.Should().BeFalse();
-                g.HandleCriticalErrors = true;
-                Action<IActivityMonitor> autoRegisterer = m => g.EnsureGrandOutputClient( m );
-                ActivityMonitor.AutoConfiguration += autoRegisterer;
-                try
-                {
-                    using( var client = CreateServerWithUseMonitoring( config, g ) )
-                    {
-                        g.HandleCriticalErrors.Should().BeTrue();
-                        (await client.Get( "?explicitCriticalError" )).Dispose();
-                        // Unable to make this works:
-                        // 1 - Task exceptions are raised loooooong after the error.
-                        // 2 - Thread exceptions kills the process.
-                        //(await client.Get( "?hiddenAsyncBug" )).Dispose();
-                        //(await client.Get( "?unhandledAppDomainException" )).Dispose();
-
-                        // Since the GrandOutput.Dispose is now correcly called thanks to IApplicationLifetime
-                        // we have to wait a little bit for the critical error to be dispatched.
-                        await Task.Delay( 200 );
-                    }
-                }
-                finally
-                {
-                    ActivityMonitor.AutoConfiguration -= autoRegisterer;
-                }
-            }
-
-            var log = Directory.EnumerateFiles( logPath ).Single();
-            File.ReadAllText( log ).Should()
-                    .Contain( "I'm a Critical error." );
-            //.And.Contain( "I'm an horrible HiddenAsyncBug!" );
-            //.And.Contain( "I'm an unhandled exception." );
-        }
-
-
-
-        [Test]
-        public async Task GrandOutput_dynamic_configuration_with_a_handler_using_the_configurationtype_property()
-        {
-            const string c1 = @"{ ""Monitoring"": {
+            const string c1 = @"{ ""Non-Default-Monitoring"": {
                                     ""GrandOutput"": {
                                         ""Handlers"": {
                                             ""Handler1"": {
@@ -408,9 +368,9 @@ namespace CK.AspNet.Tests
 
                 try
                 {
-                    using( var client = CreateServerWithUseMonitoring( config, g ) )
+                    using( var client = CreateServerWithUseMonitoring( config, (g, "Non-Default-Monitoring") ) )
                     {
-                        (await client.Get( "?sayHello&configurationtype_prop_test" )).Dispose();
+                        (await client.GetAsync( "?sayHello&configurationtype_prop_test" )).Dispose();
                     }
                 }
                 finally
@@ -428,7 +388,7 @@ namespace CK.AspNet.Tests
 
         public static DynamicJsonConfigurationSource CreateDynamicJsonConfigurationSource( string folderNameForTextLogs, out string logPath )
         {
-            string c1 = $@"{{ ""Monitoring"": {{
+            string c1 = $@"{{ ""CK-Monitoring"": {{
                                     ""GrandOutput"": {{
                                         ""Handlers"": {{
                                             ""TextFile"": {{
@@ -449,13 +409,10 @@ namespace CK.AspNet.Tests
         /// Creates a TestServerClient with the GrandOutput.Default or with a explicit instance.
         /// </summary>
         /// <param name="config">Configuration to use. Can be null.</param>
-        /// <param name="grandOutput">Explicit instance (null for the GrandOutput.Default).</param>
-        /// <param name="monitoringConfigurationPath">Path to the monitoring configuration.</param>
+        /// <param name="nonDefaultGrandOutput">Explicit non default GrandOutput. When null GrandOutput.Default using "CK-Monitoring" section is configured.</param>
         /// <returns>The test server client.</returns>
-        public static TestServerClient CreateServerWithUseMonitoring(
-            IConfigurationSource config,
-            GrandOutput grandOutput = null,
-            string monitoringConfigurationPath = "Monitoring" )
+        public static TestServerClient CreateServerWithUseMonitoring( IConfigurationSource config,
+                                                                      (GrandOutput G, string ConfigSectionName)? nonDefaultGrandOutput = null )
         {
             var b = Tester.WebHostBuilderFactory.Create( null, null,
                 services =>
@@ -467,7 +424,7 @@ namespace CK.AspNet.Tests
                     app.UseGuardRequestMonitor( opts =>
                     {
                         opts.OnStartRequest = ( ctx, m ) =>
-                                    m.UnfilteredLog( null, Core.LogLevel.Info, "Request Started: " + ctx.Request.Path + ctx.Request.QueryString.ToString(), m.NextLogTime(), null );
+                                    m.UnfilteredLog( Core.LogLevel.Info, null, $"Request Started: {ctx.Request.Path}{ctx.Request.QueryString}", null );
                     } );
                     app.UseMiddleware<StupidMiddleware>();
                 },
@@ -479,13 +436,13 @@ namespace CK.AspNet.Tests
                     configBuilder.Add( config );
                 } );
             }
-            if( grandOutput == null )
+            if( nonDefaultGrandOutput == null )
             {
-                b.UseMonitoring( monitoringConfigurationPath );
+                b.UseCKMonitoring();
             }
             else
             {
-                b.UseMonitoring( grandOutput, monitoringConfigurationPath );
+                b.UseMonitoring( nonDefaultGrandOutput.Value.G, nonDefaultGrandOutput.Value.ConfigSectionName );
             }
             return new TestServerClient( b.Start(), disposeHost: true );
         }

@@ -19,33 +19,27 @@ namespace CK.AspNet.Tests
             _config = c;
         }
 
-        public bool Activate( IActivityMonitor m )
+        public ValueTask<bool> ActivateAsync( IActivityMonitor m )
         {
             m.Info( $"Activating: {_config.Message}." );
-            return true;
+            return ValueTask.FromResult( true );
         }
 
-        public bool ApplyConfiguration( IActivityMonitor m, IHandlerConfiguration c )
+        public ValueTask<bool> ApplyConfigurationAsync( IActivityMonitor m, IHandlerConfiguration c )
         {
             if( c is HandlerWithConfigSectionConfiguration conf )
             {
                 m.Info( $"Applying: {_config.Message} => {conf.Message}." );
                 _config = conf;
-                return true;
+                return ValueTask.FromResult( true );
             }
-            return false;
+            return ValueTask.FromResult( false );
         }
 
-        public void Deactivate( IActivityMonitor m )
-        {
-        }
+        public ValueTask DeactivateAsync( IActivityMonitor m ) => ValueTask.CompletedTask;
 
-        public void Handle( IActivityMonitor m, GrandOutputEventInfo logEvent )
-        {
-        }
+        public ValueTask HandleAsync( IActivityMonitor m, IMulticastLogEntry logEvent ) => ValueTask.CompletedTask;
 
-        public void OnTimer( IActivityMonitor m, TimeSpan timerSpan )
-        {
-        }
+        public ValueTask OnTimerAsync( IActivityMonitor m, TimeSpan timerSpan ) => ValueTask.CompletedTask;
     }
 }

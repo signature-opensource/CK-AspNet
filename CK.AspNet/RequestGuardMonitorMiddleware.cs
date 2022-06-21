@@ -10,8 +10,8 @@ using Microsoft.Extensions.Options;
 namespace CK.AspNet
 {
     /// <summary>
-    /// Acts as an error guard in midleware pipeline: any exceptions raised by next middlewares are
-    /// logged into the current (scoped) request monitor that is installed by <see cref="WebHostBuilderCKAspNetExtensions.UseMonitoring(IHostBuilder, string)">WebHostBuilder.UseMonitoring</see>
+    /// Acts as an error guard in middleware pipeline: any exceptions raised by next middlewares are
+    /// logged into the current (scoped) request monitor that is installed by <see cref="Microsoft.Extensions.Hosting.HostBuilderMonitoringHostExtensions.UseCKMonitoring(Microsoft.Extensions.Hosting.IHostBuilder)">HostBuilder.UseCKMonitoring</see>.
     /// extension method.
     /// By default, execution errors are not swallowed but this can be changed thanks to the <see cref="RequestGuardMonitorMiddlewareOptions.SwallowErrors"/> option.
     /// </summary>
@@ -44,7 +44,7 @@ namespace CK.AspNet
         /// <param name="ctx">The current context.</param>
         /// <param name="m">The request scoped monitor.</param>
         /// <returns>The awaitable.</returns>
-        public Task Invoke( HttpContext ctx, IActivityMonitor m )
+        public Task InvokeAsync( HttpContext ctx, IActivityMonitor m )
         {
             _onStartRequest.Invoke( ctx, m );
             // There is no non generic TaskCompletionSource.
@@ -52,7 +52,7 @@ namespace CK.AspNet
             // Try/catch is required to handle any synchronous exception.
             try
             {
-                _next.Invoke( ctx ).ContinueWith( t =>
+                _ = _next.Invoke( ctx ).ContinueWith( t =>
                 {
                     if( t.Status == TaskStatus.RanToCompletion )
                     {
@@ -76,7 +76,7 @@ namespace CK.AspNet
                         _onEndRequest.Invoke( ctx, m, t.Status );
                         tcs.SetCanceled();
                     }
-                } );
+                }, TaskScheduler.Default );
             }
             catch( Exception ex )
             {
@@ -91,7 +91,7 @@ namespace CK.AspNet
 
         static void DefaultOnRequestError( HttpContext ctx, IActivityMonitor m, Exception ex )
         {
-            m.UnfilteredLog( null, LogLevel.Fatal, ex.Message, m.NextLogTime(), ex );
+            m.UnfilteredLog( LogLevel.Fatal, null, null, ex );
             ctx.Response.StatusCode = StatusCodes.Status500InternalServerError;
         }
 
