@@ -38,7 +38,7 @@ namespace CK.AspNet.Tests
 
         public ValueTask DeactivateAsync( IActivityMonitor m ) => ValueTask.CompletedTask;
 
-        public ValueTask HandleAsync( IActivityMonitor m, IMulticastLogEntry logEvent ) => ValueTask.CompletedTask;
+        public ValueTask HandleAsync( IActivityMonitor m, InputLogEntry logEvent ) => ValueTask.CompletedTask;
 
         public ValueTask OnTimerAsync( IActivityMonitor m, TimeSpan timerSpan ) => ValueTask.CompletedTask;
     }
