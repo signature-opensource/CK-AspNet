@@ -46,7 +46,7 @@ namespace CK.AspNet.Tests
             return ValueTask.CompletedTask;
         }
 
-        ValueTask IGrandOutputHandler.HandleAsync(IActivityMonitor m, IMulticastLogEntry logEvent)
+        ValueTask IGrandOutputHandler.HandleAsync(IActivityMonitor m, InputLogEntry logEvent)
         {
             _builder.Append( _formatter.FormatEntryString( logEvent ) );
             _config.FromSink( _builder, false );
