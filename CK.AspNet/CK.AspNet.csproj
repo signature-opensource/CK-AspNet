@@ -5,6 +5,6 @@
   </PropertyGroup>
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
-    <PackageReference Include="CK.Monitoring.Hosting" Version="18.0.0" />
+    <PackageReference Include="CK.Monitoring.Hosting" Version="19.0.0" />
   </ItemGroup>
 </Project>
