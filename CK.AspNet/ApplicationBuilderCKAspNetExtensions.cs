@@ -15,32 +15,16 @@ namespace Microsoft.AspNetCore.Builder
     {
         /// <summary>
         /// Configures the <see cref="RequestGuardMonitorMiddleware"/> that will catch any exceptions from the following
-        /// middlewares to the request's <see cref="IActivityMonitor"/>.
+        /// middlewares to the request's <see cref="IActivityMonitor"/> if it exists.
         /// Note that <see cref="Microsoft.Extensions.Hosting.HostBuilderMonitoringHostExtensions.UseCKMonitoring(Microsoft.Extensions.Hosting.IHostBuilder)">HostBuilder.UseCKMonitoring</see> must have been
         /// called on the builder.
         /// </summary>
         /// <param name="this">This application builder.</param>
-        /// <param name="options">Optional configuration.</param>
+        /// <param name="swallowErrors">True to swallow error instead of re-throwing it (to the preceding middlewares).</param>
         /// <returns>The application builder.</returns>
-        public static IApplicationBuilder UseGuardRequestMonitor( this IApplicationBuilder @this, RequestGuardMonitorMiddlewareOptions options = null )
+        public static IApplicationBuilder UseGuardRequestMonitor( this IApplicationBuilder @this, bool swallowErrors = false )
         {
-            return @this.UseMiddleware<RequestGuardMonitorMiddleware>( options ?? new RequestGuardMonitorMiddlewareOptions() );
-        }
-
-        /// <summary>
-        /// Configures the <see cref="RequestGuardMonitorMiddleware"/> that will catch any exceptions from the following
-        /// middlewares to the request's <see cref="IActivityMonitor"/>.
-        /// Note that <see cref="Microsoft.Extensions.Hosting.HostBuilderMonitoringHostExtensions.UseCKMonitoring(Microsoft.Extensions.Hosting.IHostBuilder)">HostBuilder.UseCKMonitoring</see> must have been
-        /// called on the builder.
-        /// </summary>
-        /// <param name="this">This application builder.</param>
-        /// <param name="options">Configuration for options.</param>
-        /// <returns>The application builder.</returns>
-        public static IApplicationBuilder UseGuardRequestMonitor( this IApplicationBuilder @this, Action<RequestGuardMonitorMiddlewareOptions> options )
-        {
-            var o = new RequestGuardMonitorMiddlewareOptions();
-            options( o );
-            return @this.UseMiddleware<RequestGuardMonitorMiddleware>( o );
+            return @this.UseMiddleware<RequestGuardMonitorMiddleware>( swallowErrors );
         }
     }
 }
