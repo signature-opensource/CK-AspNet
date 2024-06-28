@@ -1,3 +1,4 @@
+using CK.Core;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -12,9 +13,10 @@ namespace CK.AspNet
 {
     /// <summary>
     /// Provides the <see cref="HttpContext"/> as a scoped dependency.
-    /// This must be installed thanks to <see cref="WebHostBuilderCKAspNetExtensions.UseScopedHttpContext(IWebHostBuilder)"/>
+    /// This must be installed thanks to <see cref="WebApplicationBuilderCKAspNetExtensions.UseScopedHttpContext(IWebHostBuilder)"/>
     /// extension method.
     /// </summary>
+    [ContainerConfiguredScopedService]
     public sealed class ScopedHttpContext
     {
         /// <summary>
@@ -39,10 +41,10 @@ namespace CK.AspNet
             }
         }
 
-        sealed class MiddleWareInstaller : IStartupFilter
-        {
-            static readonly string _uniqueKey = typeof( MiddleWareInstaller ).FullName;
+        static readonly string _uniqueKey = typeof( WebApplicationMiddleWareInstaller ).FullName;
 
+        sealed class WebHostMiddleWareInstaller : IStartupFilter
+        {
             public Action<IApplicationBuilder> Configure( Action<IApplicationBuilder> next )
             {
                 return builder =>
@@ -61,10 +63,28 @@ namespace CK.AspNet
         {
             return builder.ConfigureServices( ( ctx, services ) =>
             {
-                services.AddTransient<IStartupFilter>( _ => new MiddleWareInstaller() )
+                services.AddTransient<IStartupFilter>( _ => new WebHostMiddleWareInstaller() )
                         .TryAddScoped<ScopedHttpContext>();
             } );
         }
 
+        sealed class WebApplicationMiddleWareInstaller : IStartupFilter
+        {
+            public Action<IApplicationBuilder> Configure( Action<IApplicationBuilder> next )
+            {
+                return builder => builder.UseMiddleware<Middleware>();
+            }
+        }
+
+        internal static WebApplicationBuilder Install( WebApplicationBuilder builder )
+        {
+            if( !builder.Host.Properties.TryGetValue( _uniqueKey, out var installedBy ) )
+            {
+                builder.Host.Properties.Add( _uniqueKey, nameof( WebApplicationBuilder ) );
+                builder.Services.Insert( 0, new ServiceDescriptor( typeof( IStartupFilter ), typeof( WebApplicationMiddleWareInstaller ), ServiceLifetime.Transient ) );
+                builder.Services.AddScoped<ScopedHttpContext>();
+            }
+            return builder;
+        }
     }
 }
