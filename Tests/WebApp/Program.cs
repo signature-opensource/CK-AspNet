@@ -15,24 +15,22 @@ namespace WebApp
     {
         public static void Main( string[] args )
         {
-            {
-                var host = Host.CreateDefaultBuilder( args )
-                    .ConfigureWebHostDefaults(
-                        webHostBuilder => webHostBuilder
-                        .UseKestrel()
-                        .UseContentRoot( Directory.GetCurrentDirectory() )
-                        .ConfigureLogging( b =>
-                        {
-                            b.SetMinimumLevel( LogLevel.Trace );
-                        } )
-                        .ConfigureAppConfiguration( c => c.AddJsonFile( "appsettings.json", true, true ) )
-                        .UseIISIntegration()
-                        .UseStartup<Startup>()
-                    )
-                    .UseCKMonitoring()
-                    .Build();
-                host.Run();
-            }
+            var host = Host.CreateDefaultBuilder( args )
+                .ConfigureWebHostDefaults(
+                    webHostBuilder => webHostBuilder
+                    .UseKestrel()
+                    .UseContentRoot( Directory.GetCurrentDirectory() )
+                    .ConfigureLogging( b =>
+                    {
+                        b.SetMinimumLevel( LogLevel.Trace );
+                    } )
+                    .ConfigureAppConfiguration( c => c.AddJsonFile( "appsettings.json", true, true ) )
+                    .UseIISIntegration()
+                    .UseStartup<Startup>()
+                )
+                .UseCKMonitoring()
+                .Build();
+            host.Run();
         }
 
     }
