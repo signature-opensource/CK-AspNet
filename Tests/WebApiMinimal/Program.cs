@@ -1,5 +1,11 @@
 using CK.Core;
 using CK.Monitoring;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using System;
+using System.Linq;
+using System.Threading.Tasks;
 
 // This can be done but using 
 //LogFile.RootLogPath = Path.GetFullPath( "Logs" );
