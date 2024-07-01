@@ -1,25 +1,46 @@
+using CK.Core;
+using CK.Monitoring;
+
+// This can be done but using 
+//LogFile.RootLogPath = Path.GetFullPath( "Logs" );
+//GrandOutput.EnsureActiveDefault();
+
 var builder = WebApplication.CreateBuilder( args );
 
-// Didn't find a way to detect the buplicated call :-(
-// The IApplicationbuilder.Properties and IHostBuilder.Properties are two
-// different dictionaries...
+builder.Host.UseCKMonitoring();
+builder.AddScopedHttpContext();
 
-
-builder.UseScopedHttpContext();
-builder.WebHost.UseScopedHttpContext();
+//try
+//{
+//    builder.WebHost.UseScopedHttpContext();
+//    throw new InvalidOperationException( "NO WAY!" );
+//}
+//catch( CKException ex )
+//{
+//    if( ex.Message != "When WebApplicationBuilder is used, the UseScopedHttpContext() must be called directly on the WebApplicationBuilder." )
+//    {
+//        throw new InvalidOperationException("NO WAY!");
+//    }
+//}
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-
-app.UseHttpsRedirection();
+app.UseScopedHttpContext();
+app.UseGuardRequestMonitor();
 
 var summaries = new[]
 {
     "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
 };
 
-app.MapGet( "/weatherforecast", () =>
+app.Use( async ( context, next ) =>
+{
+    var monitor = context.RequestServices.GetService<IActivityMonitor>();
+    monitor?.Trace( $"My request: {context.Request.QueryString}" );
+    Console.WriteLine( $"Request: {context.Request.QueryString} - {(monitor != null ? "MONITOR" : "NO MONITOR")}" );
+    await next();
+} );
+app.MapGet( "/w", () =>
 {
     var forecast = Enumerable.Range( 1, 5 ).Select( index =>
         new WeatherForecast
@@ -29,8 +50,9 @@ app.MapGet( "/weatherforecast", () =>
             summaries[Random.Shared.Next( summaries.Length )]
         ) )
         .ToArray();
-    return forecast;
+    return Task.FromResult( forecast );
 } );
+app.MapGet( "/throw", () => Throw.CKException<int>( "You asked me to throw." ) );
 
 app.Run();
 

@@ -14,7 +14,7 @@ namespace CK.AspNet
     /// logged into the current (scoped) request monitor if it exists.
     /// By default, execution errors are re-thrown.
     /// </summary>
-    public sealed class RequestGuardMonitorMiddleware
+    sealed class RequestGuardMonitorMiddleware
     {
         readonly RequestDelegate _next;
         readonly bool _swallowErrors;
@@ -64,10 +64,10 @@ namespace CK.AspNet
                         {
                             monitor.UnfilteredLog( LogLevel.Fatal, null, null, ex );
                             monitor.MonitorEnd( "Request error." );
+                            if( _swallowErrors )
+                                tcs.SetResult();
+                            else tcs.SetException( t.Exception );
                         }
-                        tcs.SetException( ex );
-                        if( _swallowErrors )
-                            tcs.SetResult();
                         else tcs.SetException( t.Exception );
                     }
                     else

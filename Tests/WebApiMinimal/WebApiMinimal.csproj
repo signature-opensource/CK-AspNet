@@ -10,4 +10,8 @@
     <ProjectReference Include="..\..\CK.AspNet\CK.AspNet.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Logs\" />
+  </ItemGroup>
+
 </Project>
