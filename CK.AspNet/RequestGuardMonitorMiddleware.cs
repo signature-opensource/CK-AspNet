@@ -11,44 +11,34 @@ namespace CK.AspNet
 {
     /// <summary>
     /// Acts as an error guard in middleware pipeline: any exceptions raised by next middlewares are
-    /// logged into the current (scoped) request monitor that is installed by <see cref="Microsoft.Extensions.Hosting.HostBuilderMonitoringHostExtensions.UseCKMonitoring(Microsoft.Extensions.Hosting.IHostBuilder)">HostBuilder.UseCKMonitoring</see>.
-    /// extension method.
-    /// By default, execution errors are not swallowed but this can be changed thanks to the <see cref="RequestGuardMonitorMiddlewareOptions.SwallowErrors"/> option.
+    /// logged into the current (scoped) request monitor if it exists.
+    /// By default, execution errors are re-thrown.
     /// </summary>
-    public sealed class RequestGuardMonitorMiddleware
+    sealed class RequestGuardMonitorMiddleware
     {
         readonly RequestDelegate _next;
-        readonly RequestGuardMonitorMiddlewareOptions _options;
-        readonly Action<HttpContext, IActivityMonitor> _onStartRequest;
-        readonly Action<HttpContext, IActivityMonitor, TaskStatus> _onEndRequest;
-        readonly Action<HttpContext, IActivityMonitor, Exception> _onRequestError;
+        readonly bool _swallowErrors;
 
         /// <summary>
         /// Initializes a new <see cref="RequestGuardMonitorMiddleware"/> with options.
         /// </summary>
         /// <param name="next">Next middleware.</param>
-        /// <param name="options">Options.</param>
-        public RequestGuardMonitorMiddleware( RequestDelegate next, RequestGuardMonitorMiddlewareOptions options )
+        /// <param name="swallowErrors">True to swallow error instead of re-throwing it (to the preceding middlewares).</param>
+        public RequestGuardMonitorMiddleware( RequestDelegate next, bool swallowErrors = false )
         {
             _next = next;
-            _options = options;
-            _onStartRequest = _options.OnStartRequest ?? DefaultOnStartRequest;
-            _onEndRequest = _options.OnEndRequest ?? DefaultOnEndRequest;
-            _onRequestError = _options.OnRequestError ?? DefaultOnRequestError;
+            _swallowErrors = swallowErrors;
         }
 
         /// <summary>
-        /// Invokes the next request handler and logs any error.
-        /// The exception is rethrown or swallowed depending on <see cref="RequestGuardMonitorMiddlewareOptions.SwallowErrors"/>.
+        /// Invokes the next request handler and logs any error if a <see cref="IActivityMonitor"/> exists
+        /// in the <see cref="HttpContext.RequestServices"/>.
         /// </summary>
         /// <param name="ctx">The current context.</param>
-        /// <param name="m">The request scoped monitor.</param>
         /// <returns>The awaitable.</returns>
-        public Task InvokeAsync( HttpContext ctx, IActivityMonitor m )
+        public Task InvokeAsync( HttpContext ctx )
         {
-            _onStartRequest.Invoke( ctx, m );
-            // There is no non generic TaskCompletionSource.
-            TaskCompletionSource<object> tcs = new TaskCompletionSource<object>();
+            TaskCompletionSource tcs = new TaskCompletionSource();
             // Try/catch is required to handle any synchronous exception.
             try
             {
@@ -56,52 +46,52 @@ namespace CK.AspNet
                 {
                     if( t.Status == TaskStatus.RanToCompletion )
                     {
-                        _onEndRequest.Invoke( ctx, m, t.Status );
-                        tcs.SetResult( true );
+                        if( ctx.RequestServices.GetService( typeof( IActivityMonitor ) ) is IActivityMonitor monitor )
+                        {
+                            monitor.MonitorEnd();
+                        }
+                        tcs.SetResult();
                     }
                     else if( t.Status == TaskStatus.Faulted )
                     {
                         ctx.Response.StatusCode = StatusCodes.Status500InternalServerError;
-                        var e = t.Exception;
-                        if( e.InnerExceptions.Count == 1 )
-                            _onRequestError( ctx, m, e.InnerException );
-                        else _onRequestError( ctx, m, e );
-                        _onEndRequest.Invoke( ctx, m, t.Status );
-                        if( _options.SwallowErrors )
-                            tcs.SetResult( null );
+                        Exception ex;
+                        var agg = t.Exception;
+                        ex = agg != null
+                            ? agg.InnerExceptions.Count == 1 ? agg.InnerExceptions[0] : agg
+                            : new CKException( "Null exception on Faulted Task." );
+                        if( ctx.RequestServices.GetService( typeof( IActivityMonitor ) ) is IActivityMonitor monitor )
+                        {
+                            monitor.UnfilteredLog( LogLevel.Fatal, null, null, ex );
+                            monitor.MonitorEnd( "Request error." );
+                            if( _swallowErrors )
+                                tcs.SetResult();
+                            else tcs.SetException( t.Exception );
+                        }
                         else tcs.SetException( t.Exception );
                     }
                     else
                     {
-                        _onEndRequest.Invoke( ctx, m, t.Status );
+                        if( ctx.RequestServices.GetService( typeof( IActivityMonitor ) ) is IActivityMonitor monitor )
+                        {
+                            monitor.MonitorEnd( "Canceled request." );
+                        }
                         tcs.SetCanceled();
                     }
                 }, TaskScheduler.Default );
             }
             catch( Exception ex )
             {
-                _onRequestError( ctx, m, ex );
-                _onEndRequest.Invoke( ctx, m, TaskStatus.Faulted );
-                if( _options.SwallowErrors )
-                    tcs.SetResult( null );
+                if( ctx.RequestServices.GetService( typeof( IActivityMonitor ) ) is IActivityMonitor monitor )
+                {
+                    monitor.UnfilteredLog( LogLevel.Fatal, null, "Synchronous error in next middleware.", ex );
+                    monitor.MonitorEnd( "Request error." );
+                }
+                if( _swallowErrors )
+                    tcs.SetResult();
                 else tcs.SetException( ex );
             }
             return tcs.Task;
-        }
-
-        static void DefaultOnRequestError( HttpContext ctx, IActivityMonitor m, Exception ex )
-        {
-            m.UnfilteredLog( LogLevel.Fatal, null, null, ex );
-            ctx.Response.StatusCode = StatusCodes.Status500InternalServerError;
-        }
-
-        static void DefaultOnStartRequest( HttpContext ctx, IActivityMonitor m )
-        {
-        }
-
-        static void DefaultOnEndRequest( HttpContext ctx, IActivityMonitor m, TaskStatus status )
-        {
-            m.MonitorEnd();
         }
     }
 }

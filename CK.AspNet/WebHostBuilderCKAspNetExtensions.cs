@@ -1,31 +1,83 @@
 using CK.AspNet;
-using Microsoft.Extensions.Hosting;
+using CK.Core;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
 using System;
-using System.Collections.Generic;
-using System.Text;
+using System.Diagnostics;
+using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Microsoft.AspNetCore.Hosting
 {
     /// <summary>
-    /// Provides <see cref="UseScopedHttpContext(IWebHostBuilder)"/> on web host.
+    /// Provides <see cref="UseScopedHttpContext(WebApplicationBuilder)"/>.
     /// </summary>
     public static class WebHostBuilderCKAspNetExtensions
     {
         /// <summary>
-        /// Automatically provides a <see cref="ScopedHttpContext"/> service that enables scoped services
-        /// to use the HttpContext.
-        /// </summary>
-        /// <remarks>
-        /// This is much more efficient than the HttpContextAccessor. HttpContextAccessor remains the only
-        /// way to have a singleton service depends on the HttpContext and must NEVER be used. Singleton
-        /// services that MAY need the HttpContext must be designed with explicit HttpContext method parameter 
-        /// injection.
+        /// Does the same as <see cref="ApplicationBuilderCKAspNetExtensions.AddScopedHttpContext(WebApplicationBuilder)"/> and
+        /// <see cref="ApplicationBuilderCKAspNetExtensions.UseScopedHttpContext(IApplicationBuilder)"/> that should be used instead of this one.
         /// <para>
-        /// Scoped services however CAN easily depend on the HttpContext thanks to this ScopedHttpContext.
+        /// In minimal API mode (ie. when this <paramref name="builder"/> is a <see cref="ConfigureWebHostBuilder"/>), this
+        /// throws a <see cref="CK.Core.CKException"/>.
         /// </para>
-        /// </remarks>
+        /// </summary>
         /// <param name="builder">This Web host builder.</param>
         /// <returns>The builder.</returns>
-        public static IWebHostBuilder UseScopedHttpContext( this IWebHostBuilder builder ) => ScopedHttpContext.Install( builder );
+        [Obsolete( "Please change your startup code to use WebApplication.UseScopedHttpContext() (IApplicationBuilder extension) instead (Minimal API)." )]
+        public static IWebHostBuilder UseScopedHttpContext( this IWebHostBuilder builder ) => Install( builder );
+
+
+        sealed class Middleware
+        {
+            readonly RequestDelegate _next;
+
+            public Middleware( RequestDelegate next )
+            {
+                _next = next;
+            }
+
+            public async Task InvokeAsync( HttpContext c, ScopedHttpContext p )
+            {
+                Debug.Assert( p.HttpContext == null );
+                p.HttpContext = c;
+                await _next( c );
+            }
+        }
+
+        static readonly string _uniqueKey = typeof( WebHostMiddleWareInstaller ).FullName;
+
+        sealed class WebHostMiddleWareInstaller : IStartupFilter
+        {
+            public Action<IApplicationBuilder> Configure( Action<IApplicationBuilder> next )
+            {
+                return builder =>
+                {
+                    if( !builder.Properties.ContainsKey( _uniqueKey ) )
+                    {
+                        builder.Properties.Add( _uniqueKey, null );
+                        builder.UseMiddleware<Middleware>();
+                    }
+                    next( builder );
+                };
+            }
+        }
+
+        static IWebHostBuilder Install( IWebHostBuilder builder )
+        {
+            if( builder is ConfigureWebHostBuilder )
+            {
+                Throw.CKException( "When WebApplicationBuilder is used, the UseScopedHttpContext() must be called directly on the WebApplicationBuilder." );
+            }
+            return builder.ConfigureServices( ( ctx, services ) =>
+            {
+                services.AddTransient<IStartupFilter>( _ => new WebHostMiddleWareInstaller() )
+                        .TryAddScoped<ScopedHttpContext>();
+            } );
+        }
+
+
+
     }
 }
