@@ -22,7 +22,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CodeCakeBuilder", "CodeCake
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WebApp", "Tests\WebApp\WebApp.csproj", "{90BEF218-C7A4-4BC0-BCEC-8DDC1A0B2F0C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebApiMinimal", "Tests\WebApiMinimal\WebApiMinimal.csproj", "{F278E1B3-4B6A-41CD-A438-426C00C76777}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WebApiMinimal", "Tests\WebApiMinimal\WebApiMinimal.csproj", "{F278E1B3-4B6A-41CD-A438-426C00C76777}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CK.Testing.AspNetServer", "CK.Testing.AspNetServer\CK.Testing.AspNetServer.csproj", "{28B74945-4541-469D-BBFF-18FC34ECB7DB}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -50,6 +52,10 @@ Global
 		{F278E1B3-4B6A-41CD-A438-426C00C76777}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F278E1B3-4B6A-41CD-A438-426C00C76777}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F278E1B3-4B6A-41CD-A438-426C00C76777}.Release|Any CPU.Build.0 = Release|Any CPU
+		{28B74945-4541-469D-BBFF-18FC34ECB7DB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{28B74945-4541-469D-BBFF-18FC34ECB7DB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{28B74945-4541-469D-BBFF-18FC34ECB7DB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{28B74945-4541-469D-BBFF-18FC34ECB7DB}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

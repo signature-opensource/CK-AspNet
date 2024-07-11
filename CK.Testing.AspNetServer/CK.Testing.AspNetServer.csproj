@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Description>Provides a WebApplicationBuilder.BuildAndCreateRunningAspNetServerAsync() and TestHelper.CreateMinimalAspNetServerAsync() helpers that returns a RunningAspNetServer with a Client to interact with it.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="CK.Testing.Monitoring" Version="0.0.0--04yy55i-develop" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\CK.AspNet\CK.AspNet.csproj" />
+  </ItemGroup>
+</Project>
