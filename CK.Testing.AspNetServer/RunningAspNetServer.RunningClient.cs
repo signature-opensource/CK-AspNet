@@ -27,6 +27,7 @@ namespace CK.Testing
             readonly Uri _baseAddress;
             readonly HttpClient _httpClient;
             readonly CookieContainer _cookieContainer;
+            readonly RunningAspNetServer _server;
             string? _token;
 
             sealed partial class Handler : DelegatingHandler
@@ -102,12 +103,18 @@ namespace CK.Testing
                 _baseAddress = new Uri( server._serverAddress );
                 _httpClient = new HttpClient( new Handler( this ) ) { BaseAddress = _baseAddress };
                 _cookieContainer = new CookieContainer();
+                _server = server;
             }
 
             internal void Dispose()
             {
                 _httpClient.Dispose();
             }
+
+            /// <summary>
+            /// Gets the server.
+            /// </summary>
+            public RunningAspNetServer Server => _server;
 
             /// <summary>
             /// Gets the <see cref="ServerAddress"/> as an <see cref="Uri"/>.
