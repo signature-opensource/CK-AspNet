@@ -1,5 +1,4 @@
 using CK.Core;
-using CK.Monitoring;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -7,32 +6,12 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 
-// This can be done but using 
-//LogFile.RootLogPath = Path.GetFullPath( "Logs" );
-//GrandOutput.EnsureActiveDefault();
-
 var builder = WebApplication.CreateBuilder( args );
+builder.UseCKMonitoring();
+builder.Services.AddScoped<IActivityMonitor, ActivityMonitor>();
+builder.Services.AddScoped<IParallelLogger>( sp => sp.GetRequiredService<IActivityMonitor>().ParallelLogger );
 
-builder.Host.UseCKMonitoring();
-builder.AddScopedHttpContext();
-
-//try
-//{
-//    builder.WebHost.UseScopedHttpContext();
-//    throw new InvalidOperationException( "NO WAY!" );
-//}
-//catch( CKException ex )
-//{
-//    if( ex.Message != "When WebApplicationBuilder is used, the UseScopedHttpContext() must be called directly on the WebApplicationBuilder." )
-//    {
-//        throw new InvalidOperationException("NO WAY!");
-//    }
-//}
-
-var app = builder.Build();
-
-app.UseScopedHttpContext();
-app.UseGuardRequestMonitor();
+var app = builder.CKBuild();
 
 var summaries = new[]
 {

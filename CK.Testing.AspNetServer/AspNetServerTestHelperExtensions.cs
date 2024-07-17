@@ -1,9 +1,7 @@
 using CK.Core;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
@@ -13,68 +11,21 @@ namespace CK.Testing
 {
     public static class AspNetServerTestHelperExtensions
     {
-        /// <summary>
-        /// Creates, configures and starts a <see cref="RunningAspNetServer"/> (that must be disposed once done with it).
-        /// <para>
-        /// This services configuration is minimal:
-        /// <code>
-        ///             builder.AddScopedHttpContext();
-        ///             configureServices?.Invoke( builder.Services );
-        ///             // Register the IActivityMonitor and its ParallelLogger (if they are not already registered).
-        ///             builder.Services.TryAddScoped&lt;IActivityMonitor, ActivityMonitor&gt;();
-        ///             builder.Services.TryAddScoped( sp => sp.GetRequiredService&lt;IActivityMonitor&gt;().ParallelLogger );
-        /// </code>
-        /// As well as the the pipeline (done by <see cref="BuildAndCreateRunningAspNetServerAsync(WebApplicationBuilder, Action{IApplicationBuilder}?)"/>):
-        /// <code>
-        ///             app.UseScopedHttpContext();
-        ///             app.UseGuardRequestMonitor();
-        ///             // This chooses a random, free port.
-        ///             app.Urls.Add( "http://[::1]:0" );
-        ///             configureApplication?.Invoke( app );
-        /// </code>
-        /// </para>
-        /// </summary>
-        /// <param name="helper">This helper.</param>
-        /// <param name="configureServices">Application services configurator.</param>
-        /// <param name="configureApplication">Optional application configurator.</param>
-        /// <returns>A running .NET server or null if an error occurred or the server failed to start.</returns>
-        public static async Task<RunningAspNetServer> CreateMinimalAspNetServerAsync( this IMonitorTestHelper helper,
-                                                                                      Action<IServiceCollection>? configureServices,
-                                                                                      Action<IApplicationBuilder>? configureApplication = null )
-        {
-            var builder = WebApplication.CreateBuilder();
-            builder.AddScopedHttpContext();
-            configureServices?.Invoke( builder.Services );
-            // Don't UseCKMonitoring() here or the GrandOutput.Default will be reconfigured:
-            // only register the IActivityMonitor and its ParallelLogger (if they are not already registered).
-            builder.Services.TryAddScoped<IActivityMonitor, ActivityMonitor>();
-            builder.Services.TryAddScoped( sp => sp.GetRequiredService<IActivityMonitor>().ParallelLogger );
-
-            return await builder.BuildAndCreateRunningAspNetServerAsync( configureApplication ).ConfigureAwait( false );
-        }
 
         /// <summary>
-        /// Creates a <see cref="RunningAspNetServer"/> from this configured WebApplication with a minimal pipeline:
-        /// <code>
-        ///             app.UseScopedHttpContext();
-        ///             app.UseGuardRequestMonitor();
-        ///             // This chooses a random, free port.
-        ///             app.Urls.Add( "http://[::1]:0" );
-        ///             configureApplication?.Invoke( app );
-        /// </code>
+        /// Creates a <see cref="RunningAspNetServer"/> from this configured WebApplication by calling <see cref="ApplicationBuilderCKAspNetExtensions.CKBuild(WebApplicationBuilder)"/>,
+        /// starts the <see cref="WebApplication"/> on a random port and returns a <see cref="RunningAspNetServer"/>.
         /// </summary>
         /// <param name="appBuilder">This web application.</param>
         /// <param name="configureApplication">Optional application configurator.</param>
         /// <returns>A running .NET server or null if an error occurred or the server failed to start.</returns>
-        public static async Task<RunningAspNetServer> BuildAndCreateRunningAspNetServerAsync( this WebApplicationBuilder appBuilder,
-                                                                                              Action<IApplicationBuilder>? configureApplication )
+        public static async Task<RunningAspNetServer> CreateRunningAspNetServerAsync( this WebApplicationBuilder appBuilder,
+                                                                                      Action<IApplicationBuilder>? configureApplication = null )
         {
             WebApplication? app = null;
             try
             {
-                app = appBuilder.Build();
-                app.UseScopedHttpContext();
-                app.UseGuardRequestMonitor();
+                app = appBuilder.CKBuild();
 
                 // This chooses a random, free port.
                 app.Urls.Add( "http://[::1]:0" );

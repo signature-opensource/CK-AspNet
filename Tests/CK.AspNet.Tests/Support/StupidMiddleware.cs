@@ -1,15 +1,12 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using CK.Core;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Primitives;
-using System.IO;
 using Newtonsoft.Json.Linq;
-using System.Xml.Linq;
+using System;
+using System.IO;
 using System.Threading;
-using CK.Core;
+using System.Threading.Tasks;
+using System.Xml.Linq;
 
 namespace CK.AspNet.Tests
 {

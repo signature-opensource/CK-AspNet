@@ -1,43 +1,28 @@
+using CK.Core;
 using Microsoft.AspNetCore.Http;
 using System;
-using System.Collections.Generic;
-using System.Text;
+using System.Globalization;
 using System.Threading.Tasks;
-using CK.Core;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.Extensions.Options;
 
 namespace CK.AspNet
 {
     /// <summary>
-    /// Acts as an error guard in middleware pipeline: any exceptions raised by next middlewares are
-    /// logged into the current (scoped) request monitor if it exists.
-    /// By default, execution errors are re-thrown.
+    /// Configures the ScopedHttpContext and acts as an error guard in middleware pipeline: any exceptions
+    /// raised by next middlewares are logged into the current (scoped) request monitor if it exists.
     /// </summary>
-    sealed class RequestGuardMonitorMiddleware
+    sealed class CKMiddleware
     {
         readonly RequestDelegate _next;
-        readonly bool _swallowErrors;
 
-        /// <summary>
-        /// Initializes a new <see cref="RequestGuardMonitorMiddleware"/> with options.
-        /// </summary>
-        /// <param name="next">Next middleware.</param>
-        /// <param name="swallowErrors">True to swallow error instead of re-throwing it (to the preceding middlewares).</param>
-        public RequestGuardMonitorMiddleware( RequestDelegate next, bool swallowErrors = false )
+        public CKMiddleware( RequestDelegate next )
         {
             _next = next;
-            _swallowErrors = swallowErrors;
         }
 
-        /// <summary>
-        /// Invokes the next request handler and logs any error if a <see cref="IActivityMonitor"/> exists
-        /// in the <see cref="HttpContext.RequestServices"/>.
-        /// </summary>
-        /// <param name="ctx">The current context.</param>
-        /// <returns>The awaitable.</returns>
-        public Task InvokeAsync( HttpContext ctx )
+        public Task InvokeAsync( HttpContext ctx, ScopedHttpContext scoped )
         {
+            Throw.DebugAssert( scoped.HttpContext is null );
+            scoped.HttpContext = ctx;
             TaskCompletionSource tcs = new TaskCompletionSource();
             // Try/catch is required to handle any synchronous exception.
             try
@@ -62,13 +47,10 @@ namespace CK.AspNet
                             : new CKException( "Null exception on Faulted Task." );
                         if( ctx.RequestServices.GetService( typeof( IActivityMonitor ) ) is IActivityMonitor monitor )
                         {
-                            monitor.UnfilteredLog( LogLevel.Fatal, null, null, ex );
+                            monitor.UnfilteredLog( LogLevel.Fatal | LogLevel.IsFiltered, null, null, ex );
                             monitor.MonitorEnd( "Request error." );
-                            if( _swallowErrors )
-                                tcs.SetResult();
-                            else tcs.SetException( t.Exception );
                         }
-                        else tcs.SetException( t.Exception );
+                        tcs.SetException( ex );
                     }
                     else
                     {
@@ -84,14 +66,13 @@ namespace CK.AspNet
             {
                 if( ctx.RequestServices.GetService( typeof( IActivityMonitor ) ) is IActivityMonitor monitor )
                 {
-                    monitor.UnfilteredLog( LogLevel.Fatal, null, "Synchronous error in next middleware.", ex );
+                    monitor.UnfilteredLog( LogLevel.Fatal | LogLevel.IsFiltered, null, "Synchronous error in next middleware.", ex );
                     monitor.MonitorEnd( "Request error." );
                 }
-                if( _swallowErrors )
-                    tcs.SetResult();
-                else tcs.SetException( ex );
+                tcs.SetException( ex );
             }
             return tcs.Task;
         }
     }
+
 }
