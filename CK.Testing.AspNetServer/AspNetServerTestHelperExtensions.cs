@@ -16,16 +16,18 @@ namespace CK.Testing
         /// Creates a <see cref="RunningAspNetServer"/> from this configured WebApplication by calling <see cref="ApplicationBuilderCKAspNetExtensions.CKBuild(WebApplicationBuilder)"/>,
         /// starts the <see cref="WebApplication"/> on a random port and returns a <see cref="RunningAspNetServer"/>.
         /// </summary>
-        /// <param name="appBuilder">This web application.</param>
+        /// <param name="builder">This web application.</param>
+        /// <param name="map">Optional CKomposable map to register.</param>
         /// <param name="configureApplication">Optional application configurator.</param>
         /// <returns>A running .NET server or null if an error occurred or the server failed to start.</returns>
-        public static async Task<RunningAspNetServer> CreateRunningAspNetServerAsync( this WebApplicationBuilder appBuilder,
+        public static async Task<RunningAspNetServer> CreateRunningAspNetServerAsync( this WebApplicationBuilder builder,
+                                                                                      IStObjMap? map = null,
                                                                                       Action<IApplicationBuilder>? configureApplication = null )
         {
             WebApplication? app = null;
             try
             {
-                app = appBuilder.CKBuild();
+                app = builder.CKBuild( map );
 
                 // This chooses a random, free port.
                 app.Urls.Add( "http://[::1]:0" );

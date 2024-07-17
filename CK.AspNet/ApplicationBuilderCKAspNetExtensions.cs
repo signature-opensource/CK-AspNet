@@ -87,9 +87,16 @@ namespace Microsoft.AspNetCore.Builder
         /// </list>
         /// </summary>
         /// <param name="builder">This builder.</param>
+        /// <param name="map">Optional CKomposable map to register.</param>
         /// <returns>The web application.</returns>
-        public static WebApplication CKBuild( this WebApplicationBuilder builder )
+        public static WebApplication CKBuild( this WebApplicationBuilder builder, IStObjMap? map = null )
         {
+            if( map != null )
+            {
+                var monitor = builder.GetBuilderMonitor();
+                var reg = new StObjContextRoot.ServiceRegister( monitor, builder.Services );
+                map.ConfigureServices( in reg );
+            }
             builder.Services.AddScoped<ScopedHttpContext>();
             var app = builder.Build();
             IDictionary<object, object> props = ((IHostApplicationBuilder)builder).Properties;
