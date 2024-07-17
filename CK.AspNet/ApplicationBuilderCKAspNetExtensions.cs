@@ -1,5 +1,6 @@
 using CK.AspNet;
 using CK.Core;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using System;
@@ -68,6 +69,7 @@ namespace Microsoft.AspNetCore.Builder
         /// Wraps the <see cref="WebApplicationBuilder.Build"/>.
         /// <list type="number">
         ///     <item>The <see cref="ScopedHttpContext"/> is added to the <see cref="WebApplicationBuilder.Services"/>.</item>
+        ///     <item>If the <paramref name="map"/> is provided, registers it into the services.</item>
         ///     <item><see cref="WebApplicationBuilder.Build"/> is called to obtain the <see cref="WebApplication"/>.</item>
         ///     <item>
         ///      Executes the configurations registered by <see cref="PrependApplicationBuilder(WebApplicationBuilder, Action{IApplicationBuilder})"/> (should rarely be used).
@@ -91,13 +93,13 @@ namespace Microsoft.AspNetCore.Builder
         /// <returns>The web application.</returns>
         public static WebApplication CKBuild( this WebApplicationBuilder builder, IStObjMap? map = null )
         {
+            builder.Services.AddScoped<ScopedHttpContext>();
             if( map != null )
             {
                 var monitor = builder.GetBuilderMonitor();
                 var reg = new StObjContextRoot.ServiceRegister( monitor, builder.Services );
                 map.ConfigureServices( in reg );
             }
-            builder.Services.AddScoped<ScopedHttpContext>();
             var app = builder.Build();
             IDictionary<object, object> props = ((IHostApplicationBuilder)builder).Properties;
             if( props.TryGetValue( typeof( PrePipelineBuilder ), out var first ) )
