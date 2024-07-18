@@ -70,12 +70,12 @@ namespace Microsoft.AspNetCore.Builder
         /// Wraps the <see cref="WebApplicationBuilder.Build"/>.
         /// <list type="number">
         ///     <item>
-        ///     The <see cref="ScopedHttpContext"/> is added to the <see cref="WebApplicationBuilder.Services"/> and the <see cref="IActivityMonitor"/>
-        ///     and <see cref="IParallelLogger"/> are added with a resolution from the <see cref="ScopedHttpContext"/> request:
+        ///     The <see cref="ScopedHttpContext"/> is added to the <see cref="WebApplicationBuilder.Services"/> as well as <see cref="IActivityMonitor"/>
+        ///     and <see cref="IParallelLogger"/>:
         ///     <code>
-        ///       builder.Services.AddScoped&lt;ScopedHttpContext&gt;();
-        ///       builder.Services.AddScoped(sp => sp.GetRequiredService&lt;ScopedHttpContext&gt;().HttpContext.GetRequestMonitor() );
-        ///       builder.Services.AddScoped(sp => sp.GetRequiredService&lt;IActivityMonitor&gt;().ParallelLogger );
+        ///     builder.Services.AddScoped<ScopedHttpContext>();
+        ///     builder.Services.AddScoped(sp => sp.GetRequiredService<ScopedHttpContext>().Monitor );
+        ///     builder.Services.AddScoped(sp => sp.GetRequiredService<IActivityMonitor>().ParallelLogger );
         ///     </code>
         ///     </item>
         ///     <item>If the <paramref name="map"/> is provided, registers it into the services.</item>
@@ -103,7 +103,7 @@ namespace Microsoft.AspNetCore.Builder
         public static WebApplication CKBuild( this WebApplicationBuilder builder, IStObjMap? map = null )
         {
             builder.Services.AddScoped<ScopedHttpContext>();
-            builder.Services.AddScoped( sp => sp.GetRequiredService<ScopedHttpContext>().HttpContext.GetRequestMonitor() );
+            builder.Services.AddScoped( sp => sp.GetRequiredService<ScopedHttpContext>().Monitor );
             builder.Services.AddScoped( sp => sp.GetRequiredService<IActivityMonitor>().ParallelLogger );
             builder.ApplyAutoConfigure();
             if( map != null )

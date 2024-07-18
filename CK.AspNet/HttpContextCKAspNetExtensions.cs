@@ -6,8 +6,6 @@ namespace Microsoft.AspNetCore.Http
 {
     /// <summary>
     /// Provides a service locator for <see cref="IActivityMonitor"/> on <see cref="HttpContext"/>.
-    /// Note that no GetRequestMonitor() exists for the <see cref="ScopedHttpContext"/>: the monitor
-    /// should not be "located" by scoped services but should be injected in the constructor.
     /// </summary>
     public static class HttpContextCKAspNetExtensions
     {

@@ -1,5 +1,6 @@
 using CK.Core;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Extensions;
 using System;
 using System.Threading.Tasks;
 
@@ -21,7 +22,10 @@ namespace CK.AspNet
         public Task InvokeAsync( HttpContext ctx, ScopedHttpContext scoped )
         {
             Throw.DebugAssert( scoped.HttpContext is null );
-            scoped.HttpContext = ctx;
+            // TODO: Build a Topic based on the Request.
+            scoped.Setup( ctx, new ActivityMonitor() );
+
+            // TODO: integrate this into the ScopedHttpContext.
             TaskCompletionSource tcs = new TaskCompletionSource();
             // Try/catch is required to handle any synchronous exception.
             try
