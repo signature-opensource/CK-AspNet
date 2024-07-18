@@ -1,7 +1,6 @@
 using CK.Core;
 using Microsoft.AspNetCore.Http;
 using System;
-using System.Globalization;
 using System.Threading.Tasks;
 
 namespace CK.AspNet
@@ -45,34 +44,49 @@ namespace CK.AspNet
                         ex = agg != null
                             ? agg.InnerExceptions.Count == 1 ? agg.InnerExceptions[0] : agg
                             : new CKException( "Null exception on Faulted Task." );
-                        if( ctx.RequestServices.GetService( typeof( IActivityMonitor ) ) is IActivityMonitor monitor )
-                        {
-                            monitor.UnfilteredLog( LogLevel.Fatal | LogLevel.IsFiltered, null, null, ex );
-                            monitor.MonitorEnd( "Request error." );
-                        }
+                        LogError( ctx.RequestServices, null, ex );
                         tcs.SetException( ex );
                     }
                     else
                     {
-                        if( ctx.RequestServices.GetService( typeof( IActivityMonitor ) ) is IActivityMonitor monitor )
-                        {
-                            monitor.MonitorEnd( "Canceled request." );
-                        }
+                        LogCanceled( ctx.RequestServices );
                         tcs.SetCanceled();
                     }
                 }, TaskScheduler.Default );
             }
             catch( Exception ex )
             {
-                if( ctx.RequestServices.GetService( typeof( IActivityMonitor ) ) is IActivityMonitor monitor )
-                {
-                    monitor.UnfilteredLog( LogLevel.Fatal | LogLevel.IsFiltered, null, "Synchronous error in next middleware.", ex );
-                    monitor.MonitorEnd( "Request error." );
-                }
+                LogError( ctx.RequestServices, "Synchronous error in next middleware.", ex );
                 tcs.SetException( ex );
             }
             return tcs.Task;
         }
-    }
 
+        static void LogError( IServiceProvider services, string? text, Exception ex )
+        {
+            if( services.GetService( typeof( IActivityMonitor ) ) is IActivityMonitor monitor )
+            {
+                monitor.UnfilteredLog( LogLevel.Fatal | LogLevel.IsFiltered, null, text, ex );
+                monitor.MonitorEnd( "Request error." );
+            }
+            else
+            {
+                IActivityLineEmitter logger = services.GetService( typeof( IParallelLogger ) ) as IActivityLineEmitter ?? ActivityMonitor.StaticLogger;
+                logger.UnfilteredLog( LogLevel.Fatal | LogLevel.IsFiltered, null, text, ex );
+            }
+        }
+
+        static void LogCanceled( IServiceProvider services )
+        {
+            if( services.GetService( typeof( IActivityMonitor ) ) is IActivityMonitor monitor )
+            {
+                monitor.MonitorEnd( "Request canceled." );
+            }
+            else
+            {
+                IActivityLineEmitter logger = services.GetService( typeof( IParallelLogger ) ) as IActivityLineEmitter ?? ActivityMonitor.StaticLogger;
+                logger.UnfilteredLog( LogLevel.Fatal | LogLevel.IsFiltered, null, "Request canceled.", null );
+            }
+        }
+    }
 }
