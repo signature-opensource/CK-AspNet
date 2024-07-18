@@ -94,7 +94,7 @@ namespace Microsoft.AspNetCore.Builder
         public static WebApplication CKBuild( this WebApplicationBuilder builder, IStObjMap? map = null )
         {
             builder.Services.AddScoped<ScopedHttpContext>();
-            builder.ApplyAuto();
+            builder.ApplyAutoConfigure();
             if( map != null )
             {
                 builder.Services.AddStObjMap( builder.GetBuilderMonitor(), map );
