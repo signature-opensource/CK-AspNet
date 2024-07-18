@@ -18,7 +18,7 @@ namespace Microsoft.AspNetCore.Builder
         sealed class PipelineBuilder : List<Action<IApplicationBuilder>> { }
 
         /// <summary>
-        /// Adds an action that will be executed by <see cref="CKBuild(WebApplicationBuilder)"/> on the built <see cref="WebApplication"/>.
+        /// Adds an action that will be executed by <see cref="CKBuild(WebApplicationBuilder, IStObjMap?)"/> on the built <see cref="WebApplication"/>.
         /// </summary>
         /// <param name="builder">This builder.</param>
         /// <param name="configure">Configuration action.</param>
@@ -39,7 +39,7 @@ namespace Microsoft.AspNetCore.Builder
         }
 
         /// <summary>
-        /// Adds an action that will be executed by <see cref="CKBuild(WebApplicationBuilder)"/> on the built <see cref="WebApplication"/>
+        /// Adds an action that will be executed by <see cref="CKBuild(WebApplicationBuilder, IStObjMap?)"/> on the built <see cref="WebApplication"/>
         /// before any other builders.
         /// <para>
         /// <see cref="AppendApplicationBuilder(WebApplicationBuilder, Action{IApplicationBuilder})"/>
@@ -94,11 +94,10 @@ namespace Microsoft.AspNetCore.Builder
         public static WebApplication CKBuild( this WebApplicationBuilder builder, IStObjMap? map = null )
         {
             builder.Services.AddScoped<ScopedHttpContext>();
+            builder.ApplyAuto();
             if( map != null )
             {
-                var monitor = builder.GetBuilderMonitor();
-                var reg = new StObjContextRoot.ServiceRegister( monitor, builder.Services );
-                map.ConfigureServices( in reg );
+                builder.Services.AddStObjMap( builder.GetBuilderMonitor(), map );
             }
             var app = builder.Build();
             IDictionary<object, object> props = ((IHostApplicationBuilder)builder).Properties;
