@@ -1,6 +1,7 @@
 using CK.AspNet;
 using CK.Core;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using System;
@@ -68,7 +69,15 @@ namespace Microsoft.AspNetCore.Builder
         /// <summary>
         /// Wraps the <see cref="WebApplicationBuilder.Build"/>.
         /// <list type="number">
-        ///     <item>The <see cref="ScopedHttpContext"/> is added to the <see cref="WebApplicationBuilder.Services"/>.</item>
+        ///     <item>
+        ///     The <see cref="ScopedHttpContext"/> is added to the <see cref="WebApplicationBuilder.Services"/> and the <see cref="IActivityMonitor"/>
+        ///     and <see cref="IParallelLogger"/> are added with a resolution from the <see cref="ScopedHttpContext"/> request:
+        ///     <code>
+        ///       builder.Services.AddScoped&lt;ScopedHttpContext&gt;();
+        ///       builder.Services.AddScoped(sp => sp.GetRequiredService&lt;ScopedHttpContext&gt;().HttpContext.GetRequestMonitor() );
+        ///       builder.Services.AddScoped(sp => sp.GetRequiredService&lt;IActivityMonitor&gt;().ParallelLogger );
+        ///     </code>
+        ///     </item>
         ///     <item>If the <paramref name="map"/> is provided, registers it into the services.</item>
         ///     <item><see cref="WebApplicationBuilder.Build"/> is called to obtain the <see cref="WebApplication"/>.</item>
         ///     <item>
@@ -94,6 +103,8 @@ namespace Microsoft.AspNetCore.Builder
         public static WebApplication CKBuild( this WebApplicationBuilder builder, IStObjMap? map = null )
         {
             builder.Services.AddScoped<ScopedHttpContext>();
+            builder.Services.AddScoped( sp => sp.GetRequiredService<ScopedHttpContext>().HttpContext.GetRequestMonitor() );
+            builder.Services.AddScoped( sp => sp.GetRequiredService<IActivityMonitor>().ParallelLogger );
             builder.ApplyAutoConfigure();
             if( map != null )
             {
