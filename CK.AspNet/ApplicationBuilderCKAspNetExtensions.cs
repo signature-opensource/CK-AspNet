@@ -15,6 +15,7 @@ namespace Microsoft.AspNetCore.Builder
     /// </summary>
     public static class ApplicationBuilderCKAspNetExtensions
     {
+        sealed class PreCKMidlewarePipelineBuilder : List<Action<IApplicationBuilder>> { }
         sealed class PrePipelineBuilder : List<Action<IApplicationBuilder>> { }
         sealed class PipelineBuilder : List<Action<IApplicationBuilder>> { }
 
@@ -50,18 +51,36 @@ namespace Microsoft.AspNetCore.Builder
         /// </summary>
         /// <param name="builder">This builder.</param>
         /// <param name="configure">Configuration action.</param>
+        /// <param name="beforeCKMiddleware">
+        /// Optionally registers the <paramref name="configure"/> action before the CKMiddleware that starts the pipeline.
+        /// This middleware setups the <see cref="ScopedHttpContext"/> and the Http request <see cref="IActivityMonitor"/>.
+        /// </param>
         /// <returns>This builder.</returns>
-        public static WebApplicationBuilder PrependApplicationBuilder( this WebApplicationBuilder builder, Action<IApplicationBuilder> configure )
+        public static WebApplicationBuilder PrependApplicationBuilder( this WebApplicationBuilder builder, Action<IApplicationBuilder> configure, bool beforeCKMiddleware = false )
         {
             Throw.CheckNotNullArgument( configure );
             IDictionary<object, object> props = ((IHostApplicationBuilder)builder).Properties;
-            if( props.TryGetValue( typeof( PrePipelineBuilder ), out var b ) )
+            if( beforeCKMiddleware )
             {
-                ((PrePipelineBuilder)b).Add( configure );
+                if( props.TryGetValue( typeof( PreCKMidlewarePipelineBuilder ), out var b ) )
+                {
+                    ((PreCKMidlewarePipelineBuilder)b).Add( configure );
+                }
+                else
+                {
+                    props.Add( typeof( PreCKMidlewarePipelineBuilder ), new PreCKMidlewarePipelineBuilder { configure } );
+                }
             }
             else
             {
-                props.Add( typeof( PrePipelineBuilder ), new PrePipelineBuilder { configure } );
+                if( props.TryGetValue( typeof( PrePipelineBuilder ), out var b ) )
+                {
+                    ((PrePipelineBuilder)b).Add( configure );
+                }
+                else
+                {
+                    props.Add( typeof( PrePipelineBuilder ), new PrePipelineBuilder { configure } );
+                }
             }
             return builder;
         }
@@ -73,17 +92,18 @@ namespace Microsoft.AspNetCore.Builder
         ///     The <see cref="ScopedHttpContext"/> is added to the <see cref="WebApplicationBuilder.Services"/> as well as <see cref="IActivityMonitor"/>
         ///     and <see cref="IParallelLogger"/>:
         ///     <code>
-        ///     builder.Services.AddScoped<ScopedHttpContext>();
-        ///     builder.Services.AddScoped(sp => sp.GetRequiredService<ScopedHttpContext>().Monitor );
-        ///     builder.Services.AddScoped(sp => sp.GetRequiredService<IActivityMonitor>().ParallelLogger );
+        ///     builder.Services.AddScoped&lt;ScopedHttpContext&gt;();
+        ///     builder.Services.AddScoped(sp =&gt; sp.GetRequiredService&lt;ScopedHttpContext&gt;().Monitor );
+        ///     builder.Services.AddScoped(sp =&gt; sp.GetRequiredService&lt;IActivityMonitor&gt;().ParallelLogger );
         ///     </code>
         ///     </item>
         ///     <item>If the <paramref name="map"/> is provided, registers it into the services.</item>
         ///     <item><see cref="WebApplicationBuilder.Build"/> is called to obtain the <see cref="WebApplication"/>.</item>
         ///     <item>
-        ///      Executes the configurations registered by <see cref="PrependApplicationBuilder(WebApplicationBuilder, Action{IApplicationBuilder})"/> (should rarely be used).
+        ///      (Should rarely be used.) Executes the configurations registered by <see cref="PrependApplicationBuilder(WebApplicationBuilder, Action{IApplicationBuilder},bool)"/>
+        ///      with a true <c>beforeCKMiddleware</c> parameter.
         ///      </item>
-        ///     <item>The first default middleware is registered:
+        ///     <item>The default CKMiddleware is registered:
         ///         <list type="bullet">
         ///             <item>It handles the <see cref="ScopedHttpContext"/>;</item>
         ///             <item>
@@ -91,6 +111,10 @@ namespace Microsoft.AspNetCore.Builder
         ///             the <see cref="WebApplication.Services"/>.
         ///             </item>
         ///         </list>   
+        ///      </item>
+        ///     <item>
+        ///      (Should rarely be used.) Executes the configurations registered by <see cref="PrependApplicationBuilder(WebApplicationBuilder, Action{IApplicationBuilder},bool)"/>
+        ///      with a false (default) <c>beforeCKMiddleware</c> parameter.
         ///      </item>
         ///      <item>
         ///      Executes the configurations registered by <see cref="AppendApplicationBuilder(WebApplicationBuilder, Action{IApplicationBuilder})"/>.
@@ -112,22 +136,28 @@ namespace Microsoft.AspNetCore.Builder
             }
             var app = builder.Build();
             IDictionary<object, object> props = ((IHostApplicationBuilder)builder).Properties;
-            if( props.TryGetValue( typeof( PrePipelineBuilder ), out var first ) )
-            {
-                PrePipelineBuilder list = (PrePipelineBuilder)first;
-                for( int i = list.Count - 1; i >= 0; i-- )
-                {
-                    list[i]( app );
-                }
-                props.Remove( typeof( PrePipelineBuilder ) );
-            }
+            CallRevert<PreCKMidlewarePipelineBuilder>( app, props );
             app.UseMiddleware<CKMiddleware>();
-            if( props.TryGetValue( typeof( PipelineBuilder ), out var regular ) )
+            CallRevert<PrePipelineBuilder>( app, props );
+            if( props.TryGetValue( typeof( PipelineBuilder ), out var post ) )
             {
-                foreach( var a in (PipelineBuilder)regular ) a( app );
+                foreach( var a in (PipelineBuilder)post ) a( app );
                 props.Remove( typeof( PipelineBuilder ) );
             }
             return app;
+
+            static void CallRevert<T>( WebApplication app, IDictionary<object, object> props ) where T : List<Action<IApplicationBuilder>>
+            {
+                if( props.TryGetValue( typeof( T ), out var before ) )
+                {
+                    T list = (T)before;
+                    for( int i = list.Count - 1; i >= 0; i-- )
+                    {
+                        list[i]( app );
+                    }
+                    props.Remove( typeof( T ) );
+                }
+            }
         }
 
     }

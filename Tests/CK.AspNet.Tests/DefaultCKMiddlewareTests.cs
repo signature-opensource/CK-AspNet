@@ -26,19 +26,34 @@ namespace CK.AspNet.Tests
             builder.Services.AddSingleton<StupidService>();
             builder.Services.AddScoped<IActivityMonitor,ActivityMonitor>();
             builder.AppendApplicationBuilder( app => app.UseMiddleware<StupidMiddleware>() );
+
             int rootExceptionCount = 0;
             builder.PrependApplicationBuilder( app => app.Use( async ( context, next ) =>
+            {
+                try
                 {
-                    try
-                    {
-                        await next.Invoke();
-                    }
-                    catch( Exception )
-                    {
-                        ++rootExceptionCount;
-                        context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-                    }
-                } ) );
+                    await next.Invoke();
+                }
+                catch( Exception )
+                {
+                    ++rootExceptionCount;
+                    throw;
+                }
+            } ), beforeCKMiddleware: true );
+
+            int rootExceptionCountBefore = 0;
+            builder.PrependApplicationBuilder( app => app.Use( async ( context, next ) =>
+            {
+                try
+                {
+                    await next.Invoke();
+                }
+                catch( Exception )
+                {
+                    ++rootExceptionCountBefore;
+                    context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+                }
+            } ), beforeCKMiddleware: true );
 
             await using var runningServer = await builder.CreateRunningAspNetServerAsync();
 
@@ -57,6 +72,7 @@ namespace CK.AspNet.Tests
                     logs.ExtractCurrentTexts().Should().Contain( "AsyncBug!" );
                 }
             }
+            rootExceptionCountBefore.Should().Be( 2 );
             rootExceptionCount.Should().Be( 2 );
         }
 
