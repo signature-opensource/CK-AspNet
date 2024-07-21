@@ -15,9 +15,9 @@ namespace CK.AspNet
     /// <summary>
     /// Provides the <see cref="HttpContext"/> as a scoped dependency.
     /// This is installed by <see cref="ApplicationBuilderCKAspNetExtensions.CKBuild(WebApplicationBuilder)"/>
-    /// extension method.
+    /// extension method and rely on the <see cref="CKMiddleware"/> that must be registered.
     /// <para>
-    /// The <see cref="Monitor"/> is guaranteed to exist even if CKBuild has not been called.
+    /// The <see cref="Monitor"/> is guaranteed to exist even if the <see cref="CKMiddleware"/> has not been called yet.
     /// </para>
     /// </summary>
     [ContainerConfiguredScopedService]
@@ -26,10 +26,14 @@ namespace CK.AspNet
         [AllowNull]HttpContext _httpContext;
         IActivityMonitor? _monitor;
 
-        internal void Setup( HttpContext ctx, IActivityMonitor monitor )
+        internal void Setup( HttpContext ctx )
         {
             _httpContext = ctx;
-            _monitor = monitor;
+            if( _monitor == null )
+            {
+                // TODO: Build a Topic based on the Request.
+                _monitor = new ActivityMonitor();
+            }
         }
 
         /// <summary>
@@ -41,6 +45,9 @@ namespace CK.AspNet
         /// Gets the request monitor.
         /// </summary>
         public IActivityMonitor Monitor => _monitor ??= new ActivityMonitor();
+
+
+        internal bool HasMonitor => _monitor != null;
 
     }
 }

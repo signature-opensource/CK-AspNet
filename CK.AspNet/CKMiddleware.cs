@@ -1,6 +1,5 @@
 using CK.Core;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Http.Extensions;
 using System;
 using System.Threading.Tasks;
 
@@ -9,8 +8,13 @@ namespace CK.AspNet
     /// <summary>
     /// Configures the ScopedHttpContext and acts as an error guard in middleware pipeline: any exceptions
     /// raised by next middlewares are logged into the current (scoped) request monitor if it exists.
+    /// <para>
+    /// This class is made public to allow direct <see cref="Microsoft.AspNetCore.Builder.WebApplicationBuilder"/> configuration
+    /// without using <see cref="Microsoft.AspNetCore.Builder.ApplicationBuilderCKAspNetExtensions.CKBuild(Microsoft.AspNetCore.Builder.WebApplicationBuilder, IStObjMap?)"/>
+    /// helper if needed.
+    /// </para>
     /// </summary>
-    sealed class CKMiddleware
+    public sealed class CKMiddleware
     {
         readonly RequestDelegate _next;
 
@@ -22,10 +26,10 @@ namespace CK.AspNet
         public Task InvokeAsync( HttpContext ctx, ScopedHttpContext scoped )
         {
             Throw.DebugAssert( scoped.HttpContext is null );
-            // TODO: Build a Topic based on the Request.
-            scoped.Setup( ctx, new ActivityMonitor() );
+            scoped.Setup( ctx );
 
             // TODO: integrate this into the ScopedHttpContext.
+            // TODO: full log of the request (headers, body when possible) on error.
             TaskCompletionSource tcs = new TaskCompletionSource();
             // Try/catch is required to handle any synchronous exception.
             try
