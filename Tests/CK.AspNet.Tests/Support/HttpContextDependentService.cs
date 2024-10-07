@@ -5,17 +5,16 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace CK.AspNet.Tests
+namespace CK.AspNet.Tests;
+
+public class HttpContextDependentService
 {
-    public class HttpContextDependentService
+    readonly HttpContext _ctx;
+
+    public HttpContextDependentService( ScopedHttpContext ctx )
     {
-        readonly HttpContext _ctx;
-
-        public HttpContextDependentService( ScopedHttpContext ctx )
-        {
-            _ctx = ctx.HttpContext;
-        }
-
-        public bool HttpContextIsHere => _ctx != null;
+        _ctx = ctx.HttpContext;
     }
+
+    public bool HttpContextIsHere => _ctx != null;
 }

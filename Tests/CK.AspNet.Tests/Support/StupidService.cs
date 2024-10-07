@@ -4,10 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace CK.AspNet.Tests
+namespace CK.AspNet.Tests;
+
+public class StupidService
 {
-    public class StupidService
-    {
-        public string GetText() => $"It is {DateTime.UtcNow}.";
-    }
+    public string GetText() => $"It is {DateTime.UtcNow}.";
 }
