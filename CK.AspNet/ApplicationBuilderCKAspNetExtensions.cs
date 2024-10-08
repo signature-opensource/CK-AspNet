@@ -8,8 +8,9 @@ using System.Collections.Generic;
 namespace Microsoft.AspNetCore.Builder;
 
 /// <summary>
-/// Provides the <see cref="AddApplicationBuilder(WebApplicationBuilder, Action{IApplicationBuilder})"/>
-/// and <see cref="CKBuild(WebApplicationBuilder)"/> extension methods.
+/// Provides the <see cref="AppendApplicationBuilder(WebApplicationBuilder, Action{IApplicationBuilder})"/>
+/// (and <see cref="PrependApplicationBuilder(WebApplicationBuilder, Action{IApplicationBuilder}, bool)"/>)
+/// and <see cref="CKBuild(WebApplicationBuilder, IStObjMap?)"/> extension methods.
 /// </summary>
 public static class ApplicationBuilderCKAspNetExtensions
 {
