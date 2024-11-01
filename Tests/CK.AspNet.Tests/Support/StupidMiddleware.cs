@@ -32,7 +32,8 @@ public class StupidMiddleware
         }
         if( context.Request.Query.ContainsKey( "readHeader" ) )
         {
-            string name = context.Request.Query["name"];
+            string? name = context.Request.Query["name"];
+            if( string.IsNullOrEmpty( name ) ) Throw.ArgumentException( $"Missing non empty Query parameter 'name'." );
             StringValues header = context.Request.Headers[name];
             await context.Response.WriteAsync( $"header '{name}': '{header}'" );
             return;

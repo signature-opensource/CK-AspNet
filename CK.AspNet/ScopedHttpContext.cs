@@ -20,7 +20,7 @@ namespace CK.AspNet;
 /// The <see cref="Monitor"/> is guaranteed to exist even if the <see cref="CKMiddleware"/> has not been called yet.
 /// </para>
 /// </summary>
-[ContainerConfiguredScopedService]
+[ScopedContainerConfiguredService]
 public sealed class ScopedHttpContext
 {
     [AllowNull] HttpContext _httpContext;
