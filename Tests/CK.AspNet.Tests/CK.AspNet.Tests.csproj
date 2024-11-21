@@ -1,18 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net6.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <IsPackable>False</IsPackable>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\CK.AspNet\CK.AspNet.csproj" />
+    <PackageReference Include="CK.Testing.Nunit" Version="11.0.0" />
+    <PackageReference Include="NUnit3TestAdapter" Version="4.6.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="CK.AspNet.Tester" Version="4.0.4" />
-    <PackageReference Include="FluentAssertions" Version="6.12.0" />
-    <PackageReference Include="CK.ActivityMonitor.SimpleSender" Version="21.0.0" />
-    <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="6.0.7" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.10.0" />
-    <PackageReference Include="NUnit" Version="4.1.0" />
-    <PackageReference Include="NUnit3TestAdapter" Version="4.5.0" />
+    <ProjectReference Include="..\..\CK.Testing.AspNetServer\CK.Testing.AspNetServer.csproj" />
   </ItemGroup>
 </Project>
