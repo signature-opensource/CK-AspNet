@@ -128,11 +128,11 @@ public static class ApplicationBuilderCKAspNetExtensions
         builder.Services.AddScoped<ScopedHttpContext>();
         builder.Services.AddScoped( sp => sp.GetRequiredService<ScopedHttpContext>().Monitor );
         builder.Services.AddScoped( sp => sp.GetRequiredService<IActivityMonitor>().ParallelLogger );
-        builder.ApplyAutoConfigure();
         if( map != null )
         {
             builder.Services.AddStObjMap( builder.GetBuilderMonitor(), map );
         }
+        builder.ApplyAutoConfigure();
         var app = builder.Build();
         IDictionary<object, object> props = ((IHostApplicationBuilder)builder).Properties;
         CallRevert<PreCKMidlewarePipelineBuilder>( app, props );
