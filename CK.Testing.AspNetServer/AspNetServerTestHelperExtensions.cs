@@ -22,7 +22,7 @@ public static class AspNetServerTestHelperExtensions
     /// <returns>A running .NET server or null if an error occurred or the server failed to start.</returns>
     public static async Task<RunningAspNetServer> CreateRunningAspNetServerAsync( this WebApplicationBuilder builder,
                                                                                   IStObjMap? map = null,
-                                                                                  Action<IApplicationBuilder>? configureApplication = null )
+                                                                                  Action<WebApplication>? configureApplication = null )
     {
         WebApplication? app = null;
         try
