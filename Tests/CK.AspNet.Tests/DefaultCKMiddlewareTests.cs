@@ -1,7 +1,7 @@
 using CK.Core;
 using CK.Monitoring;
 using CK.Testing;
-using FluentAssertions;
+using Shouldly;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
@@ -61,19 +61,19 @@ public class DefaultCKMiddlewareTests
         {
             using( HttpResponseMessage bug = await runningServer.Client.GetAsync( "?bug" ) )
             {
-                bug.StatusCode.Should().Be( HttpStatusCode.InternalServerError );
+                bug.StatusCode.ShouldBe( HttpStatusCode.InternalServerError );
                 await Task.Delay( 100 );
-                logs.ExtractCurrentTexts().Should().Contain( "Bug!" );
+                logs.ExtractCurrentTexts().ShouldContain( "Bug!" );
             }
             using( HttpResponseMessage asyncBug = await runningServer.Client.GetAsync( "?asyncBug" ) )
             {
-                asyncBug.StatusCode.Should().Be( HttpStatusCode.InternalServerError );
+                asyncBug.StatusCode.ShouldBe( HttpStatusCode.InternalServerError );
                 await Task.Delay( 100 );
-                logs.ExtractCurrentTexts().Should().Contain( "AsyncBug!" );
+                logs.ExtractCurrentTexts().ShouldContain( "AsyncBug!" );
             }
         }
-        rootExceptionCountBefore.Should().Be( 2 );
-        rootExceptionCount.Should().Be( 2 );
+        rootExceptionCountBefore.ShouldBe( 2 );
+        rootExceptionCount.ShouldBe( 2 );
     }
 
     [Test]
@@ -85,7 +85,7 @@ public class DefaultCKMiddlewareTests
         builder.AppendApplicationBuilder( app => app.Use( ( context, next ) =>
         {
             var s = context.RequestServices.GetService<HttpContextDependentService>( true );
-            s.HttpContextIsHere.Should().BeTrue();
+            s.HttpContextIsHere.ShouldBeTrue();
             testDone = true;
             return next();
         } ) );
@@ -99,15 +99,15 @@ public class DefaultCKMiddlewareTests
 
         using( HttpResponseMessage test = await runningServer.Client.GetAsync( "" ) )
         {
-            test.StatusCode.Should().Be( HttpStatusCode.Unused );
+            test.StatusCode.ShouldBe( HttpStatusCode.Unused );
         }
-        testDone.Should().BeTrue();
+        testDone.ShouldBeTrue();
 
         // when not in a request, obviously this fails.
         using( var scope = runningServer.Services.CreateScope() )
         {
             var dependent = scope.ServiceProvider.GetRequiredService<HttpContextDependentService>();
-            dependent.HttpContextIsHere.Should().BeFalse();
+            dependent.HttpContextIsHere.ShouldBeFalse();
         }
 
     }
