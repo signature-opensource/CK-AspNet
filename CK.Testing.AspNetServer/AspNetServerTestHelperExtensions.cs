@@ -15,14 +15,17 @@ public static class AspNetServerTestHelperExtensions
     /// <summary>
     /// Creates a <see cref="RunningAspNetServer"/> from this configured WebApplication by calling <see cref="ApplicationBuilderCKAspNetExtensions.CKBuild(WebApplicationBuilder)"/>,
     /// starts the <see cref="WebApplication"/> on a random port and returns a <see cref="RunningAspNetServer"/>.
+    /// <para>
+    /// This throws if anything goes wrong.
+    /// </para>
     /// </summary>
     /// <param name="builder">This web application.</param>
     /// <param name="map">Optional CKomposable map to register.</param>
     /// <param name="configureApplication">Optional application configurator.</param>
-    /// <returns>A running .NET server or null if an error occurred or the server failed to start.</returns>
+    /// <returns>A running .NET server.</returns>
     public static async Task<RunningAspNetServer> CreateRunningAspNetServerAsync( this WebApplicationBuilder builder,
                                                                                   IStObjMap? map = null,
-                                                                                  Action<IApplicationBuilder>? configureApplication = null )
+                                                                                  Action<WebApplication>? configureApplication = null )
     {
         WebApplication? app = null;
         try
