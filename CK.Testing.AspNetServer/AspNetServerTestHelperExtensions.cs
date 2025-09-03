@@ -33,7 +33,7 @@ public static class AspNetServerTestHelperExtensions
             app = builder.CKBuild( map );
 
             // This chooses a random, free port.
-            app.Urls.Add( "http://[::1]:0" );
+            app.Urls.Add( "http://127.0.0.1:0" );
 
             configureApplication?.Invoke( app );
             await app.StartAsync().ConfigureAwait( false );
