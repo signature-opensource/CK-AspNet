@@ -5,7 +5,7 @@
   </PropertyGroup>
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
-    <PackageReference Include="CK.StObj.Model" Version="31.0.1" />
+    <PackageReference Include="CK.StObj.Model" Version="32.0.0" />
     <PackageReference Include="CK.Monitoring.Hosting" Version="25.0.1" />
   </ItemGroup>
 </Project>
