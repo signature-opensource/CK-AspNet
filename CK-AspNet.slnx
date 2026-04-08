@@ -1,0 +1,14 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path=".gitignore" />
+    <File Path="appveyor.yml" />
+    <File Path="Directory.Build.props" />
+    <File Path="NuGet.config" />
+  </Folder>
+  <Folder Name="/Tests/">
+    <Project Path="Tests/CK.AspNet.Tests/CK.AspNet.Tests.csproj" />
+    <Project Path="Tests/WebApiMinimal/WebApiMinimal.csproj" />
+  </Folder>
+  <Project Path="CK.AspNet/CK.AspNet.csproj" />
+  <Project Path="CK.Testing.AspNetServer/CK.Testing.AspNetServer.csproj" />
+</Solution>
