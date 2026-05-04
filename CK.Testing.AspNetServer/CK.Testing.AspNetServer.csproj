@@ -7,7 +7,7 @@
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="CK.Testing.Monitoring" Version="15.0.0" />
+    <PackageReference Include="CK.Testing.Monitoring" Version="15.0.1--ci.1" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\CK.AspNet\CK.AspNet.csproj" />
