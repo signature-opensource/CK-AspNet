@@ -55,6 +55,12 @@ public sealed class WebSocketChannelManager : IRealObject
     /// <see cref="MessageReceivedEvent.Topic"/>: this is a shared socket, so a feature sees the traffic
     /// of the others and ignores it.
     /// <para>
+    /// Topics live in one flat namespace shared by every feature, so a topic must be globally unique:
+    /// name it after your package.
+    /// Anything shorter eventually collides, and a collision means another feature's payloads reaching
+    /// your handler - silently, since nothing here can tell the two apart.
+    /// </para>
+    /// <para>
     /// As long as nobody subscribes, incoming messages are not even read: the channel stays purely
     /// descending and costs nothing. Subscribing turns it on, and with it the caveat that
     /// <see cref="MessageReceivedEvent"/> carries nothing authenticated.
