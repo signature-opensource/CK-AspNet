@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Description>Single WebSocket channel shared by every feature of an application: one anonymous socket per client, a process singleton that owns all the connections and exposes them through perfect events, and a {topic,message} envelope that routes each frame to the feature that registered the topic. The TypeScript client lives in CK.TS.AspNet.WebSocketChannel.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CK.Abstractions" Version="29.0.1" />
+    <!-- The monitor.Warn/Trace extensions. They came transitively while this project lived next to
+         CK.TypeScript; here the reference has to be explicit. -->
+    <PackageReference Include="CK.ActivityMonitor.SimpleSender" Version="26.0.1" />
+    <PackageReference Include="CK.PerfectEvent" Version="27.0.1" />
+    <PackageReference Include="SimpleR.Server" Version="1.0.0" />
+  </ItemGroup>
+
+</Project>
