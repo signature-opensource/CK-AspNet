@@ -109,7 +109,7 @@ public static class ApplicationBuilderCKAspNetExtensions
     ///             and logs any error in the pipeline into the <see cref="IActivityMonitor"/> if it is available in
     ///             the <see cref="WebApplication.Services"/>.
     ///             </item>
-    ///         </list>   
+    ///         </list>
     ///      </item>
     ///     <item>
     ///      (Should rarely be used.) Executes the configurations registered by <see cref="PrependApplicationBuilder(WebApplicationBuilder, Action{IApplicationBuilder},bool)"/>
@@ -130,7 +130,9 @@ public static class ApplicationBuilderCKAspNetExtensions
         builder.Services.AddScoped( sp => sp.GetRequiredService<IActivityMonitor>().ParallelLogger );
         if( map != null )
         {
-            builder.Services.AddStObjMap( builder.GetBuilderMonitor(), map );
+            var ssc = new SimpleServiceContainer();
+            ssc.Add( typeof( WebApplicationBuilder ), builder );
+            builder.Services.AddStObjMap( builder.GetBuilderMonitor(), map, ssc );
         }
         builder.ApplyAutoConfigure();
         var app = builder.Build();
