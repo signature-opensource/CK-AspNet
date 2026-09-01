@@ -28,6 +28,9 @@ public class FrameReader
         // Get the length of the frame
         var length = GetLength(input);
 
+        // CK.WebSocket deviation from upstream (vadrsa/simpler@d337794): the upstream check
+        // `input.Length < length + 1` misses the 4-byte length header, so a partially received
+        // frame made the Slice below throw instead of returning false.
         // Check if the input length is less than the length of the frame plus 1
         if (input.Length < FrameHelpers.IntegerLengthEncodedByteCount + length + 1)
         {
