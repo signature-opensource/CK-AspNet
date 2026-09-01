@@ -60,7 +60,6 @@ sealed class WebSocketChannelHost : IAsyncDisposable
 
         var app = builder.CKBuild( map );
         app.Urls.Add( "http://127.0.0.1:0" ); // Random free port.
-        app.UseRouting();
         app.UseWebSocketChannel();
         await app.StartAsync();
 
@@ -73,7 +72,7 @@ sealed class WebSocketChannelHost : IAsyncDisposable
 
     /// <summary>
     /// Connects a client and returns it with the connection identifier the server negotiated: this
-    /// also guarantees the connect path ran and the server is parked in the SimpleR read loop.
+    /// also guarantees the connect path ran and the server is parked in the read loop.
     /// </summary>
     public async Task<(ClientWebSocket Client, string ConnectionId)> ConnectAsync()
     {

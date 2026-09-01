@@ -15,7 +15,10 @@
          CK.TypeScript; here the reference has to be explicit. -->
     <PackageReference Include="CK.ActivityMonitor.SimpleSender" Version="26.0.1" />
     <PackageReference Include="CK.PerfectEvent" Version="27.0.1" />
-    <PackageReference Include="SimpleR.Server" Version="1.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CK.WebSocket\CK.WebSocket.csproj" />
   </ItemGroup>
 
 </Project>
