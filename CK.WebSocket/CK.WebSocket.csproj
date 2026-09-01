@@ -2,9 +2,9 @@
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
-    <!-- The vendored SimpleR sources rely on implicit usings (see Directory.Build.props: opt-in is done here). -->
+    <!-- The vendored sources rely on implicit usings (see Directory.Build.props: opt-in is done here). -->
     <ImplicitUsings>enable</ImplicitUsings>
-    <Description>WebSocket server infrastructure: pipe-based duplex transport, message protocols and per-connection dispatchers, mounted as a plain middleware - no endpoint routing (UseRouting) required. Vendored and adapted from SimpleR (https://github.com/vadrsa/simpler, MIT).</Description>
+    <Description>WebSocket server infrastructure: pipe-based duplex transport, message protocols and per-connection dispatchers, mounted as a plain middleware - no endpoint routing (UseRouting) required. See README.md for origin and license.</Description>
   </PropertyGroup>
 
   <ItemGroup>

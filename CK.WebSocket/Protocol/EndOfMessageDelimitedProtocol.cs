@@ -3,17 +3,20 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace CK.WebSocket;
 
+/// <summary>Message protocol that delimits messages using an end-of-message marker on each frame.</summary>
 public class EndOfMessageDelimitedProtocol<TMessageIn, TMessageOut> : IMessageProtocol<TMessageIn, TMessageOut>
 {
     private readonly IDelimitedMessageProtocol<TMessageIn, TMessageOut> _innerProtocol;
     private readonly FrameReader _frameReader;
 
+    /// <summary>Initializes a new instance wrapping the given delimited message protocol.</summary>
     public EndOfMessageDelimitedProtocol(IDelimitedMessageProtocol<TMessageIn, TMessageOut> innerProtocol)
     {
         _innerProtocol = innerProtocol;
         _frameReader = new FrameReader();
     }
 
+    /// <summary>Reads frames from the input until a complete end-of-message-delimited message is available.</summary>
     public bool TryParseMessage(ref ReadOnlySequence<byte> input, [NotNullWhen(true)]out TMessageIn message)
     {
         var messageSequenceBuilder = new ReadOnlySequenceBuilder<byte>();
@@ -36,6 +39,7 @@ public class EndOfMessageDelimitedProtocol<TMessageIn, TMessageOut> : IMessagePr
         return false;
     }
 
+    /// <summary>Writes the message as a sequence of frames, marking the last one as end-of-message.</summary>
     public void WriteMessage(TMessageOut message, IBufferWriter<byte> output)
     {
         var frameWriter = new FrameBufferWriter(output);

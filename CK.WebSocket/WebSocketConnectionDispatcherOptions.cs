@@ -2,6 +2,7 @@ using System.IO.Pipelines;
 
 namespace CK.WebSocket;
 
+/// <summary>Options controlling the WebSocket transport and buffering of a connection dispatcher.</summary>
 public class WebSocketConnectionDispatcherOptions
 {
     // Selected because this is the default value of PipeWriter.PauseWriterThreshold.
@@ -13,6 +14,7 @@ public class WebSocketConnectionDispatcherOptions
     private long _transportMaxBufferSize;
     private long _applicationMaxBufferSize;
 
+    /// <summary>Initializes a new instance with the default buffer sizes.</summary>
     public WebSocketConnectionDispatcherOptions()
     {
         WebSockets = new WebSocketTransportOptions();

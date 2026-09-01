@@ -2,8 +2,10 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace CK.WebSocket;
 
+/// <summary>Configures the protocol and dispatcher of a WebSocket endpoint whose incoming and outgoing message types are the same.</summary>
 public class MessageDispatcherBuilder<TMessage> : MessageDispatcherBuilder<TMessage, TMessage>;
 
+/// <summary>Configures the protocol and dispatcher of a WebSocket endpoint.</summary>
 public class MessageDispatcherBuilder<TMessageIn, TMessageOut>
 {
     internal bool IsEndOfMessageDelimited { get; private set; }

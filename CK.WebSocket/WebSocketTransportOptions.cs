@@ -1,5 +1,6 @@
 namespace CK.WebSocket;
 
+/// <summary>Options controlling the low-level WebSocket transport.</summary>
 public class WebSocketTransportOptions
 {
     /// <summary>
@@ -18,6 +19,7 @@ public class WebSocketTransportOptions
     /// </remarks>
     public Func<IList<string>, string?>? SubProtocolSelector { get; set; }
 
+    /// <summary>Gets or sets the transfer format used to send and receive messages.</summary>
     public TransferFormat TransferFormat { get; set; } = TransferFormat.Text;
 
     internal bool FramePackets { get; set; }
