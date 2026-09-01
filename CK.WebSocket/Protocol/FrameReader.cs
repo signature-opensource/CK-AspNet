@@ -9,9 +9,9 @@ public class FrameReader
 {
     /// <summary>
     /// If a frame exists in the input,
-    /// reads the first one and puts it into the <see cref="frame"/>,
-    /// <see cref="isEndOfMessage"/> flag is set for the frame
-    /// <see cref="input"/> is set to the unread tail
+    /// reads the first one and puts it into the <paramref name="frame"/>,
+    /// <paramref name="isEndOfMessage"/> flag is set for the frame
+    /// <paramref name="input"/> is set to the unread tail
     /// returns true
     /// If a frame doesn't exist,
     /// returns false

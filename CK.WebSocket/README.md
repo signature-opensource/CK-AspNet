@@ -22,7 +22,8 @@ CK.AspNet.WebSocketChannel which are also middleware-based) does not need `UseRo
 The transport, connection and protocol code is vendored from
 [SimpleR](https://github.com/vadrsa/simpler) at commit
 `d3377943c3dbfc0afe2b55539d92700a20d44d6b` (the source of the SimpleR.Server 1.0.0 and
-SimpleR.Protocol 1.0.0 packages). SimpleR is MIT licensed, Copyright 2023 Davit Asryan.
+SimpleR.Protocol 1.0.0 packages). SimpleR is MIT licensed, Copyright (c) 2024 Davit Asryan.
+The full license text is vendored as [LICENSE.SimpleR](LICENSE.SimpleR).
 SimpleR itself derives from ASP.NET Core SignalR's HttpConnections layer (MIT, .NET Foundation).
 
 ## Changes from upstream

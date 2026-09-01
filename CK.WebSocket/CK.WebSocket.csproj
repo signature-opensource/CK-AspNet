@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <None Include="LICENSE.SimpleR" Pack="true" PackagePath="\" />
   </ItemGroup>
 
 </Project>

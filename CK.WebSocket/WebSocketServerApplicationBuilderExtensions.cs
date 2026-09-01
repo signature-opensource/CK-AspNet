@@ -1,4 +1,5 @@
 using CK.WebSocket;
+using Microsoft.AspNetCore.Connections;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -18,6 +19,10 @@ public static class WebSocketServerApplicationBuilderExtensions
     /// Requests on another path flow to the next middleware. A non WebSocket request on the path is
     /// answered with a 400. The path match is an exact <see cref="PathString"/> equality
     /// (case-insensitive, no trailing-slash tolerance).
+    /// </para>
+    /// <para>
+    /// Each call adds its own WebSocket middleware instance; extra instances are inert but a host
+    /// normally mounts its endpoints once.
     /// </para>
     /// </summary>
     /// <typeparam name="TMessageIn">Incoming message type.</typeparam>
@@ -53,6 +58,7 @@ public static class WebSocketServerApplicationBuilderExtensions
                             app.ApplicationServices.GetRequiredService<ILogger<WebSocketConnectionHandler<TMessageIn, TMessageOut>>>() );
 
         app.UseWebSockets();
+        ConnectionDelegate connectionDelegate = handler.OnConnectedAsync;
         app.Use( next => context =>
         {
             if( context.Request.Path != path ) return next( context );
@@ -61,7 +67,7 @@ public static class WebSocketServerApplicationBuilderExtensions
                 context.Response.StatusCode = StatusCodes.Status400BadRequest;
                 return context.Response.WriteAsync( "WebSocket request expected." );
             }
-            return dispatcher.ExecuteAsync( context, options, handler.OnConnectedAsync );
+            return dispatcher.ExecuteAsync( context, options, connectionDelegate );
         } );
         return app;
     }
