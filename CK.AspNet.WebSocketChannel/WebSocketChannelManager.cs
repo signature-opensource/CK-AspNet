@@ -6,7 +6,6 @@ using System;
 using System.Buffers;
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
-using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace CK.AspNet.WebSocketChannel;
@@ -109,42 +108,9 @@ public sealed class WebSocketChannelManager : IRealObject
     public ValueTask SendAsync( WebSocketChannelConnection connection, string topic, ReadOnlyMemory<byte> message )
     {
         Throw.CheckNotNullArgument( connection );
-        Throw.CheckNotNullOrWhiteSpaceArgument( topic );
-        return connection.WriteAsync( CreateEnvelope( topic, message ) );
+        return connection.WriteAsync( WebSocketChannelEnvelope.Create( topic, message ) );
     }
 
-    // The envelope is the whole wire format: a topic to route on, and the payload untouched.
-    // WriteRawValue embeds the payload as a JSON value, so a feature hands over the very same bytes it
-    // used to write on its own socket. Validation is skipped: the payload comes from our own writers.
-    static ReadOnlyMemory<byte> CreateEnvelope( string topic, ReadOnlyMemory<byte> message )
-    {
-        var buffer = new ArrayBufferWriter<byte>( message.Length + 32 );
-        using( var writer = new Utf8JsonWriter( buffer ) )
-        {
-            writer.WriteStartObject();
-            writer.WriteString( "topic", topic );
-            writer.WritePropertyName( "message" );
-            writer.WriteRawValue( message.Span, skipInputValidation: true );
-            writer.WriteEndObject();
-            writer.Flush();
-        }
-        return buffer.WrittenMemory;
-    }
-
-    // The first and only unenveloped message of a connection: the client needs its identifier to send
-    // it back on the authenticated Cris channel, and it belongs to no topic.
-    static ReadOnlyMemory<byte> CreateNegotiation( string connectionId )
-    {
-        var buffer = new ArrayBufferWriter<byte>( 64 );
-        using( var writer = new Utf8JsonWriter( buffer ) )
-        {
-            writer.WriteStartObject();
-            writer.WriteString( "connectionId", connectionId );
-            writer.WriteEndObject();
-            writer.Flush();
-        }
-        return buffer.WrittenMemory;
-    }
 
     /// <summary>
     /// Registers <see cref="AbortAll"/> on <see cref="IHostApplicationLifetime.ApplicationStopping"/> so
@@ -184,7 +150,7 @@ public sealed class WebSocketChannelManager : IRealObject
             return false;
         }
 
-        await c.WriteAsync( CreateNegotiation( c.ConnectionId ) ).ConfigureAwait( false );
+        await c.WriteAsync( WebSocketChannelEnvelope.CreateNegotiation( c.ConnectionId ) ).ConfigureAwait( false );
         // Safe: one faulty feature must not tear down a socket that the other features share.
         await _connectionOpened.SafeRaiseAsync( c.Monitor, c ).ConfigureAwait( false );
         return true;
@@ -201,18 +167,7 @@ public sealed class WebSocketChannelManager : IRealObject
         ReadOnlyMemory<byte> message;
         try
         {
-            using var doc = JsonDocument.Parse( input );
-            topic = doc.RootElement.GetProperty( "topic" ).GetString()
-                    ?? throw new JsonException( "Null topic." );
-            // Copied out of the document, and therefore out of the pipe's buffers, before anything can
-            // await: this is what lets a handler keep the payload.
-            var buffer = new ArrayBufferWriter<byte>( 256 );
-            using( var writer = new Utf8JsonWriter( buffer ) )
-            {
-                doc.RootElement.GetProperty( "message" ).WriteTo( writer );
-                writer.Flush();
-            }
-            message = buffer.WrittenMemory;
+            (topic, message) = WebSocketChannelEnvelope.Read( input );
         }
         catch( Exception ex )
         {
