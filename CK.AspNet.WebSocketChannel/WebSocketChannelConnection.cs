@@ -75,6 +75,23 @@ public sealed class WebSocketChannelConnection : IAsyncDisposable
     }
 
     /// <summary>
+    /// Wraps the payload in the <c>{topic,message}</c> envelope and writes it: this is how a feature pushes
+    /// to this client. Silently does nothing once the connection has been disposed: a push racing with a
+    /// disconnection is normal, not an error.
+    /// </summary>
+    /// <param name="topic">The topic that routes the message on the client. Must not be null or white space.</param>
+    /// <param name="message">The payload, as a JSON value. It is embedded as-is, not escaped.</param>
+    public ValueTask WriteAsync( string topic, ReadOnlyMemory<byte> message )
+    {
+        // Disposed: bail out before building an envelope for nothing.
+        if( _disposed ) return ValueTask.CompletedTask;
+        return WriteAsync( WebSocketChannelEnvelope.Create( topic, message ) );
+    }
+
+    // Sent once, first, unenveloped: the client needs its identifier before anything else.
+    internal ValueTask WriteNegotiationAsync() => WriteAsync( WebSocketChannelEnvelope.CreateNegotiation( ConnectionId ) );
+
+    /// <summary>
     /// Aborts the connection (idempotent): cancels the pending SimpleR read and drives the normal
     /// disconnect path, so on host shutdown Kestrel drains immediately instead of waiting out
     /// <c>HostOptions.ShutdownTimeout</c>.

@@ -32,8 +32,10 @@ public class WebSocketChannelTests
         var (client, connectionId) = await host.ConnectAsync();
         using( client )
         {
-            await host.Manager.SendAsync( connectionId, "OD", Utf8( ObservableDomainFrame ) );
-            await host.Manager.SendAsync( connectionId, "SC", Utf8( SessionChannelFrame ) );
+            // Two features, one connection object each of them holds: both push on it under their topic.
+            var connection = host.GetConnection( connectionId );
+            await connection.WriteAsync( "OD", Utf8( ObservableDomainFrame ) );
+            await connection.WriteAsync( "SC", Utf8( SessionChannelFrame ) );
 
             using( var first = await WebSocketChannelHost.ReceiveJsonAsync( client ) )
             {

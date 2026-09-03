@@ -86,6 +86,21 @@ sealed class WebSocketChannelHost : IAsyncDisposable
     }
 
     /// <summary>
+    /// Gets the server side of a connection returned by <see cref="ConnectAsync"/>, the object a feature
+    /// holds to push to that client. Throws if the manager does not know the identifier.
+    /// </summary>
+    /// <param name="connectionId">The identifier negotiated by <see cref="ConnectAsync"/>.</param>
+    /// <returns>The open connection.</returns>
+    public WebSocketChannelConnection GetConnection( string connectionId )
+    {
+        if( !Manager.TryGetConnection( connectionId, out var connection ) )
+        {
+            Throw.InvalidOperationException( $"Connection '{connectionId}' is not open." );
+        }
+        return connection;
+    }
+
+    /// <summary>
     /// Reads one complete message and parses it. The protocol is end-of-message delimited, so a
     /// message can span several frames.
     /// </summary>

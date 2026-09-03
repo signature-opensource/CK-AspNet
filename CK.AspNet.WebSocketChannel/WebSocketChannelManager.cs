@@ -108,9 +108,8 @@ public sealed class WebSocketChannelManager : IRealObject
     public ValueTask SendAsync( WebSocketChannelConnection connection, string topic, ReadOnlyMemory<byte> message )
     {
         Throw.CheckNotNullArgument( connection );
-        return connection.WriteAsync( WebSocketChannelEnvelope.Create( topic, message ) );
+        return connection.WriteAsync( topic, message );
     }
-
 
     /// <summary>
     /// Registers <see cref="AbortAll"/> on <see cref="IHostApplicationLifetime.ApplicationStopping"/> so
@@ -150,7 +149,7 @@ public sealed class WebSocketChannelManager : IRealObject
             return false;
         }
 
-        await c.WriteAsync( WebSocketChannelEnvelope.CreateNegotiation( c.ConnectionId ) ).ConfigureAwait( false );
+        await c.WriteNegotiationAsync().ConfigureAwait( false );
         // Safe: one faulty feature must not tear down a socket that the other features share.
         await _connectionOpened.SafeRaiseAsync( c.Monitor, c ).ConfigureAwait( false );
         return true;
