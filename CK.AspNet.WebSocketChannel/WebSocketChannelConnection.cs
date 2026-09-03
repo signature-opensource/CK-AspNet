@@ -51,14 +51,15 @@ public sealed class WebSocketChannelConnection : IAsyncDisposable
     internal IActivityMonitor Monitor { get; }
 
     /// <summary>
-    /// Writes a message to the client. Silently does nothing once the connection has been disposed:
-    /// a push racing with a disconnection is normal, not an error.
+    /// Writes a frame to the client as it is given. Silently does nothing once the connection has been
+    /// disposed: a push racing with a disconnection is normal, not an error.
     /// <para>
-    /// Prefer <see cref="WebSocketChannelManager.SendAsync(string, string, ReadOnlyMemory{byte})"/>:
-    /// it is the only place that knows the envelope. This method writes the bytes as they are given.
+    /// Prefer <see cref="WriteAsync(string, ReadOnlyMemory{byte})"/>, which builds the envelope. This
+    /// overload is for a frame already built by <see cref="WebSocketChannelEnvelope.Create"/>, typically
+    /// once for several connections: anything else is not routed by the client.
     /// </para>
     /// </summary>
-    /// <param name="message">The raw bytes to write.</param>
+    /// <param name="message">The frame bytes to write.</param>
     public async ValueTask WriteAsync( ReadOnlyMemory<byte> message )
     {
         if( _disposed ) return; // In-flight push after dispose: silently bail out.

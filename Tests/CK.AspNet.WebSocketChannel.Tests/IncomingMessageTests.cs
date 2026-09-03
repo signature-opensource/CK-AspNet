@@ -140,7 +140,7 @@ public class IncomingMessageTests
             await client.SendAsync( Encoding.UTF8.GetBytes( "not json at all" ), WebSocketMessageType.Text, true, default );
 
             // The descending direction still works, which is the proof the connection is untouched.
-            await host.Manager.SendAsync( connectionId, "OD", Encoding.UTF8.GetBytes( """{"ok":true}""" ) );
+            await host.GetConnection( connectionId ).WriteAsync( "OD", Encoding.UTF8.GetBytes( """{"ok":true}""" ) );
             using var frame = await WebSocketChannelHost.ReceiveJsonAsync( client );
             frame.RootElement.GetProperty( "topic" ).GetString().ShouldBe( "OD" );
         }

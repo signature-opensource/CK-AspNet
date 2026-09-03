@@ -84,34 +84,6 @@ public sealed class WebSocketChannelManager : IRealObject
     }
 
     /// <summary>
-    /// Sends a message under a topic to one connection.
-    /// Does nothing when the connection is unknown or already closed: a push racing with a
-    /// disconnection is normal, and an offline client is caught later, when it reconnects.
-    /// </summary>
-    /// <param name="connectionId">The target connection.</param>
-    /// <param name="topic">The topic that routes the message on the client.</param>
-    /// <param name="message">The payload, as a JSON value. It is embedded as-is, not escaped.</param>
-    public ValueTask SendAsync( string connectionId, string topic, ReadOnlyMemory<byte> message )
-    {
-        return _connections.TryGetValue( connectionId, out var connection )
-                ? SendAsync( connection, topic, message )
-                : ValueTask.CompletedTask;
-    }
-
-    /// <summary>
-    /// Sends a message under a topic to an already resolved connection: use this overload when the
-    /// connection is at hand, to skip the lookup.
-    /// </summary>
-    /// <param name="connection">The target connection.</param>
-    /// <param name="topic">The topic that routes the message on the client.</param>
-    /// <param name="message">The payload, as a JSON value. It is embedded as-is, not escaped.</param>
-    public ValueTask SendAsync( WebSocketChannelConnection connection, string topic, ReadOnlyMemory<byte> message )
-    {
-        Throw.CheckNotNullArgument( connection );
-        return connection.WriteAsync( topic, message );
-    }
-
-    /// <summary>
     /// Registers <see cref="AbortAll"/> on <see cref="IHostApplicationLifetime.ApplicationStopping"/> so
     /// open connections are aborted before Kestrel starts draining (OnHostStopAsync is only a late
     /// backstop).
