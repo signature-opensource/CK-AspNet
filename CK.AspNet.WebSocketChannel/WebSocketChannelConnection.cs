@@ -130,7 +130,8 @@ public sealed class WebSocketChannelConnection : IAsyncDisposable
     public void Abort() => _connection.Abort();
 
     /// <summary>
-    /// Marks this connection as disposed and releases the write lock. Idempotent.
+    /// Marks this connection as disposed, releases the write lock, and clears the
+    /// <see cref="MessageReceived"/> handlers. Idempotent.
     /// <para>
     /// The manager disposes the connection <em>before</em> raising its closed event, so that any write
     /// attempted from a handler is a silent no-op rather than a write onto a socket that is already gone.
