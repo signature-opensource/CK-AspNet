@@ -27,8 +27,8 @@ public sealed class WebSocketChannelConnection : IAsyncDisposable
     readonly IWebsocketConnectionContext<ReadOnlyMemory<byte>> _connection;
     readonly SemaphoreSlim _writeLock;
     readonly PerfectEventSender<MessageReceivedEvent> _messageReceived;
-    // Guards against in-flight pushes writing to a disposed connection, and prevents double-dispose
-    // of the semaphore if disposal paths ever overlap.
+    // Guards against in-flight pushes writing to a disposed connection, and makes DisposeAsync
+    // idempotent if disposal paths ever overlap.
     volatile bool _disposed;
 
     internal WebSocketChannelConnection( IWebsocketConnectionContext<ReadOnlyMemory<byte>> connection )
@@ -130,8 +130,9 @@ public sealed class WebSocketChannelConnection : IAsyncDisposable
     public void Abort() => _connection.Abort();
 
     /// <summary>
-    /// Marks this connection as disposed, releases the write lock, and clears the
-    /// <see cref="MessageReceived"/> handlers. Idempotent.
+    /// Marks this connection as disposed and clears the <see cref="MessageReceived"/> handlers. Idempotent.
+    /// The write lock itself is never disposed: a write racing this call must stay a silent no-op, and the
+    /// semaphore owns nothing that needs releasing.
     /// <para>
     /// The manager disposes the connection <em>before</em> raising its closed event, so that any write
     /// attempted from a handler is a silent no-op rather than a write onto a socket that is already gone.
@@ -141,7 +142,6 @@ public sealed class WebSocketChannelConnection : IAsyncDisposable
     {
         if( _disposed ) return ValueTask.CompletedTask; // Already disposed.
         _disposed = true;
-        _writeLock.Dispose();
         // Handlers die with the connection: a feature that subscribed here has nothing to unsubscribe,
         // and whatever its closures captured is released.
         _messageReceived.RemoveAll();

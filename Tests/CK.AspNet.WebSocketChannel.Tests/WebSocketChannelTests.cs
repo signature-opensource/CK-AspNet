@@ -2,6 +2,7 @@ using CK.Core;
 using CK.PerfectEvent;
 using System;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Shouldly;
@@ -77,6 +78,38 @@ public class WebSocketChannelTests
         await Should.NotThrowAsync( async () => await connection.WriteAsync( "OD", Utf8( SessionChannelFrame ) ) );
         await Should.NotThrowAsync( async () => await connection.WriteAsync( Utf8( SessionChannelFrame ) ) );
         host.Manager.TryGetConnection( connectionId, out _ ).ShouldBeFalse();
+    }
+
+    [Test]
+    public async Task writes_racing_a_disconnection_never_throw_Async()
+    {
+        var map = await WebSocketChannelHost.BuildMapAsync();
+        await using var host = await WebSocketChannelHost.StartAsync( map );
+
+        var (client, connectionId) = await host.ConnectAsync();
+        var connection = host.GetConnection( connectionId );
+        using( client )
+        {
+            // A feature pushes continuously while the client goes away: whatever the interleaving with the
+            // dispose, no write may surface an exception. This is the contract every push relies on.
+            var closed = host.WaitForCloseAsync( connectionId );
+            using var stop = new CancellationTokenSource();
+            var pusher = Task.Run( async () =>
+            {
+                while( !stop.IsCancellationRequested )
+                {
+                    await connection.WriteAsync( "OD", Utf8( ObservableDomainFrame ) );
+                    await connection.WriteAsync( Utf8( SessionChannelFrame ) );
+                }
+            } );
+            client.Abort();
+            await closed;
+            // Keep pushing a little after the close so the post-dispose path is exercised too.
+            await Task.Delay( 100 );
+            stop.Cancel();
+            await Should.NotThrowAsync( async () => await pusher );
+        }
+        connection.IsDisposed.ShouldBeTrue();
     }
 
     [Test]
