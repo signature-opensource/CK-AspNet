@@ -13,8 +13,8 @@ public sealed class RawMessageProtocol : IDelimitedMessageProtocol<ReadOnlySeque
     /// <summary>
     /// Returns <paramref name="input"/> unchanged. Decoding here would allocate for every incoming
     /// message, including the usual case where nothing listens to them: the manager decides, and reads
-    /// the bytes only once a feature has subscribed to
-    /// <see cref="WebSocketChannelManager.AllMessagesReceived"/>.
+    /// the bytes only once a feature has subscribed to <see cref="WebSocketChannelConnection.MessageReceived"/>
+    /// or <see cref="WebSocketChannelManager.AllMessagesReceived"/>.
     /// <para>
     /// The returned sequence borrows the pipe's buffers: it is only valid until the read loop advances.
     /// That is why the manager copies the payload out of it synchronously, before any handler can await

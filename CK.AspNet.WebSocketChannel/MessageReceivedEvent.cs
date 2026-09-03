@@ -3,7 +3,8 @@ using System;
 namespace CK.AspNet.WebSocketChannel;
 
 /// <summary>
-/// Argument of <see cref="WebSocketChannelManager.AllMessagesReceived"/>.
+/// Argument of <see cref="WebSocketChannelConnection.MessageReceived"/> and
+/// <see cref="WebSocketChannelManager.AllMessagesReceived"/>.
 /// <para>
 /// <see cref="Message"/> is a copy: handlers may await freely and keep it, unlike the sequence the
 /// protocol hands over (see <see cref="RawMessageProtocol.ParseMessage"/>).

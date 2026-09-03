@@ -52,7 +52,8 @@ public sealed class WebSocketChannelManager : IRealObject
     /// <summary>
     /// Raised for each message any client sends, once its envelope has been read. Handlers filter on
     /// <see cref="MessageReceivedEvent.Topic"/>: this is a shared socket, so a feature sees the traffic
-    /// of the others and ignores it.
+    /// of the others and ignores it. A feature that works per connection subscribes to
+    /// <see cref="WebSocketChannelConnection.MessageReceived"/> instead, whose handlers run first.
     /// <para>
     /// Topics live in one flat namespace shared by every feature, so a topic must be globally unique:
     /// name it after your package.
@@ -60,9 +61,9 @@ public sealed class WebSocketChannelManager : IRealObject
     /// your handler - silently, since nothing here can tell the two apart.
     /// </para>
     /// <para>
-    /// As long as nobody subscribes, incoming messages are not even read: the channel stays purely
-    /// descending and costs nothing. Subscribing turns it on, and with it the caveat that
-    /// <see cref="MessageReceivedEvent"/> carries nothing authenticated.
+    /// As long as nobody subscribes, here nor on any connection, incoming messages are not even read: the
+    /// channel stays purely descending and costs nothing. Subscribing turns it on, and with it the caveat
+    /// that <see cref="MessageReceivedEvent"/> carries nothing authenticated.
     /// </para>
     /// </summary>
     public PerfectEvent<MessageReceivedEvent> AllMessagesReceived => _allMessagesReceived.PerfectEvent;
@@ -129,10 +130,11 @@ public sealed class WebSocketChannelManager : IRealObject
 
     internal Task OnMessageAsync( string connectionId, ReadOnlySequence<byte> input )
     {
-        // Nobody listens: do not even look at the bytes. This is what keeps the descending-only case
-        // free, and the reason RawMessageProtocol hands the sequence over without decoding it.
-        if( !_allMessagesReceived.HasHandlers ) return Task.CompletedTask;
         if( !_connections.TryGetValue( connectionId, out var c ) ) return Task.CompletedTask;
+        // Nobody listens, neither on this connection nor here: do not even look at the bytes. This is
+        // what keeps the descending-only case free, and the reason RawMessageProtocol hands the
+        // sequence over without decoding it.
+        if( !c.HasMessageHandlers && !_allMessagesReceived.HasHandlers ) return Task.CompletedTask;
 
         string topic;
         ReadOnlyMemory<byte> message;
@@ -147,9 +149,15 @@ public sealed class WebSocketChannelManager : IRealObject
             c.Monitor.Warn( "Ignored an incoming message that is not a {topic,message} envelope.", ex );
             return Task.CompletedTask;
         }
+        return RaiseMessageReceivedAsync( c, new MessageReceivedEvent( c, topic, message ) );
+    }
 
-        // Safe: one faulty feature must not tear down a socket that the other features share.
-        return _allMessagesReceived.SafeRaiseAsync( c.Monitor, new MessageReceivedEvent( c, topic, message ) );
+    // The connection's handlers first, then the manager-wide ones: this order is a contract. Both raises
+    // are safe: one faulty feature must not tear down a socket that the other features share.
+    async Task RaiseMessageReceivedAsync( WebSocketChannelConnection c, MessageReceivedEvent e )
+    {
+        await c.RaiseMessageReceivedAsync( e ).ConfigureAwait( false );
+        await _allMessagesReceived.SafeRaiseAsync( c.Monitor, e ).ConfigureAwait( false );
     }
 
     internal Task OnDisconnectedAsync( string connectionId, Exception? exception )

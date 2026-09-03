@@ -44,9 +44,10 @@ public sealed class WebSocketChannelDispatcher : IWebSocketMessageDispatcher<Rea
 
     /// <summary>
     /// Hands the message to the manager, which reads its envelope and raises
-    /// <see cref="WebSocketChannelManager.AllMessagesReceived"/> - and does neither as long as no feature
-    /// subscribes, which is the usual case: what a client has to say normally travels on the
-    /// authenticated Cris endpoint, where it is validated.
+    /// <see cref="WebSocketChannelConnection.MessageReceived"/> then
+    /// <see cref="WebSocketChannelManager.AllMessagesReceived"/> - and does none of it as long as no
+    /// feature subscribes to either, which is the usual case: what a client has to say normally travels
+    /// on the authenticated Cris endpoint, where it is validated.
     /// <para>
     /// <paramref name="message"/> borrows the pipe's buffers (see
     /// <see cref="RawMessageProtocol.ParseMessage"/>), which is why it is passed on synchronously and

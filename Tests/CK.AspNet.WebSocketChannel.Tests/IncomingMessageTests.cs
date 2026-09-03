@@ -12,7 +12,8 @@ using Shouldly;
 namespace CK.AspNet.WebSocketChannel.Tests;
 
 /// <summary>
-/// The ascending direction: it exists only for whoever subscribes to
+/// The ascending direction: it exists only for whoever subscribes to a connection's
+/// <see cref="WebSocketChannelConnection.MessageReceived"/> or to the manager-wide
 /// <see cref="WebSocketChannelManager.AllMessagesReceived"/>, and it must never let a client harm the
 /// socket that the other features are using.
 /// </summary>
@@ -143,6 +144,101 @@ public class IncomingMessageTests
             await host.GetConnection( connectionId ).WriteAsync( "OD", Encoding.UTF8.GetBytes( """{"ok":true}""" ) );
             using var frame = await WebSocketChannelHost.ReceiveJsonAsync( client );
             frame.RootElement.GetProperty( "topic" ).GetString().ShouldBe( "OD" );
+        }
+    }
+
+    [Test]
+    public async Task a_connection_only_sees_its_own_messages_Async()
+    {
+        var map = await WebSocketChannelHost.BuildMapAsync();
+        await using var host = await WebSocketChannelHost.StartAsync( map );
+
+        var (clientA, idA) = await host.ConnectAsync();
+        var (clientB, idB) = await host.ConnectAsync();
+        using( clientA )
+        using( clientB )
+        {
+            // A feature working per connection subscribes on the connection: no filter on the sender,
+            // and nothing to unsubscribe, the handler dies with the connection.
+            var seenByA = new ConcurrentQueue<string>();
+            host.GetConnection( idA ).MessageReceived.Sync += ( monitor, e ) => seenByA.Enqueue( e.Connection.ConnectionId );
+
+            // The manager-wide event sees everything.
+            var seenByAll = new ConcurrentQueue<string>();
+            var twoSeen = new TaskCompletionSource( TaskCreationOptions.RunContinuationsAsynchronously );
+            SequentialEventHandler<MessageReceivedEvent> onAll = ( monitor, e ) =>
+            {
+                seenByAll.Enqueue( e.Connection.ConnectionId );
+                if( seenByAll.Count == 2 ) twoSeen.TrySetResult();
+            };
+            host.Manager.AllMessagesReceived.Sync += onAll;
+            try
+            {
+                await SendAsync( clientA, "OD", "1" );
+                await SendAsync( clientB, "OD", "2" );
+                await twoSeen.Task.WaitAsync( TimeSpan.FromSeconds( 5 ) );
+
+                // Two sockets, two read loops: no order across connections.
+                seenByAll.ShouldBe( [idA, idB], ignoreOrder: true );
+                // A's handler ran before the manager-wide one saw A's message (see the order test), and
+                // B's message never reaches it.
+                seenByA.ShouldBe( [idA], Case.Sensitive, "A handler subscribed on A must not see B's traffic." );
+            }
+            finally
+            {
+                host.Manager.AllMessagesReceived.Sync -= onAll;
+            }
+        }
+    }
+
+    [Test]
+    public async Task connection_handlers_run_before_manager_wide_handlers_Async()
+    {
+        var map = await WebSocketChannelHost.BuildMapAsync();
+        await using var host = await WebSocketChannelHost.StartAsync( map );
+
+        var (client, connectionId) = await host.ConnectAsync();
+        using( client )
+        {
+            var order = new ConcurrentQueue<string>();
+            var done = new TaskCompletionSource( TaskCreationOptions.RunContinuationsAsynchronously );
+            host.GetConnection( connectionId ).MessageReceived.Sync += ( monitor, e ) => order.Enqueue( "connection" );
+            SequentialEventHandler<MessageReceivedEvent> onAll = ( monitor, e ) =>
+            {
+                order.Enqueue( "manager" );
+                done.TrySetResult();
+            };
+            host.Manager.AllMessagesReceived.Sync += onAll;
+            try
+            {
+                await SendAsync( client, "OD", "1" );
+                await done.Task.WaitAsync( TimeSpan.FromSeconds( 5 ) );
+                order.ShouldBe( ["connection", "manager"], Case.Sensitive, "The connection's handlers run first: this order is a contract." );
+            }
+            finally
+            {
+                host.Manager.AllMessagesReceived.Sync -= onAll;
+            }
+        }
+    }
+
+    [Test]
+    public async Task a_connection_subscriber_alone_turns_reading_on_Async()
+    {
+        var map = await WebSocketChannelHost.BuildMapAsync();
+        await using var host = await WebSocketChannelHost.StartAsync( map );
+
+        var (client, connectionId) = await host.ConnectAsync();
+        using( client )
+        {
+            // No manager-wide subscriber: a subscriber on the connection alone must be enough for the
+            // bytes to be read. Otherwise a per-connection feature would silently never hear anything.
+            var received = new TaskCompletionSource<string>( TaskCreationOptions.RunContinuationsAsynchronously );
+            host.GetConnection( connectionId ).MessageReceived.Sync += ( monitor, e ) => received.TrySetResult( e.Topic );
+
+            await SendAsync( client, "OD", "1" );
+            var topic = await received.Task.WaitAsync( TimeSpan.FromSeconds( 5 ) );
+            topic.ShouldBe( "OD" );
         }
     }
 }

@@ -1,4 +1,5 @@
 using CK.Core;
+using CK.PerfectEvent;
 using SimpleR;
 using System;
 using System.Threading;
@@ -17,11 +18,15 @@ namespace CK.AspNet.WebSocketChannel;
 /// Writes are serialized: this socket is shared by every topic, so concurrent pushes from unrelated
 /// features are the normal case, not an edge case.
 /// </para>
+/// <para>
+/// What the client says arrives on <see cref="MessageReceived"/>, for this connection only.
+/// </para>
 /// </summary>
 public sealed class WebSocketChannelConnection : IAsyncDisposable
 {
     readonly IWebsocketConnectionContext<ReadOnlyMemory<byte>> _connection;
     readonly SemaphoreSlim _writeLock;
+    readonly PerfectEventSender<MessageReceivedEvent> _messageReceived;
     // Guards against in-flight pushes writing to a disposed connection, and prevents double-dispose
     // of the semaphore if disposal paths ever overlap.
     volatile bool _disposed;
@@ -30,6 +35,7 @@ public sealed class WebSocketChannelConnection : IAsyncDisposable
     {
         _connection = connection;
         _writeLock = new SemaphoreSlim( 1, 1 );
+        _messageReceived = new PerfectEventSender<MessageReceivedEvent>();
         // One monitor for the whole lifetime of the connection: it correlates the open and close logs
         // of a socket. It is the monitor the manager raises its perfect events with, so a feature
         // handling them logs in the context of the connection it is reacting to. Only that lifecycle
@@ -48,7 +54,31 @@ public sealed class WebSocketChannelConnection : IAsyncDisposable
     /// </summary>
     public bool IsDisposed => _disposed;
 
+    /// <summary>
+    /// Raised for each message the client of this connection sends, once its envelope has been read.
+    /// This is the event a feature that works per connection subscribes to: it sees this client's traffic
+    /// only, and its handlers are removed when the connection is disposed, so there is nothing to
+    /// unsubscribe on close.
+    /// <para>
+    /// Handlers still filter on <see cref="MessageReceivedEvent.Topic"/>: every feature shares this socket.
+    /// See <see cref="WebSocketChannelManager.AllMessagesReceived"/> for the topic namespace rules, and
+    /// for the manager-wide event that sees every connection. For one message, the handlers of this event
+    /// run first, then the manager-wide ones.
+    /// </para>
+    /// <para>
+    /// As long as nobody subscribes here nor on the manager, incoming messages are not even read.
+    /// <see cref="MessageReceivedEvent"/> carries nothing authenticated.
+    /// </para>
+    /// </summary>
+    public PerfectEvent<MessageReceivedEvent> MessageReceived => _messageReceived.PerfectEvent;
+
     internal IActivityMonitor Monitor { get; }
+
+    // Lets the manager skip reading the bytes when nobody listens on this connection either.
+    internal bool HasMessageHandlers => _messageReceived.HasHandlers;
+
+    // Safe: one faulty feature must not tear down a socket that the other features share.
+    internal Task RaiseMessageReceivedAsync( MessageReceivedEvent e ) => _messageReceived.SafeRaiseAsync( Monitor, e );
 
     /// <summary>
     /// Writes a frame to the client as it is given. Silently does nothing once the connection has been
@@ -111,6 +141,9 @@ public sealed class WebSocketChannelConnection : IAsyncDisposable
         if( _disposed ) return ValueTask.CompletedTask; // Already disposed.
         _disposed = true;
         _writeLock.Dispose();
+        // Handlers die with the connection: a feature that subscribed here has nothing to unsubscribe,
+        // and whatever its closures captured is released.
+        _messageReceived.RemoveAll();
         return ValueTask.CompletedTask;
     }
 }
