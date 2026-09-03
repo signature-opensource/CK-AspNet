@@ -58,12 +58,15 @@ public sealed class WebSocketChannelConnection : IAsyncDisposable
     /// Raised for each message the client of this connection sends, once its envelope has been read.
     /// This is the event a feature that works per connection subscribes to: it sees this client's traffic
     /// only, and its handlers are removed when the connection is disposed, so there is nothing to
-    /// unsubscribe on close.
+    /// unsubscribe on close. A bridge created on this event (<c>PerfectEvent{T}.CreateBridge</c>) is not
+    /// a handler, though, and must still be disposed by its creator.
     /// <para>
     /// Handlers still filter on <see cref="MessageReceivedEvent.Topic"/>: every feature shares this socket.
     /// See <see cref="WebSocketChannelManager.AllMessagesReceived"/> for the topic namespace rules, and
     /// for the manager-wide event that sees every connection. For one message, the handlers of this event
-    /// run first, then the manager-wide ones.
+    /// run first, then the manager-wide ones. A handler that throws is logged and swallowed (the raise is
+    /// safe): only the remaining synchronous handlers of this event are skipped, and
+    /// <see cref="WebSocketChannelManager.AllMessagesReceived"/> is still raised.
     /// </para>
     /// <para>
     /// As long as nobody subscribes here nor on the manager, incoming messages are not even read.
@@ -114,6 +117,7 @@ public sealed class WebSocketChannelConnection : IAsyncDisposable
     /// <param name="message">The payload, as a JSON value. It is embedded as-is, not escaped.</param>
     public ValueTask WriteAsync( string topic, ReadOnlyMemory<byte> message )
     {
+        Throw.CheckNotNullOrWhiteSpaceArgument( topic );
         // Disposed: bail out before building an envelope for nothing.
         if( _disposed ) return ValueTask.CompletedTask;
         return WriteAsync( WebSocketChannelEnvelope.Create( topic, message ) );
@@ -136,6 +140,10 @@ public sealed class WebSocketChannelConnection : IAsyncDisposable
     /// <para>
     /// The manager disposes the connection <em>before</em> raising its closed event, so that any write
     /// attempted from a handler is a silent no-op rather than a write onto a socket that is already gone.
+    /// </para>
+    /// <para>
+    /// Called by the manager; features never dispose a connection: doing so would clear every other
+    /// feature's subscriptions while the manager still lists it as open.
     /// </para>
     /// </summary>
     public ValueTask DisposeAsync()

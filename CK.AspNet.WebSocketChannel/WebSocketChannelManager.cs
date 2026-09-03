@@ -16,8 +16,9 @@ namespace CK.AspNet.WebSocketChannel;
 /// <para>
 /// There is one socket per client, and one dictionary of sockets in the process: this object. Features
 /// do not open connections, they observe them through <see cref="ConnectionOpened"/> and
-/// <see cref="ConnectionClosed"/>, keep whatever state they need keyed by connection identifier, and
-/// push under their own topic on the connection (<see cref="WebSocketChannelConnection.WriteAsync(string, ReadOnlyMemory{byte})"/>)
+/// <see cref="ConnectionClosed"/>, keep whatever state they need keyed by connection identifier, or by
+/// the connection object itself, which stays harmless once closed, and push under their own topic on the
+/// connection (<see cref="WebSocketChannelConnection.WriteAsync(string, ReadOnlyMemory{byte})"/>)
 /// or to all of them at once (<see cref="SendBroadcastAsync(string, ReadOnlyMemory{byte})"/>).
 /// </para>
 /// <para>
@@ -55,7 +56,10 @@ public sealed class WebSocketChannelManager : IRealObject
     /// Raised for each message any client sends, once its envelope has been read. Handlers filter on
     /// <see cref="MessageReceivedEvent.Topic"/>: this is a shared socket, so a feature sees the traffic
     /// of the others and ignores it. A feature that works per connection subscribes to
-    /// <see cref="WebSocketChannelConnection.MessageReceived"/> instead, whose handlers run first.
+    /// <see cref="WebSocketChannelConnection.MessageReceived"/> instead, whose handlers run first. A
+    /// handler that throws is logged and swallowed (the raise is safe): only the remaining synchronous
+    /// handlers of this event are skipped, and <see cref="WebSocketChannelConnection.MessageReceived"/>
+    /// is still raised.
     /// <para>
     /// Topics live in one flat namespace shared by every feature, so a topic must be globally unique:
     /// name it after your package.

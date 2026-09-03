@@ -75,6 +75,7 @@ public class WebSocketChannelTests
         }
         // Pushing onto the connection that just went away: normal race, not an error, whichever overload.
         connection.IsDisposed.ShouldBeTrue();
+        connection.MessageReceived.HasHandlers.ShouldBeFalse( "Handlers die with the connection." );
         await Should.NotThrowAsync( async () => await connection.WriteAsync( "OD", Utf8( SessionChannelFrame ) ) );
         await Should.NotThrowAsync( async () => await connection.WriteAsync( Utf8( SessionChannelFrame ) ) );
         host.Manager.TryGetConnection( connectionId, out _ ).ShouldBeFalse();

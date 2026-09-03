@@ -13,6 +13,10 @@ public sealed class WebSocketChannelDispatcher : IWebSocketMessageDispatcher<Rea
 {
     readonly WebSocketChannelManager _manager;
 
+    /// <summary>
+    /// Initializes a new dispatcher bound to the one manager of the application.
+    /// </summary>
+    /// <param name="manager">The manager every connection is handed to.</param>
     public WebSocketChannelDispatcher( WebSocketChannelManager manager )
     {
         _manager = manager;

@@ -70,7 +70,9 @@ public class BroadcastTests
         await using var host = await WebSocketChannelHost.StartAsync( map );
 
         host.Manager.Count.ShouldBe( 0 );
-        await Should.NotThrowAsync( async () => await host.Manager.SendBroadcastAsync( "SC", Utf8( Frame ) ) );
+        var broadcast = host.Manager.SendBroadcastAsync( "SC", Utf8( Frame ) );
+        broadcast.IsCompletedSuccessfully.ShouldBeTrue( "With no connection there is nothing to await." );
+        await broadcast;
     }
 
     [Test]
