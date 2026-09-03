@@ -44,7 +44,7 @@ public sealed class WebSocketChannelDispatcher : IWebSocketMessageDispatcher<Rea
 
     /// <summary>
     /// Hands the message to the manager, which reads its envelope and raises
-    /// <see cref="WebSocketChannelManager.MessageReceived"/> - and does neither as long as no feature
+    /// <see cref="WebSocketChannelManager.AllMessagesReceived"/> - and does neither as long as no feature
     /// subscribes, which is the usual case: what a client has to say normally travels on the
     /// authenticated Cris endpoint, where it is validated.
     /// <para>

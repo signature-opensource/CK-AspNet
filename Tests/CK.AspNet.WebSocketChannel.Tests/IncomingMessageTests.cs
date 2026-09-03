@@ -13,7 +13,7 @@ namespace CK.AspNet.WebSocketChannel.Tests;
 
 /// <summary>
 /// The ascending direction: it exists only for whoever subscribes to
-/// <see cref="WebSocketChannelManager.MessageReceived"/>, and it must never let a client harm the
+/// <see cref="WebSocketChannelManager.AllMessagesReceived"/>, and it must never let a client harm the
 /// socket that the other features are using.
 /// </summary>
 [TestFixture]
@@ -40,7 +40,7 @@ public class IncomingMessageTests
             received.TrySetResult( (e.Topic, text, e.Connection.ConnectionId) );
             return Task.CompletedTask;
         };
-        host.Manager.MessageReceived.Async += onMessage;
+        host.Manager.AllMessagesReceived.Async += onMessage;
         try
         {
             var (client, connectionId) = await host.ConnectAsync();
@@ -55,7 +55,7 @@ public class IncomingMessageTests
         }
         finally
         {
-            host.Manager.MessageReceived.Async -= onMessage;
+            host.Manager.AllMessagesReceived.Async -= onMessage;
         }
     }
 
@@ -74,7 +74,7 @@ public class IncomingMessageTests
             topics.Enqueue( e.Topic );
             if( topics.Count == 2 ) twoSeen.TrySetResult();
         };
-        host.Manager.MessageReceived.Sync += onMessage;
+        host.Manager.AllMessagesReceived.Sync += onMessage;
         try
         {
             var (client, _) = await host.ConnectAsync();
@@ -88,7 +88,7 @@ public class IncomingMessageTests
         }
         finally
         {
-            host.Manager.MessageReceived.Sync -= onMessage;
+            host.Manager.AllMessagesReceived.Sync -= onMessage;
         }
     }
 
@@ -103,7 +103,7 @@ public class IncomingMessageTests
         {
             if( e.Topic == "OD" ) good.TrySetResult();
         };
-        host.Manager.MessageReceived.Sync += onMessage;
+        host.Manager.AllMessagesReceived.Sync += onMessage;
         try
         {
             var (client, connectionId) = await host.ConnectAsync();
@@ -122,7 +122,7 @@ public class IncomingMessageTests
         }
         finally
         {
-            host.Manager.MessageReceived.Sync -= onMessage;
+            host.Manager.AllMessagesReceived.Sync -= onMessage;
         }
     }
 

@@ -29,7 +29,7 @@ public sealed class WebSocketChannelManager : IRealObject
     readonly ConcurrentDictionary<string, WebSocketChannelConnection> _connections = new();
     readonly PerfectEventSender<WebSocketChannelConnection> _connectionOpened = new();
     readonly PerfectEventSender<ConnectionClosedEvent> _connectionClosed = new();
-    readonly PerfectEventSender<MessageReceivedEvent> _messageReceived = new();
+    readonly PerfectEventSender<MessageReceivedEvent> _allMessagesReceived = new();
 
     // Set by AbortAll on ApplicationStopping: once stopping, new connections are refused so an
     // auto-reconnecting client cannot re-arm the full ShutdownTimeout drain.
@@ -50,7 +50,7 @@ public sealed class WebSocketChannelManager : IRealObject
     public PerfectEvent<ConnectionClosedEvent> ConnectionClosed => _connectionClosed.PerfectEvent;
 
     /// <summary>
-    /// Raised for each message a client sends, once its envelope has been read. Handlers filter on
+    /// Raised for each message any client sends, once its envelope has been read. Handlers filter on
     /// <see cref="MessageReceivedEvent.Topic"/>: this is a shared socket, so a feature sees the traffic
     /// of the others and ignores it.
     /// <para>
@@ -65,7 +65,7 @@ public sealed class WebSocketChannelManager : IRealObject
     /// <see cref="MessageReceivedEvent"/> carries nothing authenticated.
     /// </para>
     /// </summary>
-    public PerfectEvent<MessageReceivedEvent> MessageReceived => _messageReceived.PerfectEvent;
+    public PerfectEvent<MessageReceivedEvent> AllMessagesReceived => _allMessagesReceived.PerfectEvent;
 
     /// <summary>
     /// Gets the number of currently open connections.
@@ -131,7 +131,7 @@ public sealed class WebSocketChannelManager : IRealObject
     {
         // Nobody listens: do not even look at the bytes. This is what keeps the descending-only case
         // free, and the reason RawMessageProtocol hands the sequence over without decoding it.
-        if( !_messageReceived.HasHandlers ) return Task.CompletedTask;
+        if( !_allMessagesReceived.HasHandlers ) return Task.CompletedTask;
         if( !_connections.TryGetValue( connectionId, out var c ) ) return Task.CompletedTask;
 
         string topic;
@@ -149,7 +149,7 @@ public sealed class WebSocketChannelManager : IRealObject
         }
 
         // Safe: one faulty feature must not tear down a socket that the other features share.
-        return _messageReceived.SafeRaiseAsync( c.Monitor, new MessageReceivedEvent( c, topic, message ) );
+        return _allMessagesReceived.SafeRaiseAsync( c.Monitor, new MessageReceivedEvent( c, topic, message ) );
     }
 
     internal Task OnDisconnectedAsync( string connectionId, Exception? exception )
