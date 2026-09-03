@@ -65,7 +65,7 @@ public class WebSocketChannelTests
         var connection = host.GetConnection( connectionId );
         using( client )
         {
-            var closed = WaitForCloseAsync( host.Manager, connectionId );
+            var closed = host.WaitForCloseAsync( connectionId );
             // Abort rather than a close handshake: the server tears the socket down at once
             // (CloseTimeout is zero, so shutdown never waits on a client), and this is anyway the
             // realistic case - a closed tab, a lost network.
@@ -147,21 +147,5 @@ public class WebSocketChannelTests
         {
             host.Manager.ConnectionClosed.Async -= onClosed;
         }
-    }
-
-    static Task WaitForCloseAsync( WebSocketChannelManager manager, string connectionId )
-    {
-        var tcs = new TaskCompletionSource( TaskCreationOptions.RunContinuationsAsynchronously );
-        SequentialEventHandler<ConnectionClosedEvent> handler = null!;
-        handler = ( monitor, e ) =>
-        {
-            if( e.ConnectionId == connectionId )
-            {
-                manager.ConnectionClosed.Sync -= handler;
-                tcs.TrySetResult();
-            }
-        };
-        manager.ConnectionClosed.Sync += handler;
-        return tcs.Task.WaitAsync( TimeSpan.FromSeconds( 5 ) );
     }
 }

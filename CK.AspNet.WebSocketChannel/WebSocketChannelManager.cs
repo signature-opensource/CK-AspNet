@@ -5,6 +5,7 @@ using SimpleR;
 using System;
 using System.Buffers;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
 
@@ -16,7 +17,8 @@ namespace CK.AspNet.WebSocketChannel;
 /// There is one socket per client, and one dictionary of sockets in the process: this object. Features
 /// do not open connections, they observe them through <see cref="ConnectionOpened"/> and
 /// <see cref="ConnectionClosed"/>, keep whatever state they need keyed by connection identifier, and
-/// push under their own topic.
+/// push under their own topic on the connection (<see cref="WebSocketChannelConnection.WriteAsync(string, ReadOnlyMemory{byte})"/>)
+/// or to all of them at once (<see cref="SendBroadcastAsync(string, ReadOnlyMemory{byte})"/>).
 /// </para>
 /// <para>
 /// This manager knows nothing about any feature: no identity, no domain, no business index. That is
@@ -82,6 +84,39 @@ public sealed class WebSocketChannelManager : IRealObject
     public bool TryGetConnection( string connectionId, [NotNullWhen( true )] out WebSocketChannelConnection? connection )
     {
         return _connections.TryGetValue( connectionId, out connection );
+    }
+
+    /// <summary>
+    /// Writes the same frame to every open connection, in parallel. The frame must be an envelope built
+    /// by <see cref="WebSocketChannelEnvelope.Create"/>: prefer
+    /// <see cref="SendBroadcastAsync(string, ReadOnlyMemory{byte})"/>, which does exactly that.
+    /// <para>
+    /// A connection that opens during the broadcast may or may not receive it, and one that closed is
+    /// silently skipped. Per-connection order is preserved: two broadcasts awaited one after the other
+    /// reach every client in that order. An exception from one write propagates, as it does for a single
+    /// <see cref="WebSocketChannelConnection.WriteAsync(ReadOnlyMemory{byte})"/>.
+    /// </para>
+    /// </summary>
+    /// <param name="rawMessage">The frame to write, as it is.</param>
+    public Task SendBroadcastAsync( ReadOnlyMemory<byte> rawMessage )
+    {
+        // Enumerating the dictionary itself is lock-free (unlike .Values, which snapshots under lock).
+        var writes = new List<Task>();
+        foreach( var kv in _connections )
+        {
+            writes.Add( kv.Value.WriteAsync( rawMessage ).AsTask() );
+        }
+        return Task.WhenAll( writes );
+    }
+
+    /// <summary>
+    /// Sends a message under a topic to every open connection. The envelope is built once.
+    /// </summary>
+    /// <param name="topic">The topic that routes the message on the client. Must not be null or white space.</param>
+    /// <param name="message">The payload, as a JSON value. It is embedded as-is, not escaped.</param>
+    public Task SendBroadcastAsync( string topic, ReadOnlyMemory<byte> message )
+    {
+        return SendBroadcastAsync( WebSocketChannelEnvelope.Create( topic, message ) );
     }
 
     /// <summary>
