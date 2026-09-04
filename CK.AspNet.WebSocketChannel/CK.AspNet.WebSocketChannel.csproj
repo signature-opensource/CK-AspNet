@@ -10,11 +10,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="CK.Abstractions" Version="29.0.2" />
+    <PackageReference Include="CK.Abstractions" Version="29.0.3" />
     <!-- The monitor.Warn/Trace extensions. They came transitively while this project lived next to
          CK.TypeScript; here the reference has to be explicit. -->
     <PackageReference Include="CK.ActivityMonitor.SimpleSender" Version="26.0.2" />
-    <PackageReference Include="CK.PerfectEvent" Version="27.0.2" />
+    <PackageReference Include="CK.PerfectEvent" Version="27.0.3" />
     <PackageReference Include="SimpleR.Server" Version="1.0.0" />
   </ItemGroup>
 
