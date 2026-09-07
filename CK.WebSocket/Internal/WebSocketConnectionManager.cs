@@ -1,32 +1,30 @@
+using CK.Core;
 using System.Collections.Concurrent;
 using System.IO.Pipelines;
 using System.Net.WebSockets;
 using System.Security.Cryptography;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.WebUtilities;
-using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace CK.WebSocket;
 
-internal partial class WebSocketConnectionManager
+internal class WebSocketConnectionManager
 {
     private readonly ConcurrentDictionary<string, WebSocketConnectionContext> _connections = new();
-    private readonly ILogger<WebSocketConnectionManager> _logger;
-    private readonly ILogger<WebSocketConnectionContext> _connectionLogger;
-
-    public WebSocketConnectionManager(ILoggerFactory loggerFactory)
-    {
-        _logger = loggerFactory.CreateLogger<WebSocketConnectionManager>();
-        _connectionLogger = loggerFactory.CreateLogger<WebSocketConnectionContext>();
-    }
 
     internal WebSocketConnectionContext CreateConnection(HttpContext httpContext, WebSocketConnectionDispatcherOptions options)
     {
         var id = MakeNewConnectionId();
+        // The connection monitor is the request scoped monitor (the one CKBuild registers): a WebSocket
+        // connection is one long-lived request. It is required, as it is for CK.Cris.AspNet.
+        var monitor = httpContext.RequestServices.GetRequiredService<IActivityMonitor>();
 
-        Log.CreatedNewConnection(_logger, id);
+        // Like the transport and the connection, this manager logs through the parallel logger: its
+        // lines are emitted while the application side of the connection may be using the monitor.
+        monitor.ParallelLogger.Trace($"New connection {id} created.");
         var pair = DuplexPipe.CreateConnectionPair(options.TransportPipeOptions, options.AppPipeOptions);
-        var connection = new WebSocketConnectionContext(id, httpContext, _connectionLogger, pair.Application, pair.Transport, options);
+        var connection = new WebSocketConnectionContext(id, httpContext, monitor, pair.Application, pair.Transport, options);
 
         _connections.TryAdd(id, connection);
 
@@ -41,29 +39,29 @@ internal partial class WebSocketConnectionManager
         }
         catch (IOException ex)
         {
-            Log.ConnectionReset(_logger, connection.ConnectionId, ex);
+            connection.Monitor.ParallelLogger.Debug($"Connection {connection.ConnectionId} was reset.", ex);
         }
         catch (WebSocketException ex) when (ex.InnerException is IOException)
         {
-            Log.ConnectionReset(_logger, connection.ConnectionId, ex);
+            connection.Monitor.ParallelLogger.Debug($"Connection {connection.ConnectionId} was reset.", ex);
         }
         catch (Exception ex)
         {
-            Log.FailedDispose(_logger, connection.ConnectionId, ex);
+            connection.Monitor.ParallelLogger.Error($"Failed disposing connection {connection.ConnectionId}.", ex);
         }
         finally
         {
             // Remove it from the list after disposal so that's it's easy to see
             // connections that might be in a hung state via the connections list
-            RemoveConnection(connection.ConnectionId);
+            RemoveConnection(connection);
         }
     }
 
-    private void RemoveConnection(string id)
+    private void RemoveConnection(WebSocketConnectionContext connection)
     {
-        if (_connections.TryRemove(id, out var _))
+        if (_connections.TryRemove(connection.ConnectionId, out var _))
         {
-            Log.RemovedConnection(_logger, id);
+            connection.Monitor.ParallelLogger.Trace($"Removing connection {connection.ConnectionId} from the list of connections.");
         }
     }
 

@@ -5,7 +5,7 @@ using System.IO.Pipelines;
 using System.Net.WebSockets;
 using Microsoft.AspNetCore.Connections;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Logging;
+using CK.Core;
 
 namespace CK.WebSocket;
 
@@ -13,10 +13,10 @@ namespace CK.WebSocket;
 // namespace itself: this alias (scoped to this namespace declaration) restores the type.
 using WebSocket = System.Net.WebSockets.WebSocket;
 
-internal sealed partial class WebSocketsServerTransport : IHttpTransport
+internal sealed class WebSocketsServerTransport : IHttpTransport
 {
     private readonly WebSocketTransportOptions _options;
-    private readonly ILogger _logger;
+    private readonly IActivityLineEmitter _logger;
     private readonly IDuplexPipe _application;
     private readonly WebSocketConnectionContext _connection;
     private volatile bool _aborted;
@@ -25,18 +25,19 @@ internal sealed partial class WebSocketsServerTransport : IHttpTransport
     // Used to determine if the close was graceful or a network issue
     private bool _gracefulClose;
 
-    public WebSocketsServerTransport(WebSocketTransportOptions options, IDuplexPipe application, WebSocketConnectionContext connection, ILoggerFactory loggerFactory)
+    public WebSocketsServerTransport(WebSocketTransportOptions options, IDuplexPipe application, WebSocketConnectionContext connection)
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(application);
-        ArgumentNullException.ThrowIfNull(loggerFactory);
 
         _options = options;
         _application = application;
         _connection = connection;
         _frameReader = new FrameReader();
         
-        _logger = loggerFactory.CreateLogger<WebSocketsServerTransport>();
+        // The receive and send loops run concurrently with each other and with the application:
+        // only the thread safe parallel logger of the connection monitor can be used here.
+        _logger = connection.Monitor.ParallelLogger;
     }
 
     public async Task<bool> ProcessRequestAsync(HttpContext context, CancellationToken token)
@@ -47,7 +48,7 @@ internal sealed partial class WebSocketsServerTransport : IHttpTransport
         
         using (var ws = await context.WebSockets.AcceptWebSocketAsync(subProtocol))
         {
-            Log.SocketOpened(_logger, subProtocol);
+            _logger.Trace($"Socket opened using Sub-Protocol: '{subProtocol}'.");
 
             try
             {
@@ -55,7 +56,7 @@ internal sealed partial class WebSocketsServerTransport : IHttpTransport
             }
             finally
             {
-                Log.SocketClosed(_logger);
+                _logger.Trace("Socket closed.");
             }
         }
         
@@ -73,7 +74,7 @@ internal sealed partial class WebSocketsServerTransport : IHttpTransport
 
         if (trigger == receiving)
         {
-            Log.WaitingForSend(_logger);
+            _logger.Trace("Waiting for the application to finish sending data.");
 
             // We're waiting for the application to finish and there are 2 things it could be doing
             // 1. Waiting for application data
@@ -89,7 +90,7 @@ internal sealed partial class WebSocketsServerTransport : IHttpTransport
                 if (resultTask != sending)
                 {
                     // We timed out so now we're in ungraceful shutdown mode
-                    Log.CloseTimedOut(_logger);
+                    _logger.Trace("Timed out waiting for client to send the close frame, aborting the connection.");
 
                     // Abort the websocket if we're stuck in a pending send to the client
                     _aborted = true;
@@ -104,7 +105,7 @@ internal sealed partial class WebSocketsServerTransport : IHttpTransport
         }
         else
         {
-            Log.WaitingForClose(_logger);
+            _logger.Trace("Waiting for the client to close the socket.");
 
             // We're waiting on the websocket to close and there are 2 things it could be doing
             // 1. Waiting for websocket data
@@ -165,7 +166,7 @@ internal sealed partial class WebSocketsServerTransport : IHttpTransport
                     }
                 }
                 
-                Log.MessageReceived(_logger, receiveResult.MessageType, receiveResult.Count, receiveResult.EndOfMessage);
+                _logger.Debug($"Message received. Type: {receiveResult.MessageType}, size: {receiveResult.Count}, EndOfMessage: {receiveResult.EndOfMessage}.");
 
                 writer.Advance(receiveResult.Count);
                 if (writer is FrameBufferWriter frameWriter)
@@ -186,7 +187,7 @@ internal sealed partial class WebSocketsServerTransport : IHttpTransport
         catch (WebSocketException ex) when (ex.WebSocketErrorCode == WebSocketError.ConnectionClosedPrematurely)
         {
             // Client has closed the WebSocket connection without completing the close handshake
-            Log.ClosedPrematurely(_logger, ex);
+            _logger.Trace("Socket connection closed prematurely.", ex);
         }
         catch (OperationCanceledException)
         {
@@ -234,7 +235,7 @@ internal sealed partial class WebSocketsServerTransport : IHttpTransport
                         
                         try
                         {
-                            Log.SendPayload(_logger, buffer.Length);
+                            _logger.Debug($"Sending payload: {buffer.Length} bytes.");
                             
                             var webSocketMessageType = _connection.ActiveFormat == AspNetTransferFormat.Binary
                                 ? WebSocketMessageType.Binary
@@ -270,7 +271,7 @@ internal sealed partial class WebSocketsServerTransport : IHttpTransport
                         {
                             if (!_aborted)
                             {
-                                Log.ErrorWritingFrame(_logger, ex);
+                                _logger.Trace("Error writing frame.", ex);
                             }
                             break;
                         }
@@ -302,7 +303,7 @@ internal sealed partial class WebSocketsServerTransport : IHttpTransport
                 }
                 catch (Exception ex)
                 {
-                    Log.ClosingWebSocketFailed(_logger, ex);
+                    _logger.Trace("Closing webSocket failed.", ex);
                 }
             }
 
@@ -313,7 +314,7 @@ internal sealed partial class WebSocketsServerTransport : IHttpTransport
 
             if (error is not null)
             {
-                Log.SendErrored(_logger, error);
+                _logger.Trace("Send loop errored.", error);
             }
         }
     }

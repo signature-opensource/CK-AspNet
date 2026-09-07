@@ -1,25 +1,22 @@
 using Microsoft.AspNetCore.Connections;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Logging;
 
 namespace CK.WebSocket;
 
 internal class WebSocketConnectionDispatcher
 {
-    public WebSocketConnectionDispatcher(WebSocketConnectionManager connectionManager, ILoggerFactory loggerFactory)
+    public WebSocketConnectionDispatcher(WebSocketConnectionManager connectionManager)
     {
         ConnectionManager = connectionManager;
-        LoggerFactory = loggerFactory;
     }
 
     private WebSocketConnectionManager ConnectionManager { get; }
-    private ILoggerFactory LoggerFactory { get; }
 
     public async Task ExecuteAsync(HttpContext httpContext, WebSocketConnectionDispatcherOptions options, ConnectionDelegate connectionDelegate)
     {
         var connection = ConnectionManager.CreateConnection(httpContext, options);
 
-        var transport = new WebSocketsServerTransport(options.WebSockets, connection.Application, connection, LoggerFactory);
+        var transport = new WebSocketsServerTransport(options.WebSockets, connection.Application, connection);
 
         if (connection.TryActivateConnection(connectionDelegate, transport, httpContext))
         {

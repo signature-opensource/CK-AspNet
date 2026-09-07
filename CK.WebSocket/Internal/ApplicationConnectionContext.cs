@@ -1,3 +1,4 @@
+using CK.Core;
 using System.IO.Pipelines;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Connections;
@@ -18,16 +19,19 @@ internal class ApplicationConnectionContext<TMessageOut> : IWebSocketConnectionC
     private static readonly WaitCallback _abortedCallback = AbortConnection;
     private volatile bool _connectionAborted;
 
-    public ApplicationConnectionContext(ConnectionContext context, IMessageWriter<TMessageOut> writer)
+    public ApplicationConnectionContext(ConnectionContext context, IMessageWriter<TMessageOut> writer, IActivityMonitor monitor)
     {
         _connectionContext = context;
         _writer = writer;
+        Monitor = monitor;
         ConnectionAborted = _connectionAbortedTokenSource.Token;
         
         _closedRegistration = _connectionContext.ConnectionClosed.Register(static (state) => ((ApplicationConnectionContext<TMessageOut>)state!).Abort(), this);
     }
 
     public string ConnectionId => _connectionContext.ConnectionId;
+
+    public IActivityMonitor Monitor { get; }
 
     public ClaimsPrincipal User
     {

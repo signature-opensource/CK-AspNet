@@ -30,12 +30,13 @@ public sealed class WebSocketChannelConnection : IAsyncDisposable
     {
         _connection = connection;
         _writeLock = new SemaphoreSlim( 1, 1 );
-        // One monitor for the whole lifetime of the connection: it correlates the open and close logs
-        // of a socket. It is the monitor the manager raises its perfect events with, so a feature
-        // handling them logs in the context of the connection it is reacting to. Only that lifecycle
-        // path uses it, and CK.WebSocket never overlaps the connect and disconnect calls of one connection,
-        // so this non thread-safe monitor is never used concurrently.
-        Monitor = new ActivityMonitor( $"WebSocket connection '{connection.ConnectionId}'." );
+        // The connection monitor of CK.WebSocket: the request scoped monitor of the socket, alive for the
+        // whole connection. It is the monitor the manager raises its perfect events with, so a feature
+        // handling them logs in the context of the connection it is reacting to, next to the transport
+        // logs of that very socket. Only the lifecycle path uses it, and CK.WebSocket never overlaps the
+        // connect, message and disconnect calls of one connection, so this non thread-safe monitor is
+        // never used concurrently.
+        Monitor = connection.Monitor;
     }
 
     /// <summary>

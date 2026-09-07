@@ -42,6 +42,16 @@ SimpleR itself derives from ASP.NET Core SignalR's HttpConnections layer (MIT, .
 - Bug fix: `FrameReader.ReadFrame`'s boundary check accounts for the 4-byte length header
   (upstream `input.Length < length + 1` made a partially received frame throw instead of
   returning `false`). The deviation is marked by a comment at the change site.
+- Logging: `ILogger`/`ILoggerFactory` are replaced by CK's `IActivityMonitor`. The connection
+  monitor is the request scoped monitor of the upgrade request (the one `CKBuild` registers,
+  obtained from `HttpContext.RequestServices` exactly as CK.Cris.AspNet does): a WebSocket
+  connection is one long-lived request. It is required: without a scoped `IActivityMonitor` the
+  first connection fails. Dispatchers get it through `IWebSocketConnectionContext.Monitor`.
+  The transport, the connection context and the manager run concurrently with the application
+  side, so they log through `Monitor.ParallelLogger`; the connection handler and the dispatcher
+  callbacks are the sequential application flow and use the monitor itself. The upstream
+  `[LoggerMessage]` `Log` partial classes are gone: calls are inlined at the call sites, with the
+  upstream levels mapped as MS `Trace` → CK `Debug`, MS `Debug` → CK `Trace`, `Error` → `Error`.
 - The namespace collapse also forced a `AspNetTransferFormat` alias in
   `WebSocketsServerTransport.cs`, exactly as in `WebSocketConnectionContext.cs`.
 

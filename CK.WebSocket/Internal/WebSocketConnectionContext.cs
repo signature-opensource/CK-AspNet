@@ -1,11 +1,11 @@
 using AspNetTransferFormat = Microsoft.AspNetCore.Connections.TransferFormat;
+using CK.Core;
 using Microsoft.AspNetCore.Connections;
 using Microsoft.AspNetCore.Connections.Features;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Connections;
 using Microsoft.AspNetCore.Http.Connections.Features;
 using Microsoft.AspNetCore.Http.Features;
-using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
 using System.IO.Pipelines;
 using System.Security.Claims;
@@ -15,7 +15,7 @@ using Microsoft.AspNetCore.Http.Timeouts;
 
 namespace CK.WebSocket;
 
-internal partial class WebSocketConnectionContext : ConnectionContext,
+internal class WebSocketConnectionContext : ConnectionContext,
     IConnectionIdFeature,
     IConnectionItemsFeature,
     IConnectionTransportFeature,
@@ -25,7 +25,7 @@ internal partial class WebSocketConnectionContext : ConnectionContext,
     IConnectionLifetimeFeature
 {
     private readonly HttpContext _httpContext;
-    private readonly ILogger _logger;
+    private readonly IActivityLineEmitter _logger;
     private readonly object _itemsLock = new();
     private readonly object _stateLock = new();
     private bool _disposed;
@@ -33,10 +33,11 @@ internal partial class WebSocketConnectionContext : ConnectionContext,
     private readonly TaskCompletionSource _disposeTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly CancellationTokenSource _connectionClosedTokenSource;
 
-    internal WebSocketConnectionContext(string id, HttpContext httpContext, ILogger logger, IDuplexPipe transport, IDuplexPipe application,
+    internal WebSocketConnectionContext(string id, HttpContext httpContext, IActivityMonitor monitor, IDuplexPipe transport, IDuplexPipe application,
         WebSocketConnectionDispatcherOptions options)
     {
         ConnectionId = id;
+        Monitor = monitor;
         Application = application;
         Transport = transport;
         Options = options;
@@ -51,7 +52,9 @@ internal partial class WebSocketConnectionContext : ConnectionContext,
         ConnectionClosed = _connectionClosedTokenSource.Token;
 
         _httpContext = httpContext;
-        _logger = logger;
+        // The dispose path runs while the other side (application or transport) is still running:
+        // only the thread safe parallel logger of the connection monitor can be used here.
+        _logger = monitor.ParallelLogger;
         
         Features = new FeatureCollection();
         Features.Set<IConnectionUserFeature>(this);
@@ -65,6 +68,7 @@ internal partial class WebSocketConnectionContext : ConnectionContext,
 
     public override string ConnectionId { get; set; }
     public IDuplexPipe Application { get; }
+    public IActivityMonitor Monitor { get; }
     public WebSocketConnectionDispatcherOptions Options { get; }
     public override IFeatureCollection Features { get; }
     internal Task? TransportTask { get; set; }
@@ -150,7 +154,7 @@ internal partial class WebSocketConnectionContext : ConnectionContext,
                 {
                     _disposed = true;
 
-                    Log.DisposingConnection(_logger, ConnectionId);
+                    _logger.Debug($"Disposing connection {ConnectionId}.");
 
                     var applicationTask = ApplicationTask ?? Task.CompletedTask;
                     var transportTask = TransportTask ?? Task.CompletedTask;
@@ -194,14 +198,14 @@ internal partial class WebSocketConnectionContext : ConnectionContext,
 
                 try
                 {
-                    Log.WaitingForTransport(_logger, TransportType);
+                    _logger.Debug($"Waiting for {TransportType} transport to complete.");
 
                     // Transports are written by us and are well behaved, wait for them to drain
                     await transportTask;
                 }
                 finally
                 {
-                    Log.TransportComplete(_logger, TransportType);
+                    _logger.Debug($"{TransportType} transport complete.");
 
                     // Now complete the application
                     Application?.Output.Complete();
@@ -225,13 +229,13 @@ internal partial class WebSocketConnectionContext : ConnectionContext,
                 try
                 {
                     // A poorly written application *could* in theory get stuck forever and it'll show up as a memory leak
-                    Log.WaitingForApplication(_logger);
+                    _logger.Debug("Waiting for application to complete.");
 
                     await applicationTask;
                 }
                 finally
                 {
-                    Log.ApplicationComplete(_logger);
+                    _logger.Debug("Application complete.");
 
                     Transport?.Output.Complete();
                     Transport?.Input.Complete();
@@ -254,42 +258,4 @@ internal partial class WebSocketConnectionContext : ConnectionContext,
             throw;
         }
     }
-
-    private static partial class Log
-    {
-        [LoggerMessage(1, LogLevel.Trace, "Disposing connection {TransportConnectionId}.",
-            EventName = "DisposingConnection")]
-        public static partial void DisposingConnection(ILogger logger, string transportConnectionId);
-
-        [LoggerMessage(2, LogLevel.Trace, "Waiting for application to complete.", EventName = "WaitingForApplication")]
-        public static partial void WaitingForApplication(ILogger logger);
-
-        [LoggerMessage(3, LogLevel.Trace, "Application complete.", EventName = "ApplicationComplete")]
-        public static partial void ApplicationComplete(ILogger logger);
-
-        [LoggerMessage(4, LogLevel.Trace, "Waiting for {TransportType} transport to complete.",
-            EventName = "WaitingForTransport")]
-        public static partial void WaitingForTransport(ILogger logger, HttpTransportType transportType);
-
-        [LoggerMessage(5, LogLevel.Trace, "{TransportType} transport complete.", EventName = "TransportComplete")]
-        public static partial void TransportComplete(ILogger logger, HttpTransportType transportType);
-
-        [LoggerMessage(6, LogLevel.Trace, "Shutting down both the application and the {TransportType} transport.",
-            EventName = "ShuttingDownTransportAndApplication")]
-        public static partial void ShuttingDownTransportAndApplication(ILogger logger, HttpTransportType transportType);
-
-        [LoggerMessage(7, LogLevel.Trace, "Waiting for both the application and {TransportType} transport to complete.",
-            EventName = "WaitingForTransportAndApplication")]
-        public static partial void WaitingForTransportAndApplication(ILogger logger, HttpTransportType transportType);
-
-        [LoggerMessage(8, LogLevel.Trace, "The application and {TransportType} transport are both complete.",
-            EventName = "TransportAndApplicationComplete")]
-        public static partial void TransportAndApplicationComplete(ILogger logger, HttpTransportType transportType);
-
-        [LoggerMessage(9, LogLevel.Trace,
-            "{Timeout}ms elapsed attempting to send a message to the transport. Closing connection {TransportConnectionId}.",
-            EventName = "TransportSendTimeout")]
-        public static partial void TransportSendTimeout(ILogger logger, TimeSpan timeout, string transportConnectionId);
-    }
 }
-

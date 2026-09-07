@@ -1,29 +1,30 @@
+using CK.Core;
 using System.Buffers;
 using Microsoft.AspNetCore.Connections;
-using Microsoft.Extensions.Logging;
 
 namespace CK.WebSocket;
 
-internal partial class WebSocketConnectionHandler<TMessageIn, TMessageOut> : ConnectionHandler
+internal class WebSocketConnectionHandler<TMessageIn, TMessageOut> : ConnectionHandler
 {
     private readonly IMessageProtocol<TMessageIn, TMessageOut> _messageProtocol;
     private readonly IWebSocketMessageDispatcher<TMessageIn, TMessageOut> _dispatcher;
-    private readonly ILogger _logger;
 
     public WebSocketConnectionHandler(IMessageProtocol<TMessageIn, TMessageOut> messageProtocol,
-        IWebSocketMessageDispatcher<TMessageIn, TMessageOut> messageDispatcher,
-        ILogger<WebSocketConnectionHandler<TMessageIn, TMessageOut>> logger)
+        IWebSocketMessageDispatcher<TMessageIn, TMessageOut> messageDispatcher)
     {
         _messageProtocol = messageProtocol;
         _dispatcher = messageDispatcher;
-        _logger = logger;
     }
 
     public override async Task OnConnectedAsync(ConnectionContext connection)
     {
-        Log.ConnectedStarting(_logger);
+        // The connection is always our WebSocketConnectionContext: it carries the request scoped monitor.
+        // This handler and the dispatcher callbacks it awaits are the sequential application flow of the
+        // connection: they use the monitor itself (the transport uses its parallel logger).
+        var monitor = ((WebSocketConnectionContext)connection).Monitor;
+        monitor.Trace("OnConnectedAsync started.");
 
-        var appConnectionContext = new ApplicationConnectionContext<TMessageOut>(connection, _messageProtocol);
+        var appConnectionContext = new ApplicationConnectionContext<TMessageOut>(connection, _messageProtocol, monitor);
         
         try
         {
@@ -34,7 +35,7 @@ internal partial class WebSocketConnectionHandler<TMessageIn, TMessageOut> : Con
         {
             appConnectionContext.Cleanup();
 
-            Log.ConnectedEnding(_logger);
+            monitor.Trace("OnConnectedAsync ending.");
         }
     }
     private async Task RunApplicationAsync(ApplicationConnectionContext<TMessageOut> connection)
@@ -45,7 +46,7 @@ internal partial class WebSocketConnectionHandler<TMessageIn, TMessageOut> : Con
         }
         catch (Exception ex)
         {
-            Log.ErrorDispatchingEvent(_logger, "OnConnectedAsync", ex);
+            connection.Monitor.Error("Error when dispatching 'OnConnectedAsync' on the dispatcher.", ex);
 
             // return instead of throw to let close message send successfully
             return;
@@ -62,7 +63,7 @@ internal partial class WebSocketConnectionHandler<TMessageIn, TMessageOut> : Con
         }
         catch (Exception ex)
         {
-            Log.ErrorProcessingRequest(_logger, ex);
+            connection.Monitor.Trace("Error when processing requests.", ex);
 
             await OnDisconnectedAsync(connection, ex);
 
