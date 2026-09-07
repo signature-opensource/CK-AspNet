@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <!-- The vendored sources rely on implicit usings (see Directory.Build.props: opt-in is done here). -->
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Description>WebSocket server infrastructure: pipe-based duplex transport, message protocols and per-connection dispatchers, mounted as a plain middleware - no endpoint routing (UseRouting) required. Logs through the request scoped IActivityMonitor. See README.md for origin and license.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="CK.ActivityMonitor.SimpleSender" Version="26.0.2" />
+    <None Include="LICENSE.SimpleR" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+</Project>

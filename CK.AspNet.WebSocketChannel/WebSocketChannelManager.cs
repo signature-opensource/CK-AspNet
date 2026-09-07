@@ -1,7 +1,7 @@
 using CK.Core;
 using CK.PerfectEvent;
 using Microsoft.Extensions.Hosting;
-using SimpleR;
+using CK.WebSocket;
 using System;
 using System.Buffers;
 using System.Collections.Concurrent;
@@ -136,7 +136,7 @@ public sealed class WebSocketChannelManager : IRealObject
         lifetime.ApplicationStopping.Register( AbortAll );
     }
 
-    internal async Task<bool> OnConnectedAsync( IWebsocketConnectionContext<ReadOnlyMemory<byte>> connection )
+    internal async Task<bool> OnConnectedAsync( IWebSocketConnectionContext<ReadOnlyMemory<byte>> connection )
     {
         // Refuse new connections once stopping so a reconnect cannot re-arm the ShutdownTimeout drain.
         if( _stopping )

@@ -8,9 +8,11 @@
   <Folder Name="/Tests/">
     <Project Path="Tests/CK.AspNet.Tests/CK.AspNet.Tests.csproj" />
     <Project Path="Tests/CK.AspNet.WebSocketChannel.Tests/CK.AspNet.WebSocketChannel.Tests.csproj" />
+    <Project Path="Tests/CK.WebSocket.Tests/CK.WebSocket.Tests.csproj" />
     <Project Path="Tests/WebApiMinimal/WebApiMinimal.csproj" />
   </Folder>
   <Project Path="CK.AspNet.WebSocketChannel/CK.AspNet.WebSocketChannel.csproj" />
   <Project Path="CK.AspNet/CK.AspNet.csproj" />
   <Project Path="CK.Testing.AspNetServer/CK.Testing.AspNetServer.csproj" />
+  <Project Path="CK.WebSocket/CK.WebSocket.csproj" />
 </Solution>

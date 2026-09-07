@@ -1,4 +1,4 @@
-using SimpleR;
+using CK.WebSocket;
 using System;
 using System.Buffers;
 using System.Threading.Tasks;
@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 namespace CK.AspNet.WebSocketChannel;
 
 /// <summary>
-/// The one SimpleR dispatcher of the application: it hands each connection over to the
+/// The one CK.WebSocket dispatcher of the application: it hands each connection over to the
 /// <see cref="WebSocketChannelManager"/> and does nothing else. Features never see a dispatcher.
 /// </summary>
 public sealed class WebSocketChannelDispatcher : IWebSocketMessageDispatcher<ReadOnlySequence<byte>, ReadOnlyMemory<byte>>
@@ -27,7 +27,7 @@ public sealed class WebSocketChannelDispatcher : IWebSocketMessageDispatcher<Rea
     /// <see cref="WebSocketChannelManager.ConnectionOpened"/>.
     /// </summary>
     /// <param name="connection">The newly established connection.</param>
-    public Task OnConnectedAsync( IWebsocketConnectionContext<ReadOnlyMemory<byte>> connection )
+    public Task OnConnectedAsync( IWebSocketConnectionContext<ReadOnlyMemory<byte>> connection )
     {
         // The manager returns false (and has already aborted the connection) when the host is stopping
         // or the connection id collides. Nothing to do here in that case: the cancelled read loop ends
@@ -41,7 +41,7 @@ public sealed class WebSocketChannelDispatcher : IWebSocketMessageDispatcher<Rea
     /// </summary>
     /// <param name="connection">The connection that is being disconnected.</param>
     /// <param name="exception">The exception that caused the disconnection, if any.</param>
-    public Task OnDisconnectedAsync( IWebsocketConnectionContext<ReadOnlyMemory<byte>> connection, Exception? exception )
+    public Task OnDisconnectedAsync( IWebSocketConnectionContext<ReadOnlyMemory<byte>> connection, Exception? exception )
     {
         return _manager.OnDisconnectedAsync( connection.ConnectionId, exception );
     }
@@ -60,7 +60,7 @@ public sealed class WebSocketChannelDispatcher : IWebSocketMessageDispatcher<Rea
     /// </summary>
     /// <param name="connection">The connection the message came from.</param>
     /// <param name="message">The received message.</param>
-    public Task DispatchMessageAsync( IWebsocketConnectionContext<ReadOnlyMemory<byte>> connection, ReadOnlySequence<byte> message )
+    public Task DispatchMessageAsync( IWebSocketConnectionContext<ReadOnlyMemory<byte>> connection, ReadOnlySequence<byte> message )
     {
         return _manager.OnMessageAsync( connection.ConnectionId, message );
     }

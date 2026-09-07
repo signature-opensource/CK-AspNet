@@ -1,6 +1,6 @@
 using CK.Core;
 using CK.PerfectEvent;
-using SimpleR;
+using CK.WebSocket;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -24,24 +24,25 @@ namespace CK.AspNet.WebSocketChannel;
 /// </summary>
 public sealed class WebSocketChannelConnection : IAsyncDisposable
 {
-    readonly IWebsocketConnectionContext<ReadOnlyMemory<byte>> _connection;
+    readonly IWebSocketConnectionContext<ReadOnlyMemory<byte>> _connection;
     readonly SemaphoreSlim _writeLock;
     readonly PerfectEventSender<MessageReceivedEvent> _messageReceived;
     // Guards against in-flight pushes writing to a disposed connection, and makes DisposeAsync
     // idempotent if disposal paths ever overlap.
     volatile bool _disposed;
 
-    internal WebSocketChannelConnection( IWebsocketConnectionContext<ReadOnlyMemory<byte>> connection )
+    internal WebSocketChannelConnection( IWebSocketConnectionContext<ReadOnlyMemory<byte>> connection )
     {
         _connection = connection;
         _writeLock = new SemaphoreSlim( 1, 1 );
         _messageReceived = new PerfectEventSender<MessageReceivedEvent>();
-        // One monitor for the whole lifetime of the connection: it correlates the open and close logs
-        // of a socket. It is the monitor the manager raises its perfect events with, so a feature
-        // handling them logs in the context of the connection it is reacting to. Only that lifecycle
-        // path uses it, and SimpleR never overlaps the connect and disconnect calls of one connection,
-        // so this non thread-safe monitor is never used concurrently.
-        Monitor = new ActivityMonitor( $"WebSocket connection '{connection.ConnectionId}'." );
+        // The connection monitor of CK.WebSocket: the request scoped monitor of the socket, alive for the
+        // whole connection. It is the monitor the manager raises its perfect events with, so a feature
+        // handling them logs in the context of the connection it is reacting to, next to the transport
+        // logs of that very socket. Only the lifecycle path uses it, and CK.WebSocket never overlaps the
+        // connect, message and disconnect calls of one connection, so this non thread-safe monitor is
+        // never used concurrently.
+        Monitor = connection.Monitor;
     }
 
     /// <summary>
@@ -127,7 +128,7 @@ public sealed class WebSocketChannelConnection : IAsyncDisposable
     internal ValueTask WriteNegotiationAsync() => WriteAsync( WebSocketChannelEnvelope.CreateNegotiation( ConnectionId ) );
 
     /// <summary>
-    /// Aborts the connection (idempotent): cancels the pending SimpleR read and drives the normal
+    /// Aborts the connection (idempotent): cancels the pending read and drives the normal
     /// disconnect path, so on host shutdown Kestrel drains immediately instead of waiting out
     /// <c>HostOptions.ShutdownTimeout</c>.
     /// </summary>

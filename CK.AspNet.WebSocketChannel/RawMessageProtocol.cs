@@ -1,11 +1,11 @@
-using SimpleR.Protocol;
+using CK.WebSocket;
 using System;
 using System.Buffers;
 
 namespace CK.AspNet.WebSocketChannel;
 
 /// <summary>
-/// SimpleR protocol of the channel: outgoing messages are written as raw bytes and incoming ones are
+/// Message protocol of the channel: outgoing messages are written as raw bytes and incoming ones are
 /// handed over as-is, without any decoding.
 /// </summary>
 public sealed class RawMessageProtocol : IDelimitedMessageProtocol<ReadOnlySequence<byte>, ReadOnlyMemory<byte>>
