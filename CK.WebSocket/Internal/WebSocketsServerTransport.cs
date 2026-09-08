@@ -16,7 +16,6 @@ using WebSocket = System.Net.WebSockets.WebSocket;
 internal sealed class WebSocketsServerTransport : IHttpTransport
 {
     private readonly WebSocketTransportOptions _options;
-    private readonly IActivityLineEmitter _logger;
     private readonly IDuplexPipe _application;
     private readonly WebSocketConnectionContext _connection;
     private volatile bool _aborted;
@@ -34,47 +33,43 @@ internal sealed class WebSocketsServerTransport : IHttpTransport
         _application = application;
         _connection = connection;
         _frameReader = new FrameReader();
-        
-        // The receive and send loops run concurrently with each other and with the application:
-        // only the thread safe parallel logger of the connection monitor can be used here.
-        _logger = connection.Monitor.ParallelLogger;
     }
 
-    public async Task<bool> ProcessRequestAsync(HttpContext context, CancellationToken token)
+    public async Task<bool> ProcessRequestAsync( ActivityMonitor.Token monitorToken, HttpContext context, CancellationToken token )
     {
         Debug.Assert(context.WebSockets.IsWebSocketRequest, "Not a websocket request");
 
         var subProtocol = _options.SubProtocolSelector?.Invoke(context.WebSockets.WebSocketRequestedProtocols);
-        
+
         using (var ws = await context.WebSockets.AcceptWebSocketAsync(subProtocol))
         {
-            _logger.Trace($"Socket opened using Sub-Protocol: '{subProtocol}'.");
+            ActivityMonitor.StaticLogger.Trace($"Socket opened using Sub-Protocol: '{subProtocol}' in context '{monitorToken}'.");
 
             try
             {
-                await ProcessSocketAsync(ws);
+                await ProcessSocketAsync(monitorToken, ws);
             }
             finally
             {
-                _logger.Trace("Socket closed.");
+                ActivityMonitor.StaticLogger.Trace($"Socket closed in context '{monitorToken}'.");
             }
         }
-        
+
         return _gracefulClose;
     }
 
-    public async Task ProcessSocketAsync(WebSocket socket)
+    private async Task ProcessSocketAsync(ActivityMonitor.Token monitorToken, WebSocket socket )
     {
         // Begin sending and receiving. Receiving must be started first because ExecuteAsync enables SendAsync.
-        var receiving = StartReceiving(socket);
-        var sending = StartSending(socket);
+        var receiving = StartReceiving(monitorToken, socket);
+        var sending = StartSending(monitorToken, socket);
 
         // Wait for send or receive to complete
         var trigger = await Task.WhenAny(receiving, sending);
 
         if (trigger == receiving)
         {
-            _logger.Trace("Waiting for the application to finish sending data.");
+            ActivityMonitor.StaticLogger.Debug($"Waiting for the application to finish sending data in context '{monitorToken}'.");
 
             // We're waiting for the application to finish and there are 2 things it could be doing
             // 1. Waiting for application data
@@ -90,7 +85,7 @@ internal sealed class WebSocketsServerTransport : IHttpTransport
                 if (resultTask != sending)
                 {
                     // We timed out so now we're in ungraceful shutdown mode
-                    _logger.Trace("Timed out waiting for client to send the close frame, aborting the connection.");
+                    ActivityMonitor.StaticLogger.Warn($"Timed out waiting for client to send the close frame in context '{monitorToken}', aborting the connection.");
 
                     // Abort the websocket if we're stuck in a pending send to the client
                     _aborted = true;
@@ -105,7 +100,7 @@ internal sealed class WebSocketsServerTransport : IHttpTransport
         }
         else
         {
-            _logger.Trace("Waiting for the client to close the socket.");
+            ActivityMonitor.StaticLogger.Debug($"Waiting for the client to close the socket in context '{monitorToken}'.");
 
             // We're waiting on the websocket to close and there are 2 things it could be doing
             // 1. Waiting for websocket data
@@ -133,7 +128,7 @@ internal sealed class WebSocketsServerTransport : IHttpTransport
         }
     }
 
-    private async Task StartReceiving(WebSocket socket)
+    private async Task StartReceiving( ActivityMonitor.Token monitorToken, WebSocket socket )
     {
         var token = _connection.Cancellation?.Token ?? default;
         try
@@ -148,16 +143,16 @@ internal sealed class WebSocketsServerTransport : IHttpTransport
                     _gracefulClose = true;
                     return;
                 }
-                
+
                 var writer = _options.FramePackets ? (IBufferWriter<byte>)new FrameBufferWriter(_application.Output) : _application.Output;
 
                 // if the empty read is a full message, proceed to frame+flush
                 if (!receiveResult.EndOfMessage)
                 {
                     var memory = writer.GetMemory();
-                    
+
                     receiveResult = await socket.ReceiveAsync(memory, token);
-                    
+
                     // Need to check again for netcoreapp3.0 and later because a close can happen between a 0-byte read and the actual read
                     if (receiveResult.MessageType == WebSocketMessageType.Close)
                     {
@@ -165,15 +160,13 @@ internal sealed class WebSocketsServerTransport : IHttpTransport
                         return;
                     }
                 }
-                
-                _logger.Debug($"Message received. Type: {receiveResult.MessageType}, size: {receiveResult.Count}, EndOfMessage: {receiveResult.EndOfMessage}.");
 
                 writer.Advance(receiveResult.Count);
                 if (writer is FrameBufferWriter frameWriter)
                 {
                     frameWriter.FinishLastFrame(receiveResult.EndOfMessage);
                 }
-                
+
                 var flushResult = await _application.Output.FlushAsync();
 
                 // We canceled in the middle of applying back pressure
@@ -187,7 +180,7 @@ internal sealed class WebSocketsServerTransport : IHttpTransport
         catch (WebSocketException ex) when (ex.WebSocketErrorCode == WebSocketError.ConnectionClosedPrematurely)
         {
             // Client has closed the WebSocket connection without completing the close handshake
-            _logger.Trace("Socket connection closed prematurely.", ex);
+            ActivityMonitor.StaticLogger.Warn($"Socket connection closed prematurely in context '{monitorToken}'", ex);
         }
         catch (OperationCanceledException)
         {
@@ -211,7 +204,7 @@ internal sealed class WebSocketsServerTransport : IHttpTransport
         }
     }
 
-    private async Task StartSending(WebSocket socket)
+    private async Task StartSending( ActivityMonitor.Token monitorToken, WebSocket socket )
     {
         Exception? error = null;
 
@@ -232,11 +225,9 @@ internal sealed class WebSocketsServerTransport : IHttpTransport
 
                     if (!buffer.IsEmpty)
                     {
-                        
+
                         try
                         {
-                            _logger.Debug($"Sending payload: {buffer.Length} bytes.");
-                            
                             var webSocketMessageType = _connection.ActiveFormat == AspNetTransferFormat.Binary
                                 ? WebSocketMessageType.Binary
                                 : WebSocketMessageType.Text;
@@ -253,7 +244,7 @@ internal sealed class WebSocketsServerTransport : IHttpTransport
                                     {
                                         break;
                                     }
-                                }   
+                                }
                             }
                             else
                             {
@@ -271,7 +262,7 @@ internal sealed class WebSocketsServerTransport : IHttpTransport
                         {
                             if (!_aborted)
                             {
-                                _logger.Trace("Error writing frame.", ex);
+                                ActivityMonitor.StaticLogger.Warn($"Error writing frame in context '{monitorToken}'.", ex);
                             }
                             break;
                         }
@@ -303,7 +294,7 @@ internal sealed class WebSocketsServerTransport : IHttpTransport
                 }
                 catch (Exception ex)
                 {
-                    _logger.Trace("Closing webSocket failed.", ex);
+                    ActivityMonitor.StaticLogger.Warn($"Closing webSocket failed in context '{monitorToken}'.", ex);
                 }
             }
 
@@ -314,7 +305,7 @@ internal sealed class WebSocketsServerTransport : IHttpTransport
 
             if (error is not null)
             {
-                _logger.Trace("Send loop errored.", error);
+                ActivityMonitor.StaticLogger.Warn($"Send loop errored in context '{monitorToken}'.", error);
             }
         }
     }

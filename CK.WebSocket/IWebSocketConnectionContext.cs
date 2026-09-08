@@ -18,18 +18,6 @@ public interface IWebSocketConnectionContext
     ClaimsPrincipal User { get; }
 
     /// <summary>
-    /// Gets the connection monitor: the request scoped <see cref="IActivityMonitor"/> of the WebSocket
-    /// upgrade request (the one <c>CKBuild</c> registers), that lives as long as the connection.
-    /// <para>
-    /// A monitor is not thread safe. The dispatcher callbacks of a connection never overlap, so they
-    /// can use it directly. Anything else (typically a push to this connection from another thread)
-    /// must log through <see cref="IActivityMonitor.ParallelLogger"/>. This is what the transport
-    /// itself does, since it runs concurrently with the dispatcher.
-    /// </para>
-    /// </summary>
-    IActivityMonitor Monitor { get; }
-
-    /// <summary>
     /// Aborts the connection.
     /// </summary>
     void Abort();

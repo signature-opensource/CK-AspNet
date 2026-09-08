@@ -1,5 +1,7 @@
+using CK.Core;
 using Microsoft.AspNetCore.Connections;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace CK.WebSocket;
 
@@ -12,18 +14,25 @@ internal class WebSocketConnectionDispatcher
 
     private WebSocketConnectionManager ConnectionManager { get; }
 
-    public async Task ExecuteAsync(HttpContext httpContext, WebSocketConnectionDispatcherOptions options, ConnectionDelegate connectionDelegate)
+    /// <summary>
+    /// The initialization of the WebSocket connection.
+    /// </summary>
+    /// <param name="httpContext"></param>
+    /// <param name="options"></param>
+    /// <param name="connectionDelegate"></param>
+    public async Task ExecuteAsync( IActivityMonitor monitor, HttpContext httpContext, WebSocketConnectionDispatcherOptions options, Func<IActivityMonitor, ConnectionContext, Task> connectionDelegate )
     {
-        var connection = ConnectionManager.CreateConnection(httpContext, options);
 
-        var transport = new WebSocketsServerTransport(options.WebSockets, connection.Application, connection);
+        var connection = ConnectionManager.CreateConnection( monitor, httpContext, options );
 
-        if (connection.TryActivateConnection(connectionDelegate, transport, httpContext))
+        var transport = new WebSocketsServerTransport( options.WebSockets, connection.Application, connection );
+
+        if( connection.TryActivateConnection( monitor, connectionDelegate, transport, httpContext ) )
         {
             // Wait for any of them to end
-            await Task.WhenAny(connection.ApplicationTask!, connection.TransportTask!);
+            await Task.WhenAny( connection.ApplicationTask!, connection.TransportTask! );
 
-            await ConnectionManager.DisposeAndRemoveAsync(connection, closeGracefully: true);
+            await ConnectionManager.DisposeAndRemoveAsync( connection, closeGracefully: true );
         }
     }
 }

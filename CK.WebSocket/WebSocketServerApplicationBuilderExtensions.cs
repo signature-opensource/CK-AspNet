@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Connections;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using System;
+using CK.Core;
 
 namespace Microsoft.AspNetCore.Builder;
 
@@ -37,10 +38,7 @@ public static class WebSocketServerApplicationBuilderExtensions
         Action<MessageDispatcherBuilder<TMessageIn, TMessageOut>> build,
         Action<WebSocketConnectionDispatcherOptions>? configureOptions = null )
     {
-        var dispatcher = app.ApplicationServices.GetService<WebSocketConnectionDispatcher>()
-            ?? throw new InvalidOperationException(
-                    "Unable to find the required services. Please add them by calling " +
-                    "'IServiceCollection.AddWebSocketServer()' in the application startup code." );
+        var dispatcher = app.ApplicationServices.GetRequiredService<WebSocketConnectionDispatcher>();
 
         var builder = new MessageDispatcherBuilder<TMessageIn, TMessageOut>();
         build( builder );
@@ -54,7 +52,7 @@ public static class WebSocketServerApplicationBuilderExtensions
         var handler = new WebSocketConnectionHandler<TMessageIn, TMessageOut>( builder.Protocol!, messageDispatcher );
 
         app.UseWebSockets();
-        ConnectionDelegate connectionDelegate = handler.OnConnectedAsync;
+        var connectionDelegate = handler.OnConnectedAsync;
         app.Use( next => context =>
         {
             if( context.Request.Path != path ) return next( context );
@@ -63,7 +61,9 @@ public static class WebSocketServerApplicationBuilderExtensions
                 context.Response.StatusCode = StatusCodes.Status400BadRequest;
                 return context.Response.WriteAsync( "WebSocket request expected." );
             }
-            return dispatcher.ExecuteAsync( context, options, connectionDelegate );
+
+            var monitor = context.RequestServices.GetRequiredService<IActivityMonitor>();
+            return dispatcher.ExecuteAsync( monitor, context, options, connectionDelegate );
         } );
         return app;
     }

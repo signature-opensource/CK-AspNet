@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Connections;
 
 namespace CK.WebSocket;
 
-internal class WebSocketConnectionHandler<TMessageIn, TMessageOut> : ConnectionHandler
+internal class WebSocketConnectionHandler<TMessageIn, TMessageOut>
 {
     private readonly IMessageProtocol<TMessageIn, TMessageOut> _messageProtocol;
     private readonly IWebSocketMessageDispatcher<TMessageIn, TMessageOut> _dispatcher;
@@ -16,37 +16,29 @@ internal class WebSocketConnectionHandler<TMessageIn, TMessageOut> : ConnectionH
         _dispatcher = messageDispatcher;
     }
 
-    public override async Task OnConnectedAsync(ConnectionContext connection)
+    public async Task OnConnectedAsync(IActivityMonitor monitor, ConnectionContext connection)
     {
-        // The connection is always our WebSocketConnectionContext: it carries the request scoped monitor.
-        // This handler and the dispatcher callbacks it awaits are the sequential application flow of the
-        // connection: they use the monitor itself (the transport uses its parallel logger).
-        var monitor = ((WebSocketConnectionContext)connection).Monitor;
-        monitor.Trace("OnConnectedAsync started.");
+        var appConnectionContext = new ApplicationConnectionContext<TMessageOut>(connection, _messageProtocol);
 
-        var appConnectionContext = new ApplicationConnectionContext<TMessageOut>(connection, _messageProtocol, monitor);
-        
         try
         {
             // TODO: add lifetime manager
-            await RunApplicationAsync(appConnectionContext);
+            await RunApplicationAsync(monitor, appConnectionContext);
         }
         finally
         {
             appConnectionContext.Cleanup();
-
-            monitor.Trace("OnConnectedAsync ending.");
         }
     }
-    private async Task RunApplicationAsync(ApplicationConnectionContext<TMessageOut> connection)
+    private async Task RunApplicationAsync(IActivityMonitor monitor, ApplicationConnectionContext<TMessageOut> connection)
     {
         try
         {
-            await _dispatcher.OnConnectedAsync(connection);
+            await _dispatcher.OnConnectedAsync(monitor, connection);
         }
         catch (Exception ex)
         {
-            connection.Monitor.Error("Error when dispatching 'OnConnectedAsync' on the dispatcher.", ex);
+            ActivityMonitor.StaticLogger.Error("Error when dispatching 'OnConnectedAsync' on the dispatcher.", ex);
 
             // return instead of throw to let close message send successfully
             return;
@@ -63,17 +55,17 @@ internal class WebSocketConnectionHandler<TMessageIn, TMessageOut> : ConnectionH
         }
         catch (Exception ex)
         {
-            connection.Monitor.Trace("Error when processing requests.", ex);
+            ActivityMonitor.StaticLogger.Error("Error when processing requests.", ex);
 
-            await OnDisconnectedAsync(connection, ex);
+            await OnDisconnectedAsync(monitor, connection, ex);
 
             return;
         }
 
-        await OnDisconnectedAsync(connection, connection.CloseException);
+        await OnDisconnectedAsync(monitor, connection, connection.CloseException);
     }
 
-    private async Task OnDisconnectedAsync(ApplicationConnectionContext<TMessageOut> connection, Exception? exception)
+    private async Task OnDisconnectedAsync(IActivityMonitor monitor, ApplicationConnectionContext<TMessageOut> connection, Exception? exception)
     {
         // We wait on abort to complete, this is so that we can guarantee that all callbacks have fired
         // before OnDisconnectedAsync
@@ -85,13 +77,14 @@ internal class WebSocketConnectionHandler<TMessageIn, TMessageOut> : ConnectionH
         }
         finally
         {
-            await _dispatcher.OnDisconnectedAsync(connection, exception);
+            await _dispatcher.OnDisconnectedAsync(monitor, connection, exception);
         }
     }
-    
+
     private async Task DispatchMessagesAsync(ApplicationConnectionContext<TMessageOut> connection)
     {
         var input = connection.Input;
+        var monitor = new ActivityMonitor( $"Dispatching messaging loop for '{connection.ConnectionId}'." );
 
         while (true)
         {
@@ -108,11 +101,11 @@ internal class WebSocketConnectionHandler<TMessageIn, TMessageOut> : ConnectionH
                 {
                     if (exception == null)
                     {
-                        await _dispatcher.DispatchMessageAsync(connection, message);
+                        await _dispatcher.DispatchMessageAsync(monitor, connection, message);
                     }
                     else
                     {
-                        await _dispatcher.OnParsingIssueAsync(connection, exception);
+                        await _dispatcher.OnParsingIssueAsync(monitor, connection, exception);
                     }
                 }
 

@@ -19,19 +19,16 @@ internal class ApplicationConnectionContext<TMessageOut> : IWebSocketConnectionC
     private static readonly WaitCallback _abortedCallback = AbortConnection;
     private volatile bool _connectionAborted;
 
-    public ApplicationConnectionContext(ConnectionContext context, IMessageWriter<TMessageOut> writer, IActivityMonitor monitor)
+    public ApplicationConnectionContext(ConnectionContext context, IMessageWriter<TMessageOut> writer)
     {
         _connectionContext = context;
         _writer = writer;
-        Monitor = monitor;
         ConnectionAborted = _connectionAbortedTokenSource.Token;
-        
+
         _closedRegistration = _connectionContext.ConnectionClosed.Register(static (state) => ((ApplicationConnectionContext<TMessageOut>)state!).Abort(), this);
     }
 
     public string ConnectionId => _connectionContext.ConnectionId;
-
-    public IActivityMonitor Monitor { get; }
 
     public ClaimsPrincipal User
     {
@@ -49,12 +46,12 @@ internal class ApplicationConnectionContext<TMessageOut> : IWebSocketConnectionC
     /// Gets the collection of features available on this connection.
     /// </summary>
     public IFeatureCollection Features => _connectionContext.Features;
-    
+
     /// <summary>
     /// Gets a <see cref="CancellationToken"/> that notifies when the connection is aborted.
     /// </summary>
     public virtual CancellationToken ConnectionAborted { get; }
-    
+
     // Used by WebSocketConnectionHandler
     internal PipeReader Input => _connectionContext.Transport.Input;
     internal Exception? CloseException { get; private set; }
@@ -66,7 +63,7 @@ internal class ApplicationConnectionContext<TMessageOut> : IWebSocketConnectionC
         {
             return new ValueTask(WriteSlowAsync(message, cancellationToken));
         }
-        
+
         if (_connectionAborted)
         {
             _writeLock.Release();
@@ -142,7 +139,7 @@ internal class ApplicationConnectionContext<TMessageOut> : IWebSocketConnectionC
             {
                 return;
             }
-            
+
             await WriteCore(message, cancellationToken);
         }
         catch (Exception ex)
@@ -190,7 +187,7 @@ internal class ApplicationConnectionContext<TMessageOut> : IWebSocketConnectionC
             }
         }
     }
-    
+
     // Used by the WebSocketConnectionHandler only
     internal Task AbortAsync()
     {
@@ -211,7 +208,7 @@ internal class ApplicationConnectionContext<TMessageOut> : IWebSocketConnectionC
         _writeLock.Release();
         await _abortCompletedTcs.Task;
     }
-    
+
     public void Abort()
     {
         _connectionAborted = true;

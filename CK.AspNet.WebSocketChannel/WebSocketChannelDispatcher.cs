@@ -2,6 +2,7 @@ using CK.WebSocket;
 using System;
 using System.Buffers;
 using System.Threading.Tasks;
+using CK.Core;
 
 namespace CK.AspNet.WebSocketChannel;
 
@@ -26,13 +27,14 @@ public sealed class WebSocketChannelDispatcher : IWebSocketMessageDispatcher<Rea
     /// Registers the connection with the manager, which sends the identifier back and raises
     /// <see cref="WebSocketChannelManager.ConnectionOpened"/>.
     /// </summary>
+    /// <param name="monitor">The monitor.</param>
     /// <param name="connection">The newly established connection.</param>
-    public Task OnConnectedAsync( IWebSocketConnectionContext<ReadOnlyMemory<byte>> connection )
+    public Task OnConnectedAsync( IActivityMonitor monitor, IWebSocketConnectionContext<ReadOnlyMemory<byte>> connection )
     {
         // The manager returns false (and has already aborted the connection) when the host is stopping
         // or the connection id collides. Nothing to do here in that case: the cancelled read loop ends
         // the connection.
-        return _manager.OnConnectedAsync( connection );
+        return _manager.OnConnectedAsync( monitor, connection );
     }
 
     /// <summary>
@@ -41,9 +43,9 @@ public sealed class WebSocketChannelDispatcher : IWebSocketMessageDispatcher<Rea
     /// </summary>
     /// <param name="connection">The connection that is being disconnected.</param>
     /// <param name="exception">The exception that caused the disconnection, if any.</param>
-    public Task OnDisconnectedAsync( IWebSocketConnectionContext<ReadOnlyMemory<byte>> connection, Exception? exception )
+    public Task OnDisconnectedAsync( IActivityMonitor monitor, IWebSocketConnectionContext<ReadOnlyMemory<byte>> connection, Exception? exception )
     {
-        return _manager.OnDisconnectedAsync( connection.ConnectionId, exception );
+        return _manager.OnDisconnectedAsync( monitor, connection.ConnectionId, exception );
     }
 
     /// <summary>
@@ -58,10 +60,17 @@ public sealed class WebSocketChannelDispatcher : IWebSocketMessageDispatcher<Rea
     /// copied there before any handler runs.
     /// </para>
     /// </summary>
+    /// <param name="monitor">The monitor.</param>
     /// <param name="connection">The connection the message came from.</param>
     /// <param name="message">The received message.</param>
-    public Task DispatchMessageAsync( IWebSocketConnectionContext<ReadOnlyMemory<byte>> connection, ReadOnlySequence<byte> message )
+    public Task DispatchMessageAsync( IActivityMonitor monitor, IWebSocketConnectionContext<ReadOnlyMemory<byte>> connection, ReadOnlySequence<byte> message )
     {
-        return _manager.OnMessageAsync( connection.ConnectionId, message );
+        return _manager.OnMessageAsync( monitor, connection.ConnectionId, message );
+    }
+
+    public Task OnParsingIssueAsync( IActivityMonitor monitor, IWebSocketConnectionContext<ReadOnlyMemory<byte>> connection, Exception exception )
+    {
+        monitor.Warn( $"Parsing issue on connection {connection.ConnectionId}: {exception}" );
+        return Task.CompletedTask;
     }
 }

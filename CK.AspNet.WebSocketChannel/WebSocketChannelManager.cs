@@ -136,7 +136,7 @@ public sealed class WebSocketChannelManager : IRealObject
         lifetime.ApplicationStopping.Register( AbortAll );
     }
 
-    internal async Task<bool> OnConnectedAsync( IWebSocketConnectionContext<ReadOnlyMemory<byte>> connection )
+    internal async Task<bool> OnConnectedAsync( IActivityMonitor monitor, IWebSocketConnectionContext<ReadOnlyMemory<byte>> connection )
     {
         // Refuse new connections once stopping so a reconnect cannot re-arm the ShutdownTimeout drain.
         if( _stopping )
@@ -161,19 +161,20 @@ public sealed class WebSocketChannelManager : IRealObject
             return false;
         }
 
+        c.RegisterMessageReceivedRelay( _allMessagesReceived );
         await c.WriteNegotiationAsync().ConfigureAwait( false );
         // Safe: one faulty feature must not tear down a socket that the other features share.
-        await _connectionOpened.SafeRaiseAsync( c.Monitor, c ).ConfigureAwait( false );
+        await _connectionOpened.SafeRaiseAsync( monitor, c ).ConfigureAwait( false );
         return true;
     }
 
-    internal Task OnMessageAsync( string connectionId, ReadOnlySequence<byte> input )
+    internal async Task OnMessageAsync( IActivityMonitor monitor, string connectionId, ReadOnlySequence<byte> input )
     {
-        if( !_connections.TryGetValue( connectionId, out var c ) ) return Task.CompletedTask;
+        if( !_connections.TryGetValue( connectionId, out var c ) ) return;
         // Nobody listens, neither on this connection nor here: do not even look at the bytes. This is
         // what keeps the descending-only case free, and the reason RawMessageProtocol hands the
         // sequence over without decoding it.
-        if( !c.HasMessageHandlers && !_allMessagesReceived.HasHandlers ) return Task.CompletedTask;
+        if( !c.HasMessageHandlers && !_allMessagesReceived.HasHandlers ) return;
 
         string topic;
         ReadOnlyMemory<byte> message;
@@ -185,33 +186,28 @@ public sealed class WebSocketChannelManager : IRealObject
         {
             // A client can send anything. Dropping the message is the only sane answer: throwing here
             // would tear down a socket that the other features are using.
-            c.Monitor.Warn( "Ignored an incoming message that is not a {topic,message} envelope.", ex );
-            return Task.CompletedTask;
+            monitor.Warn( "Ignored an incoming message that is not a {topic,message} envelope.", ex );
+            return;
         }
-        return RaiseMessageReceivedAsync( c, new MessageReceivedEvent( c, topic, message ) );
+
+        var e = new MessageReceivedEvent( c, topic, message );
+        await c.RaiseMessageReceivedAsync( monitor, e ).ConfigureAwait( false );
     }
 
-    // The connection's handlers first, then the manager-wide ones: this order is a contract. Both raises
-    // are safe: one faulty feature must not tear down a socket that the other features share.
-    async Task RaiseMessageReceivedAsync( WebSocketChannelConnection c, MessageReceivedEvent e )
-    {
-        await c.RaiseMessageReceivedAsync( e ).ConfigureAwait( false );
-        await _allMessagesReceived.SafeRaiseAsync( c.Monitor, e ).ConfigureAwait( false );
-    }
 
-    internal Task OnDisconnectedAsync( string connectionId, Exception? exception )
+    internal Task OnDisconnectedAsync( IActivityMonitor monitor, string connectionId, Exception? exception )
     {
         return _connections.TryRemove( connectionId, out var c )
-                ? CloseAsync( c, exception )
+                ? CloseAsync( monitor, c, exception )
                 : Task.CompletedTask;
     }
 
     // Disposes before raising, so that a send attempted from a handler is a silent no-op instead of a
     // write onto a socket that is already gone, whichever overload the handler uses.
-    async Task CloseAsync( WebSocketChannelConnection c, Exception? exception )
+    async Task CloseAsync( IActivityMonitor monitor, WebSocketChannelConnection c, Exception? exception )
     {
         await c.DisposeAsync().ConfigureAwait( false );
-        await _connectionClosed.SafeRaiseAsync( c.Monitor, new ConnectionClosedEvent( c.ConnectionId, exception ) )
+        await _connectionClosed.SafeRaiseAsync( monitor, new ConnectionClosedEvent( c.ConnectionId, exception ) )
                                .ConfigureAwait( false );
     }
 
@@ -239,7 +235,7 @@ public sealed class WebSocketChannelManager : IRealObject
             if( _connections.TryRemove( kv.Key, out var c ) )
             {
                 c.Abort();
-                await CloseAsync( c, null ).ConfigureAwait( false );
+                await CloseAsync( monitor, c, null ).ConfigureAwait( false );
             }
         }
     }

@@ -1,3 +1,5 @@
+using CK.Core;
+
 namespace CK.WebSocket;
 
 /// <summary>
@@ -11,21 +13,22 @@ public interface IWebSocketMessageDispatcher<in TMessageIn, out TMessageOut>
     /// Called when a connection is established.
     /// </summary>
     /// <param name="connection">The connection.</param>
-    Task OnConnectedAsync(IWebSocketConnectionContext<TMessageOut> connection);
+    Task OnConnectedAsync(IActivityMonitor monitor, IWebSocketConnectionContext<TMessageOut> connection);
 
     /// <summary>
     /// Called when a connection is disconnected.
     /// </summary>
     /// <param name="connection">The connection.</param>
     /// <param name="exception">The exception that occurred, if any.</param>
-    Task OnDisconnectedAsync(IWebSocketConnectionContext<TMessageOut> connection, Exception? exception);
+    Task OnDisconnectedAsync(IActivityMonitor monitor, IWebSocketConnectionContext<TMessageOut> connection, Exception? exception);
 
     /// <summary>
     /// Dispatches a message to the application.
     /// </summary>
+    /// <param name="monitor"></param>
     /// <param name="connection">The connection.</param>
     /// <param name="message">The message to dispatch.</param>
-    Task DispatchMessageAsync(IWebSocketConnectionContext<TMessageOut> connection, TMessageIn message);
+    Task DispatchMessageAsync(IActivityMonitor monitor, IWebSocketConnectionContext<TMessageOut> connection, TMessageIn message);
 
 
     /// <summary>
@@ -33,14 +36,5 @@ public interface IWebSocketMessageDispatcher<in TMessageIn, out TMessageOut>
     /// </summary>
     /// <param name="connection">The connection.</param>
     /// <param name="exception">The exception that occurred.</param>
-    Task OnParsingIssueAsync(IWebSocketConnectionContext<TMessageOut> connection, Exception exception) =>
-        Task.CompletedTask;
-
-
+    Task OnParsingIssueAsync(IActivityMonitor monitor, IWebSocketConnectionContext<TMessageOut> connection, Exception exception );
 }
-
-/// <summary>
-/// Message dispatcher for handling websocket connections.
-/// </summary>
-/// <typeparam name="TMessage">Message type</typeparam>
-public interface IWebSocketMessageDispatcher<TMessage> : IWebSocketMessageDispatcher<TMessage, TMessage>;

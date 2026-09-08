@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using System.Net.WebSockets;
 using System.Text;
+using NUnit.Framework.Internal;
 
 namespace CK.WebSocket.Tests;
 
@@ -29,20 +30,22 @@ static class EchoServer
         /// <summary>The monitor the connection exposed to <see cref="OnConnectedAsync"/>.</summary>
         public IActivityMonitor? ConnectionMonitor { get; private set; }
 
-        public Task OnConnectedAsync( IWebSocketConnectionContext<string> connection )
+        public Task OnConnectedAsync( IActivityMonitor monitor, IWebSocketConnectionContext<string> connection )
         {
-            ConnectionMonitor = connection.Monitor;
             return Task.CompletedTask;
         }
 
-        public Task OnDisconnectedAsync( IWebSocketConnectionContext<string> connection, Exception? exception )
+        public Task OnDisconnectedAsync( IActivityMonitor monitor, IWebSocketConnectionContext<string> connection, Exception? exception )
         {
             Disconnected.TrySetResult();
             return Task.CompletedTask;
         }
 
-        public Task DispatchMessageAsync( IWebSocketConnectionContext<string> connection, string message )
+        public Task DispatchMessageAsync( IActivityMonitor monitor, IWebSocketConnectionContext<string> connection, string message )
             => connection.WriteAsync( message ).AsTask();
+
+        public Task OnParsingIssueAsync( IActivityMonitor monitor, IWebSocketConnectionContext<string> connection, Exception exception )
+            => Task.CompletedTask;
     }
 
     /// <summary>
@@ -60,8 +63,7 @@ static class EchoServer
     /// Factory of the request scoped <see cref="IActivityMonitor"/>, called once per request scope.
     /// Null registers nothing: the host then has no request monitor at all.
     /// </param>
-    public static async Task<(WebApplication App, Uri BaseUri)> StartAsync( IWebSocketMessageDispatcher<string, string> dispatcher,
-                                                                             Func<IActivityMonitor>? requestMonitor )
+    public static async Task<(WebApplication App, Uri BaseUri)> StartAsync( IWebSocketMessageDispatcher<string, string> dispatcher, Func<IActivityMonitor>? requestMonitor )
     {
         var builder = WebApplication.CreateSlimBuilder();
         builder.Services.AddWebSocketServer();

@@ -25,7 +25,6 @@ internal class WebSocketConnectionContext : ConnectionContext,
     IConnectionLifetimeFeature
 {
     private readonly HttpContext _httpContext;
-    private readonly IActivityLineEmitter _logger;
     private readonly object _itemsLock = new();
     private readonly object _stateLock = new();
     private bool _disposed;
@@ -33,11 +32,10 @@ internal class WebSocketConnectionContext : ConnectionContext,
     private readonly TaskCompletionSource _disposeTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly CancellationTokenSource _connectionClosedTokenSource;
 
-    internal WebSocketConnectionContext(string id, HttpContext httpContext, IActivityMonitor monitor, IDuplexPipe transport, IDuplexPipe application,
+    internal WebSocketConnectionContext(string id, HttpContext httpContext, IDuplexPipe transport, IDuplexPipe application,
         WebSocketConnectionDispatcherOptions options)
     {
         ConnectionId = id;
-        Monitor = monitor;
         Application = application;
         Transport = transport;
         Options = options;
@@ -52,10 +50,7 @@ internal class WebSocketConnectionContext : ConnectionContext,
         ConnectionClosed = _connectionClosedTokenSource.Token;
 
         _httpContext = httpContext;
-        // The dispose path runs while the other side (application or transport) is still running:
-        // only the thread safe parallel logger of the connection monitor can be used here.
-        _logger = monitor.ParallelLogger;
-        
+
         Features = new FeatureCollection();
         Features.Set<IConnectionUserFeature>(this);
         Features.Set<IConnectionItemsFeature>(this);
@@ -68,11 +63,10 @@ internal class WebSocketConnectionContext : ConnectionContext,
 
     public override string ConnectionId { get; set; }
     public IDuplexPipe Application { get; }
-    public IActivityMonitor Monitor { get; }
     public WebSocketConnectionDispatcherOptions Options { get; }
     public override IFeatureCollection Features { get; }
-    internal Task? TransportTask { get; set; }
-    internal Task? ApplicationTask { get; set; }
+    internal Task? TransportTask { get; private set; }
+    internal Task? ApplicationTask { get; private set; }
 
     public override IDictionary<object, object?> Items
     {
@@ -99,7 +93,7 @@ internal class WebSocketConnectionContext : ConnectionContext,
         get => _httpContext.User;
         set
         {
-            
+
         }
     }
     public AspNetTransferFormat SupportedFormats { get; set; }
@@ -109,29 +103,30 @@ internal class WebSocketConnectionContext : ConnectionContext,
     public CancellationTokenSource? Cancellation { get; set; }
 
     internal bool TryActivateConnection(
-        ConnectionDelegate connectionDelegate,
+        IActivityMonitor monitor,
+        Func<IActivityMonitor, ConnectionContext, Task> connectionDelegate,
         IHttpTransport transport,
         HttpContext context)
     {
         // Call into the end point passing the connection
-        ApplicationTask = ExecuteApplication(connectionDelegate);
+        ApplicationTask = ExecuteApplication(monitor, connectionDelegate);
 
         // Start the transport
-        TransportTask = transport.ProcessRequestAsync(context, context.RequestAborted);
+        TransportTask = transport.ProcessRequestAsync(monitor.CreateToken(), context, context.RequestAborted);
 #if NET8_0_OR_GREATER
         context.Features.Get<IHttpRequestTimeoutFeature>()?.DisableTimeout();
 #endif
         return true;
     }
 
-    private async Task ExecuteApplication(ConnectionDelegate connectionDelegate)
+    private async Task ExecuteApplication(IActivityMonitor monitor, Func<IActivityMonitor, ConnectionContext, Task> connectionDelegate)
     {
         // Jump onto the thread pool thread so blocking user code doesn't block the setup of the
         // connection and transport
         await Task.Yield();
 
         // Running this in an async method turns sync exceptions into async ones
-        await connectionDelegate(this);
+        await connectionDelegate(monitor, this);
     }
 
     public override void Abort(ConnectionAbortedException abortReason)
@@ -154,7 +149,7 @@ internal class WebSocketConnectionContext : ConnectionContext,
                 {
                     _disposed = true;
 
-                    _logger.Debug($"Disposing connection {ConnectionId}.");
+                    ActivityMonitor.StaticLogger.Debug($"Disposing connection {ConnectionId}.");
 
                     var applicationTask = ApplicationTask ?? Task.CompletedTask;
                     var transportTask = TransportTask ?? Task.CompletedTask;
@@ -184,6 +179,7 @@ internal class WebSocketConnectionContext : ConnectionContext,
                 Application?.Output.CancelPendingFlush();
 
                 // The websocket transport will close the application output automatically when reading is canceled
+                // ReSharper disable once MethodHasAsyncOverload
                 Cancellation?.Cancel();
             }
 
@@ -193,23 +189,29 @@ internal class WebSocketConnectionContext : ConnectionContext,
             // If the application is complete, complete the transport pipe (it's the pipe to the transport)
             if (result == applicationTask)
             {
-                Transport?.Output.Complete(applicationTask.Exception?.InnerException);
-                Transport?.Input.Complete();
+                if( Transport is not null )
+                {
+                    await Transport.Output.CompleteAsync(applicationTask.Exception?.InnerException);
+                    await Transport.Input.CompleteAsync();
+                }
 
                 try
                 {
-                    _logger.Debug($"Waiting for {TransportType} transport to complete.");
+                    ActivityMonitor.StaticLogger.Debug($"Waiting for {TransportType} transport to complete on connection '{ConnectionId}'.");
 
                     // Transports are written by us and are well behaved, wait for them to drain
                     await transportTask;
                 }
                 finally
                 {
-                    _logger.Debug($"{TransportType} transport complete.");
+                    ActivityMonitor.StaticLogger.Debug($"{TransportType} transport complete on connection '{ConnectionId}'.");
 
                     // Now complete the application
-                    Application?.Output.Complete();
-                    Application?.Input.Complete();
+                    if( Application is not null )
+                    {
+                        await Application.Output.CompleteAsync();
+                        await Application.Input.CompleteAsync();
+                    }
 
                     // Trigger ConnectionClosed
                     ThreadPool.UnsafeQueueUserWorkItem(cts => ((CancellationTokenSource)cts!).Cancel(),
@@ -219,8 +221,11 @@ internal class WebSocketConnectionContext : ConnectionContext,
             else
             {
                 // If the transport is complete, complete the application pipes
-                Application?.Output.Complete(transportTask.Exception?.InnerException);
-                Application?.Input.Complete();
+                if( Application is not null )
+                {
+                    await Application.Output.CompleteAsync(transportTask.Exception?.InnerException);
+                    await Application.Input.CompleteAsync();
+                }
 
                 // Trigger ConnectionClosed
                 ThreadPool.UnsafeQueueUserWorkItem(cts => ((CancellationTokenSource)cts!).Cancel(),
@@ -229,16 +234,19 @@ internal class WebSocketConnectionContext : ConnectionContext,
                 try
                 {
                     // A poorly written application *could* in theory get stuck forever and it'll show up as a memory leak
-                    _logger.Debug("Waiting for application to complete.");
+                    ActivityMonitor.StaticLogger.Debug($"Waiting for application to complete on connection '{ConnectionId}'.");
 
                     await applicationTask;
                 }
                 finally
                 {
-                    _logger.Debug("Application complete.");
+                    ActivityMonitor.StaticLogger.Debug($"Application complete on connection '{ConnectionId}'.");
 
-                    Transport?.Output.Complete();
-                    Transport?.Input.Complete();
+                    if( Transport is not null )
+                    {
+                        await Transport.Output.CompleteAsync();
+                        await Transport.Input.CompleteAsync();
+                    }
                 }
             }
 

@@ -27,6 +27,7 @@ public sealed class WebSocketChannelConnection : IAsyncDisposable
     readonly IWebSocketConnectionContext<ReadOnlyMemory<byte>> _connection;
     readonly SemaphoreSlim _writeLock;
     readonly PerfectEventSender<MessageReceivedEvent> _messageReceived;
+    IBridge? _bridge;
     // Guards against in-flight pushes writing to a disposed connection, and makes DisposeAsync
     // idempotent if disposal paths ever overlap.
     volatile bool _disposed;
@@ -36,13 +37,6 @@ public sealed class WebSocketChannelConnection : IAsyncDisposable
         _connection = connection;
         _writeLock = new SemaphoreSlim( 1, 1 );
         _messageReceived = new PerfectEventSender<MessageReceivedEvent>();
-        // The connection monitor of CK.WebSocket: the request scoped monitor of the socket, alive for the
-        // whole connection. It is the monitor the manager raises its perfect events with, so a feature
-        // handling them logs in the context of the connection it is reacting to, next to the transport
-        // logs of that very socket. Only the lifecycle path uses it, and CK.WebSocket never overlaps the
-        // connect, message and disconnect calls of one connection, so this non thread-safe monitor is
-        // never used concurrently.
-        Monitor = connection.Monitor;
     }
 
     /// <summary>
@@ -76,13 +70,17 @@ public sealed class WebSocketChannelConnection : IAsyncDisposable
     /// </summary>
     public PerfectEvent<MessageReceivedEvent> MessageReceived => _messageReceived.PerfectEvent;
 
-    internal IActivityMonitor Monitor { get; }
+    internal void RegisterMessageReceivedRelay( PerfectEventSender<MessageReceivedEvent> relay )
+    {
+        Throw.CheckState( _bridge == null );
+        _bridge = _messageReceived.CreateRelay( relay );
+    }
 
     // Lets the manager skip reading the bytes when nobody listens on this connection either.
     internal bool HasMessageHandlers => _messageReceived.HasHandlers;
 
     // Safe: one faulty feature must not tear down a socket that the other features share.
-    internal Task RaiseMessageReceivedAsync( MessageReceivedEvent e ) => _messageReceived.SafeRaiseAsync( Monitor, e );
+    internal Task RaiseMessageReceivedAsync( IActivityMonitor monitor, MessageReceivedEvent e ) => _messageReceived.SafeRaiseAsync( monitor, e );
 
     /// <summary>
     /// Writes a frame to the client as it is given. Silently does nothing once the connection has been
@@ -154,6 +152,7 @@ public sealed class WebSocketChannelConnection : IAsyncDisposable
         // Handlers die with the connection: a feature that subscribed here has nothing to unsubscribe,
         // and whatever its closures captured is released.
         _messageReceived.RemoveAll();
+        _bridge?.Dispose();
         return ValueTask.CompletedTask;
     }
 }
