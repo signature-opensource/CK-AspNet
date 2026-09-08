@@ -1,4 +1,4 @@
-using CK.WebSocket;
+using CK.AspNet.WebSocket;
 using System;
 using System.Buffers;
 

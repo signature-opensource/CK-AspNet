@@ -1,4 +1,4 @@
-using CK.WebSocket;
+using CK.AspNet.WebSocket;
 using System;
 using System.Buffers;
 using System.Threading.Tasks;
@@ -7,7 +7,7 @@ using CK.Core;
 namespace CK.AspNet.WebSocketChannel;
 
 /// <summary>
-/// The one CK.WebSocket dispatcher of the application: it hands each connection over to the
+/// The one CK.AspNet.WebSocket dispatcher of the application: it hands each connection over to the
 /// <see cref="WebSocketChannelManager"/> and does nothing else. Features never see a dispatcher.
 /// </summary>
 public sealed class WebSocketChannelDispatcher : IWebSocketMessageDispatcher<ReadOnlySequence<byte>, ReadOnlyMemory<byte>>

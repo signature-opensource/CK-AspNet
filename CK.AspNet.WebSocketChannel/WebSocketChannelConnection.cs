@@ -1,6 +1,6 @@
 using CK.Core;
 using CK.PerfectEvent;
-using CK.WebSocket;
+using CK.AspNet.WebSocket;
 using System;
 using System.Threading;
 using System.Threading.Tasks;

@@ -16,7 +16,7 @@ public static class WebApplicationBuilderExtensions
     public const string DefaultPath = "/ws";
 
     /// <summary>
-    /// Registers the CK.WebSocket services required by the channel.
+    /// Registers the CK.AspNet.WebSocket services required by the channel.
     /// </summary>
     /// <param name="builder">The web application builder.</param>
     /// <returns>The <paramref name="builder"/> for chaining.</returns>

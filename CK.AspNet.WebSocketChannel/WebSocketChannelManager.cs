@@ -1,7 +1,7 @@
 using CK.Core;
 using CK.PerfectEvent;
 using Microsoft.Extensions.Hosting;
-using CK.WebSocket;
+using CK.AspNet.WebSocket;
 using System;
 using System.Buffers;
 using System.Collections.Concurrent;
