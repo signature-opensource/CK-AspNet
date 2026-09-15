@@ -253,6 +253,10 @@ internal sealed class WebSocketsServerTransport : IHttpTransport
                                 if (WebSocketCanSend(socket))
                                 {
                                     await socket.SendAsync(buffer, webSocketMessageType, true);
+                                    // CK deviation from upstream: consume the sent bytes. Without this the finally's
+                                    // AdvanceTo(buffer.Start, buffer.End) marks nothing consumed, so the same buffer is
+                                    // re-sent on the next read. The FramePackets branch above advances buffer via ReadFrame.
+                                    buffer = buffer.Slice(buffer.End);
                                 }
                                 else
                                 {
