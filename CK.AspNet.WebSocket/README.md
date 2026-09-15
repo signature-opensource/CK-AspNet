@@ -36,7 +36,7 @@ SimpleR itself derives from ASP.NET Core SignalR's HttpConnections layer (MIT, .
   to the matched endpoint). Path matching is exact `PathString` equality: `"/ws/"` is not `"/ws"`.
   A non-WebSocket request on the path is answered `400`.
 - Renamed: `IWebsocketConnectionContext` → `IWebSocketConnectionContext`,
-  `WebSocketOptions` → `WebSocketTransportOptions`. Namespaces collapse into `CK.WebSocket`.
+  `WebSocketOptions` → `WebSocketTransportOptions`. Namespaces collapse into `CK.AspNet.WebSocket`.
 - Everything else (backpressure, write serialization, graceful/ungraceful close and
   `CloseTimeout`, frame packetization, abort semantics) is upstream code, kept diffable.
 - Bug fix: `FrameReader.ReadFrame`'s boundary check accounts for the 4-byte length header
@@ -57,7 +57,7 @@ SimpleR itself derives from ASP.NET Core SignalR's HttpConnections layer (MIT, .
 
 ## Warning: the `WebSocket` simple name
 
-Inside any `CK.AspNet.*` namespace, the simple name `WebSocket` now resolves to the `CK.WebSocket`
+Inside any `CK.AspNet.*` namespace, the simple name `WebSocket` now resolves to the `CK.AspNet.WebSocket`
 namespace, not to `System.Net.WebSockets.WebSocket`. If a `CK.AspNet.*` project hits
 `CS0118: 'WebSocket' is a namespace but is used like a type`, either fully qualify the type or
 add `using WebSocket = System.Net.WebSockets.WebSocket;` **after** its file-scoped namespace
