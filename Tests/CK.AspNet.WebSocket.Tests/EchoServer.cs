@@ -33,9 +33,6 @@ static class EchoServer
         /// <summary>Completed with the exception passed to <see cref="OnParsingIssueAsync"/>.</summary>
         public TaskCompletionSource<Exception> ParsingIssue { get; } = new( TaskCreationOptions.RunContinuationsAsynchronously );
 
-        /// <summary>The monitor the connection exposed to <see cref="OnConnectedAsync"/>.</summary>
-        public IActivityMonitor? ConnectionMonitor { get; private set; }
-
         public Task OnConnectedAsync( IActivityMonitor monitor, IWebSocketConnectionContext<string> connection )
         {
             return Task.CompletedTask;
