@@ -1,14 +1,11 @@
-# CK.WebSocket
+WebSocket server infrastructure: pipe-based duplex transport, message
+protocols with optional end-of-message framing, one dispatcher per mounted endpoint.
 
-WebSocket server infrastructure: a pipe-based duplex transport, message protocols
-(including end-of-message frame packetization) and per-connection message dispatchers,
-mounted as a plain middleware - no endpoint routing (`UseRouting`) is required.
+Mounting is a plain middleware call - no endpoint routing, no `UseRouting`, no authorization services
+pulled in. The path match is exact, and a non-WebSocket request on it is answered 400.
 
-Logging goes through CK's `IActivityMonitor`: each connection uses the request scoped monitor
-of its upgrade request (registered by `CKBuild`), which must be available. Dispatchers reach it
-through `IWebSocketConnectionContext.Monitor`.
+A connection is one long-lived request, so a dispatcher gets the request scoped `IActivityMonitor` as
+the first parameter of every method. That monitor is required.
 
-The transport, connection and protocol code is vendored and adapted from
-[SimpleR](https://github.com/vadrsa/simpler) (MIT, Copyright (c) 2024 Davit Asryan).
-The full license text ships in this package as `LICENSE.SimpleR`; the repository
-README documents the changes from upstream.
+Transport and protocol code is vendored from SimpleR (MIT, Copyright (c) 2024 Davit Asryan);
+`LICENSE.SimpleR` ships in the package and the README lists the deviations.
