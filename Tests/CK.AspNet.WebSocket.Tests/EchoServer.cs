@@ -27,6 +27,12 @@ static class EchoServer
         /// <summary>Completed once <see cref="OnDisconnectedAsync"/> has been called.</summary>
         public TaskCompletionSource Disconnected { get; } = new( TaskCreationOptions.RunContinuationsAsynchronously );
 
+        /// <summary>The exception passed to <see cref="OnDisconnectedAsync"/>: null on a graceful close.</summary>
+        public Exception? DisconnectException { get; private set; }
+
+        /// <summary>Completed with the exception passed to <see cref="OnParsingIssueAsync"/>.</summary>
+        public TaskCompletionSource<Exception> ParsingIssue { get; } = new( TaskCreationOptions.RunContinuationsAsynchronously );
+
         /// <summary>The monitor the connection exposed to <see cref="OnConnectedAsync"/>.</summary>
         public IActivityMonitor? ConnectionMonitor { get; private set; }
 
@@ -37,6 +43,8 @@ static class EchoServer
 
         public Task OnDisconnectedAsync( IActivityMonitor monitor, IWebSocketConnectionContext<string> connection, Exception? exception )
         {
+            // Set before completing Disconnected so a waiter reads the exception right after the await.
+            DisconnectException = exception;
             Disconnected.TrySetResult();
             return Task.CompletedTask;
         }
@@ -45,7 +53,10 @@ static class EchoServer
             => connection.WriteAsync( message ).AsTask();
 
         public Task OnParsingIssueAsync( IActivityMonitor monitor, IWebSocketConnectionContext<string> connection, Exception exception )
-            => Task.CompletedTask;
+        {
+            ParsingIssue.TrySetResult( exception );
+            return Task.CompletedTask;
+        }
     }
 
     /// <summary>
@@ -63,7 +74,8 @@ static class EchoServer
     /// Factory of the request scoped <see cref="IActivityMonitor"/>, called once per request scope.
     /// Null registers nothing: the host then has no request monitor at all.
     /// </param>
-    public static async Task<(WebApplication App, Uri BaseUri)> StartAsync( IWebSocketMessageDispatcher<string, string> dispatcher, Func<IActivityMonitor>? requestMonitor )
+    /// <param name="protocol">The delimited protocol to use. Defaults to <see cref="TextProtocol"/>.</param>
+    public static async Task<(WebApplication App, Uri BaseUri)> StartAsync( IWebSocketMessageDispatcher<string, string> dispatcher, Func<IActivityMonitor>? requestMonitor, IDelimitedMessageProtocol<string, string>? protocol = null )
     {
         var builder = WebApplication.CreateSlimBuilder();
         builder.Services.AddWebSocketServer();
@@ -76,7 +88,7 @@ static class EchoServer
         // The whole point of CK.AspNet.WebSocket: no UseRouting, no UseEndpoints, anywhere.
         app.UseWebSocketServer<string, string>( Path, b =>
         {
-            b.UseEndOfMessageDelimitedProtocol( new TextProtocol() );
+            b.UseEndOfMessageDelimitedProtocol( protocol ?? new TextProtocol() );
             b.UseDispatcher( dispatcher );
         } );
         await app.StartAsync();
