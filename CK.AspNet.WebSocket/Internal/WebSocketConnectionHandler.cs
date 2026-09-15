@@ -97,7 +97,14 @@ internal class WebSocketConnectionHandler<TMessageIn, TMessageOut>
             {
                 if (result.IsCanceled)
                 {
-                    break;
+                    // CK deviation from upstream: a read cancelled by the concurrent connection teardown can
+                    // coincide with the pipe completing while an unfinished message is still buffered. That
+                    // is an abnormal close and must surface below, not be reported as graceful. Upstream
+                    // broke here unconditionally, so under load the cancel hid the terminated-mid-read error.
+                    if (!result.IsCompleted || buffer.IsEmpty)
+                    {
+                        break;
+                    }
                 }
 
                 while (!buffer.IsEmpty && TryParseMessageImpl(ref buffer, out var message, out var exception))
