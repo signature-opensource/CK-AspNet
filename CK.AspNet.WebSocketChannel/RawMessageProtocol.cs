@@ -1,11 +1,11 @@
-using SimpleR.Protocol;
+using CK.AspNet.WebSocket;
 using System;
 using System.Buffers;
 
 namespace CK.AspNet.WebSocketChannel;
 
 /// <summary>
-/// SimpleR protocol of the channel: outgoing messages are written as raw bytes and incoming ones are
+/// Message protocol of the channel: outgoing messages are written as raw bytes and incoming ones are
 /// handed over as-is, without any decoding.
 /// </summary>
 public sealed class RawMessageProtocol : IDelimitedMessageProtocol<ReadOnlySequence<byte>, ReadOnlyMemory<byte>>
@@ -13,8 +13,8 @@ public sealed class RawMessageProtocol : IDelimitedMessageProtocol<ReadOnlySeque
     /// <summary>
     /// Returns <paramref name="input"/> unchanged. Decoding here would allocate for every incoming
     /// message, including the usual case where nothing listens to them: the manager decides, and reads
-    /// the bytes only once a feature has subscribed to
-    /// <see cref="WebSocketChannelManager.MessageReceived"/>.
+    /// the bytes only once a feature has subscribed to <see cref="WebSocketChannelConnection.MessageReceived"/>
+    /// or <see cref="WebSocketChannelManager.AllMessagesReceived"/>.
     /// <para>
     /// The returned sequence borrows the pipe's buffers: it is only valid until the read loop advances.
     /// That is why the manager copies the payload out of it synchronously, before any handler can await

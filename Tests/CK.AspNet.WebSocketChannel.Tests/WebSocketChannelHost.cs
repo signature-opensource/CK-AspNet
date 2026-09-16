@@ -1,4 +1,5 @@
 using CK.Core;
+using CK.PerfectEvent;
 using CK.Testing;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting.Server;
@@ -60,7 +61,6 @@ sealed class WebSocketChannelHost : IAsyncDisposable
 
         var app = builder.CKBuild( map );
         app.Urls.Add( "http://127.0.0.1:0" ); // Random free port.
-        app.UseRouting();
         app.UseWebSocketChannel();
         await app.StartAsync();
 
@@ -73,7 +73,7 @@ sealed class WebSocketChannelHost : IAsyncDisposable
 
     /// <summary>
     /// Connects a client and returns it with the connection identifier the server negotiated: this
-    /// also guarantees the connect path ran and the server is parked in the SimpleR read loop.
+    /// also guarantees the connect path ran and the server is parked in the read loop.
     /// </summary>
     public async Task<(ClientWebSocket Client, string ConnectionId)> ConnectAsync()
     {
@@ -83,6 +83,43 @@ sealed class WebSocketChannelHost : IAsyncDisposable
         var connectionId = negotiation.RootElement.GetProperty( "connectionId" ).GetString();
         Throw.DebugAssert( connectionId != null );
         return (client, connectionId);
+    }
+
+    /// <summary>
+    /// Gets the server side of a connection returned by <see cref="ConnectAsync"/>, the object a feature
+    /// holds to push to that client. Throws if the manager does not know the identifier.
+    /// </summary>
+    /// <param name="connectionId">The identifier negotiated by <see cref="ConnectAsync"/>.</param>
+    /// <returns>The open connection.</returns>
+    public WebSocketChannelConnection GetConnection( string connectionId )
+    {
+        if( !Manager.TryGetConnection( connectionId, out var connection ) )
+        {
+            Throw.InvalidOperationException( $"Connection '{connectionId}' is not open." );
+        }
+        return connection;
+    }
+
+    /// <summary>
+    /// Completes when the manager has raised <see cref="WebSocketChannelManager.ConnectionClosed"/> for
+    /// the connection, or fails after 5 seconds.
+    /// </summary>
+    /// <param name="connectionId">The connection to wait for.</param>
+    /// <returns>The awaitable.</returns>
+    public Task WaitForCloseAsync( string connectionId )
+    {
+        var tcs = new TaskCompletionSource( TaskCreationOptions.RunContinuationsAsynchronously );
+        SequentialEventHandler<ConnectionClosedEvent> handler = null!;
+        handler = ( monitor, e ) =>
+        {
+            if( e.ConnectionId == connectionId )
+            {
+                Manager.ConnectionClosed.Sync -= handler;
+                tcs.TrySetResult();
+            }
+        };
+        Manager.ConnectionClosed.Sync += handler;
+        return tcs.Task.WaitAsync( TimeSpan.FromSeconds( 5 ) );
     }
 
     /// <summary>

@@ -2,6 +2,7 @@ using CK.Core;
 using CK.PerfectEvent;
 using System;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Shouldly;
@@ -32,8 +33,10 @@ public class WebSocketChannelTests
         var (client, connectionId) = await host.ConnectAsync();
         using( client )
         {
-            await host.Manager.SendAsync( connectionId, "OD", Utf8( ObservableDomainFrame ) );
-            await host.Manager.SendAsync( connectionId, "SC", Utf8( SessionChannelFrame ) );
+            // Two features, one connection object each of them holds: both push on it under their topic.
+            var connection = host.GetConnection( connectionId );
+            await connection.WriteAsync( "OD", Utf8( ObservableDomainFrame ) );
+            await connection.WriteAsync( "SC", Utf8( SessionChannelFrame ) );
 
             using( var first = await WebSocketChannelHost.ReceiveJsonAsync( client ) )
             {
@@ -50,27 +53,64 @@ public class WebSocketChannelTests
     }
 
     [Test]
-    public async Task sending_to_an_unknown_or_closed_connection_is_a_silent_no_op_Async()
+    public async Task writing_on_a_closed_connection_is_a_silent_no_op_Async()
     {
         var map = await WebSocketChannelHost.BuildMapAsync();
         await using var host = await WebSocketChannelHost.StartAsync( map );
 
-        // A feature that pushes to a user which is simply not connected must not have to check first.
-        await Should.NotThrowAsync( async () => await host.Manager.SendAsync( "no-such-connection", "OD", Utf8( SessionChannelFrame ) ) );
+        // A feature that pushes to a user which is simply not connected finds no connection at all.
+        host.Manager.TryGetConnection( "no-such-connection", out _ ).ShouldBeFalse();
 
         var (client, connectionId) = await host.ConnectAsync();
+        // A feature holds the connection object: it must stay harmless once the socket is gone.
+        var connection = host.GetConnection( connectionId );
         using( client )
         {
-            var closed = WaitForCloseAsync( host.Manager, connectionId );
+            var closed = host.WaitForCloseAsync( connectionId );
             // Abort rather than a close handshake: the server tears the socket down at once
             // (CloseTimeout is zero, so shutdown never waits on a client), and this is anyway the
             // realistic case - a closed tab, a lost network.
             client.Abort();
             await closed;
         }
-        // Pushing onto the connection that just went away: normal race, not an error.
-        await Should.NotThrowAsync( async () => await host.Manager.SendAsync( connectionId, "OD", Utf8( SessionChannelFrame ) ) );
+        // Pushing onto the connection that just went away: normal race, not an error, whichever overload.
+        connection.IsDisposed.ShouldBeTrue();
+        connection.MessageReceived.HasHandlers.ShouldBeFalse( "Handlers die with the connection." );
+        await Should.NotThrowAsync( async () => await connection.WriteAsync( "OD", Utf8( SessionChannelFrame ) ) );
+        await Should.NotThrowAsync( async () => await connection.WriteAsync( Utf8( SessionChannelFrame ) ) );
         host.Manager.TryGetConnection( connectionId, out _ ).ShouldBeFalse();
+    }
+
+    [Test]
+    public async Task writes_racing_a_disconnection_never_throw_Async()
+    {
+        var map = await WebSocketChannelHost.BuildMapAsync();
+        await using var host = await WebSocketChannelHost.StartAsync( map );
+
+        var (client, connectionId) = await host.ConnectAsync();
+        var connection = host.GetConnection( connectionId );
+        using( client )
+        {
+            // A feature pushes continuously while the client goes away: whatever the interleaving with the
+            // dispose, no write may surface an exception. This is the contract every push relies on.
+            var closed = host.WaitForCloseAsync( connectionId );
+            using var stop = new CancellationTokenSource();
+            var pusher = Task.Run( async () =>
+            {
+                while( !stop.IsCancellationRequested )
+                {
+                    await connection.WriteAsync( "OD", Utf8( ObservableDomainFrame ) );
+                    await connection.WriteAsync( Utf8( SessionChannelFrame ) );
+                }
+            } );
+            client.Abort();
+            await closed;
+            // Keep pushing a little after the close so the post-dispose path is exercised too.
+            await Task.Delay( 100 );
+            stop.Cancel();
+            await Should.NotThrowAsync( async () => await pusher );
+        }
+        connection.IsDisposed.ShouldBeTrue();
     }
 
     [Test]
@@ -87,7 +127,7 @@ public class WebSocketChannelTests
             var (client, connectionId) = await host.ConnectAsync();
             using( client )
             {
-                await host.Manager.SendAsync( connectionId, "OD", Utf8( ObservableDomainFrame ) );
+                await host.GetConnection( connectionId ).WriteAsync( "OD", Utf8( ObservableDomainFrame ) );
                 using var received = await WebSocketChannelHost.ReceiveJsonAsync( client );
                 received.RootElement.GetProperty( "topic" ).GetString().ShouldBe( "OD" );
             }
@@ -104,6 +144,9 @@ public class WebSocketChannelTests
         var map = await WebSocketChannelHost.BuildMapAsync();
         await using var host = await WebSocketChannelHost.StartAsync( map );
 
+        // The connection a feature holds. Assigned once connected, read by the closed handler below,
+        // which can only run after the abort.
+        WebSocketChannelConnection? connection = null;
         var seen = new TaskCompletionSource<(bool StillThere, bool SendThrew)>( TaskCreationOptions.RunContinuationsAsynchronously );
         AsyncSequentialEventHandler<ConnectionClosedEvent> onClosed = async ( monitor, e, cancel ) =>
         {
@@ -113,7 +156,7 @@ public class WebSocketChannelTests
             bool threw = false;
             try
             {
-                await host.Manager.SendAsync( e.ConnectionId, "OD", Utf8( SessionChannelFrame ) );
+                await connection!.WriteAsync( "OD", Utf8( SessionChannelFrame ) );
             }
             catch
             {
@@ -124,34 +167,19 @@ public class WebSocketChannelTests
         host.Manager.ConnectionClosed.Async += onClosed;
         try
         {
-            var (client, _) = await host.ConnectAsync();
+            var (client, connectionId) = await host.ConnectAsync();
+            connection = host.GetConnection( connectionId );
             using( client )
             {
                 client.Abort();
             }
             var result = await seen.Task.WaitAsync( TimeSpan.FromSeconds( 5 ) );
             result.StillThere.ShouldBeFalse( "The connection is removed from the manager before the event is raised." );
-            result.SendThrew.ShouldBeFalse( "Sending from a ConnectionClosed handler must be a silent no-op." );
+            result.SendThrew.ShouldBeFalse( "Writing from a ConnectionClosed handler must be a silent no-op." );
         }
         finally
         {
             host.Manager.ConnectionClosed.Async -= onClosed;
         }
-    }
-
-    static Task WaitForCloseAsync( WebSocketChannelManager manager, string connectionId )
-    {
-        var tcs = new TaskCompletionSource( TaskCreationOptions.RunContinuationsAsynchronously );
-        SequentialEventHandler<ConnectionClosedEvent> handler = null!;
-        handler = ( monitor, e ) =>
-        {
-            if( e.ConnectionId == connectionId )
-            {
-                manager.ConnectionClosed.Sync -= handler;
-                tcs.TrySetResult();
-            }
-        };
-        manager.ConnectionClosed.Sync += handler;
-        return tcs.Task.WaitAsync( TimeSpan.FromSeconds( 5 ) );
     }
 }

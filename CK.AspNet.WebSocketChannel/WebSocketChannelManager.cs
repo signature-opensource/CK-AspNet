@@ -1,12 +1,12 @@
 using CK.Core;
 using CK.PerfectEvent;
 using Microsoft.Extensions.Hosting;
-using SimpleR;
+using CK.AspNet.WebSocket;
 using System;
 using System.Buffers;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace CK.AspNet.WebSocketChannel;
@@ -16,8 +16,10 @@ namespace CK.AspNet.WebSocketChannel;
 /// <para>
 /// There is one socket per client, and one dictionary of sockets in the process: this object. Features
 /// do not open connections, they observe them through <see cref="ConnectionOpened"/> and
-/// <see cref="ConnectionClosed"/>, keep whatever state they need keyed by connection identifier, and
-/// push under their own topic.
+/// <see cref="ConnectionClosed"/>, keep whatever state they need keyed by connection identifier, or by
+/// the connection object itself, which stays harmless once closed, and push under their own topic on the
+/// connection (<see cref="WebSocketChannelConnection.WriteAsync(string, ReadOnlyMemory{byte})"/>)
+/// or to all of them at once (<see cref="SendBroadcastAsync(string, ReadOnlyMemory{byte})"/>).
 /// </para>
 /// <para>
 /// This manager knows nothing about any feature: no identity, no domain, no business index. That is
@@ -30,7 +32,7 @@ public sealed class WebSocketChannelManager : IRealObject
     readonly ConcurrentDictionary<string, WebSocketChannelConnection> _connections = new();
     readonly PerfectEventSender<WebSocketChannelConnection> _connectionOpened = new();
     readonly PerfectEventSender<ConnectionClosedEvent> _connectionClosed = new();
-    readonly PerfectEventSender<MessageReceivedEvent> _messageReceived = new();
+    readonly PerfectEventSender<MessageReceivedEvent> _allMessagesReceived = new();
 
     // Set by AbortAll on ApplicationStopping: once stopping, new connections are refused so an
     // auto-reconnecting client cannot re-arm the full ShutdownTimeout drain.
@@ -51,9 +53,13 @@ public sealed class WebSocketChannelManager : IRealObject
     public PerfectEvent<ConnectionClosedEvent> ConnectionClosed => _connectionClosed.PerfectEvent;
 
     /// <summary>
-    /// Raised for each message a client sends, once its envelope has been read. Handlers filter on
+    /// Raised for each message any client sends, once its envelope has been read. Handlers filter on
     /// <see cref="MessageReceivedEvent.Topic"/>: this is a shared socket, so a feature sees the traffic
-    /// of the others and ignores it.
+    /// of the others and ignores it. A feature that works per connection subscribes to
+    /// <see cref="WebSocketChannelConnection.MessageReceived"/> instead, whose handlers run first. A
+    /// handler that throws is logged and swallowed (the raise is safe): only the remaining synchronous
+    /// handlers of this event are skipped, and <see cref="WebSocketChannelConnection.MessageReceived"/>
+    /// is still raised.
     /// <para>
     /// Topics live in one flat namespace shared by every feature, so a topic must be globally unique:
     /// name it after your package.
@@ -61,12 +67,12 @@ public sealed class WebSocketChannelManager : IRealObject
     /// your handler - silently, since nothing here can tell the two apart.
     /// </para>
     /// <para>
-    /// As long as nobody subscribes, incoming messages are not even read: the channel stays purely
-    /// descending and costs nothing. Subscribing turns it on, and with it the caveat that
-    /// <see cref="MessageReceivedEvent"/> carries nothing authenticated.
+    /// As long as nobody subscribes, here nor on any connection, incoming messages are not even read: the
+    /// channel stays purely descending and costs nothing. Subscribing turns it on, and with it the caveat
+    /// that <see cref="MessageReceivedEvent"/> carries nothing authenticated.
     /// </para>
     /// </summary>
-    public PerfectEvent<MessageReceivedEvent> MessageReceived => _messageReceived.PerfectEvent;
+    public PerfectEvent<MessageReceivedEvent> AllMessagesReceived => _allMessagesReceived.PerfectEvent;
 
     /// <summary>
     /// Gets the number of currently open connections.
@@ -85,65 +91,36 @@ public sealed class WebSocketChannelManager : IRealObject
     }
 
     /// <summary>
-    /// Sends a message under a topic to one connection.
-    /// Does nothing when the connection is unknown or already closed: a push racing with a
-    /// disconnection is normal, and an offline client is caught later, when it reconnects.
+    /// Writes the same frame to every open connection, in parallel. The frame must be an envelope built
+    /// by <see cref="WebSocketChannelEnvelope.Create"/>: prefer
+    /// <see cref="SendBroadcastAsync(string, ReadOnlyMemory{byte})"/>, which does exactly that.
+    /// <para>
+    /// A connection that opens during the broadcast may or may not receive it, and one that closed is
+    /// silently skipped. Per-connection order is preserved: two broadcasts awaited one after the other
+    /// reach every client in that order. An exception from one write propagates, as it does for a single
+    /// <see cref="WebSocketChannelConnection.WriteAsync(ReadOnlyMemory{byte})"/>.
+    /// </para>
     /// </summary>
-    /// <param name="connectionId">The target connection.</param>
-    /// <param name="topic">The topic that routes the message on the client.</param>
-    /// <param name="message">The payload, as a JSON value. It is embedded as-is, not escaped.</param>
-    public ValueTask SendAsync( string connectionId, string topic, ReadOnlyMemory<byte> message )
+    /// <param name="rawMessage">The frame to write, as it is.</param>
+    public Task SendBroadcastAsync( ReadOnlyMemory<byte> rawMessage )
     {
-        return _connections.TryGetValue( connectionId, out var connection )
-                ? SendAsync( connection, topic, message )
-                : ValueTask.CompletedTask;
+        // Enumerating the dictionary itself is lock-free (unlike .Values, which snapshots under lock).
+        var writes = new List<Task>();
+        foreach( var kv in _connections )
+        {
+            writes.Add( kv.Value.WriteAsync( rawMessage ).AsTask() );
+        }
+        return Task.WhenAll( writes );
     }
 
     /// <summary>
-    /// Sends a message under a topic to an already resolved connection: use this overload when the
-    /// connection is at hand, to skip the lookup.
+    /// Sends a message under a topic to every open connection. The envelope is built once.
     /// </summary>
-    /// <param name="connection">The target connection.</param>
-    /// <param name="topic">The topic that routes the message on the client.</param>
+    /// <param name="topic">The topic that routes the message on the client. Must not be null or white space.</param>
     /// <param name="message">The payload, as a JSON value. It is embedded as-is, not escaped.</param>
-    public ValueTask SendAsync( WebSocketChannelConnection connection, string topic, ReadOnlyMemory<byte> message )
+    public Task SendBroadcastAsync( string topic, ReadOnlyMemory<byte> message )
     {
-        Throw.CheckNotNullArgument( connection );
-        Throw.CheckNotNullOrWhiteSpaceArgument( topic );
-        return connection.WriteAsync( CreateEnvelope( topic, message ) );
-    }
-
-    // The envelope is the whole wire format: a topic to route on, and the payload untouched.
-    // WriteRawValue embeds the payload as a JSON value, so a feature hands over the very same bytes it
-    // used to write on its own socket. Validation is skipped: the payload comes from our own writers.
-    static ReadOnlyMemory<byte> CreateEnvelope( string topic, ReadOnlyMemory<byte> message )
-    {
-        var buffer = new ArrayBufferWriter<byte>( message.Length + 32 );
-        using( var writer = new Utf8JsonWriter( buffer ) )
-        {
-            writer.WriteStartObject();
-            writer.WriteString( "topic", topic );
-            writer.WritePropertyName( "message" );
-            writer.WriteRawValue( message.Span, skipInputValidation: true );
-            writer.WriteEndObject();
-            writer.Flush();
-        }
-        return buffer.WrittenMemory;
-    }
-
-    // The first and only unenveloped message of a connection: the client needs its identifier to send
-    // it back on the authenticated Cris channel, and it belongs to no topic.
-    static ReadOnlyMemory<byte> CreateNegotiation( string connectionId )
-    {
-        var buffer = new ArrayBufferWriter<byte>( 64 );
-        using( var writer = new Utf8JsonWriter( buffer ) )
-        {
-            writer.WriteStartObject();
-            writer.WriteString( "connectionId", connectionId );
-            writer.WriteEndObject();
-            writer.Flush();
-        }
-        return buffer.WrittenMemory;
+        return SendBroadcastAsync( WebSocketChannelEnvelope.Create( topic, message ) );
     }
 
     /// <summary>
@@ -159,7 +136,7 @@ public sealed class WebSocketChannelManager : IRealObject
         lifetime.ApplicationStopping.Register( AbortAll );
     }
 
-    internal async Task<bool> OnConnectedAsync( IWebsocketConnectionContext<ReadOnlyMemory<byte>> connection )
+    internal async Task<bool> OnConnectedAsync( IActivityMonitor monitor, IWebSocketConnectionContext<ReadOnlyMemory<byte>> connection )
     {
         // Refuse new connections once stopping so a reconnect cannot re-arm the ShutdownTimeout drain.
         if( _stopping )
@@ -184,61 +161,53 @@ public sealed class WebSocketChannelManager : IRealObject
             return false;
         }
 
-        await c.WriteAsync( CreateNegotiation( c.ConnectionId ) ).ConfigureAwait( false );
+        c.RegisterMessageReceivedRelay( _allMessagesReceived );
+        await c.WriteNegotiationAsync().ConfigureAwait( false );
         // Safe: one faulty feature must not tear down a socket that the other features share.
-        await _connectionOpened.SafeRaiseAsync( c.Monitor, c ).ConfigureAwait( false );
+        await _connectionOpened.SafeRaiseAsync( monitor, c ).ConfigureAwait( false );
         return true;
     }
 
-    internal Task OnMessageAsync( string connectionId, ReadOnlySequence<byte> input )
+    internal async Task OnMessageAsync( IActivityMonitor monitor, string connectionId, ReadOnlySequence<byte> input )
     {
-        // Nobody listens: do not even look at the bytes. This is what keeps the descending-only case
-        // free, and the reason RawMessageProtocol hands the sequence over without decoding it.
-        if( !_messageReceived.HasHandlers ) return Task.CompletedTask;
-        if( !_connections.TryGetValue( connectionId, out var c ) ) return Task.CompletedTask;
+        if( !_connections.TryGetValue( connectionId, out var c ) ) return;
+        // Nobody listens, neither on this connection nor here: do not even look at the bytes. This is
+        // what keeps the descending-only case free, and the reason RawMessageProtocol hands the
+        // sequence over without decoding it.
+        if( !c.HasMessageHandlers && !_allMessagesReceived.HasHandlers ) return;
 
         string topic;
         ReadOnlyMemory<byte> message;
         try
         {
-            using var doc = JsonDocument.Parse( input );
-            topic = doc.RootElement.GetProperty( "topic" ).GetString()
-                    ?? throw new JsonException( "Null topic." );
-            // Copied out of the document, and therefore out of the pipe's buffers, before anything can
-            // await: this is what lets a handler keep the payload.
-            var buffer = new ArrayBufferWriter<byte>( 256 );
-            using( var writer = new Utf8JsonWriter( buffer ) )
-            {
-                doc.RootElement.GetProperty( "message" ).WriteTo( writer );
-                writer.Flush();
-            }
-            message = buffer.WrittenMemory;
+            (topic, message) = WebSocketChannelEnvelope.Read( input );
         }
         catch( Exception ex )
         {
             // A client can send anything. Dropping the message is the only sane answer: throwing here
             // would tear down a socket that the other features are using.
-            c.Monitor.Warn( "Ignored an incoming message that is not a {topic,message} envelope.", ex );
-            return Task.CompletedTask;
+            monitor.Warn( "Ignored an incoming message that is not a {topic,message} envelope.", ex );
+            return;
         }
 
-        // Safe: one faulty feature must not tear down a socket that the other features share.
-        return _messageReceived.SafeRaiseAsync( c.Monitor, new MessageReceivedEvent( c, topic, message ) );
+        var e = new MessageReceivedEvent( c, topic, message );
+        await c.RaiseMessageReceivedAsync( monitor, e ).ConfigureAwait( false );
     }
 
-    internal Task OnDisconnectedAsync( string connectionId, Exception? exception )
+
+    internal Task OnDisconnectedAsync( IActivityMonitor monitor, string connectionId, Exception? exception )
     {
         return _connections.TryRemove( connectionId, out var c )
-                ? CloseAsync( c, exception )
+                ? CloseAsync( monitor, c, exception )
                 : Task.CompletedTask;
     }
 
     // Disposes before raising, so that a send attempted from a handler is a silent no-op instead of a
     // write onto a socket that is already gone, whichever overload the handler uses.
-    async Task CloseAsync( WebSocketChannelConnection c, Exception? exception )
+    async Task CloseAsync( IActivityMonitor monitor, WebSocketChannelConnection c, Exception? exception )
     {
         await c.DisposeAsync().ConfigureAwait( false );
-        await _connectionClosed.SafeRaiseAsync( c.Monitor, new ConnectionClosedEvent( c.ConnectionId, exception ) )
+        await _connectionClosed.SafeRaiseAsync( monitor, new ConnectionClosedEvent( c.ConnectionId, exception ) )
                                .ConfigureAwait( false );
     }
 
@@ -266,7 +235,7 @@ public sealed class WebSocketChannelManager : IRealObject
             if( _connections.TryRemove( kv.Key, out var c ) )
             {
                 c.Abort();
-                await CloseAsync( c, null ).ConfigureAwait( false );
+                await CloseAsync( monitor, c, null ).ConfigureAwait( false );
             }
         }
     }

@@ -15,7 +15,7 @@ using static CK.Testing.MonitorTestHelper;
 namespace CK.AspNet.WebSocketChannel.Tests;
 
 /// <summary>
-/// Regression tests for the host-shutdown WebSocket drain bug: an open SimpleR read loop is never
+/// Regression tests for the host-shutdown WebSocket drain bug: an open read loop is never
 /// aborted on <c>ApplicationStopping</c>, so Kestrel drains it for the whole
 /// <see cref="HostOptions.ShutdownTimeout"/> and <see cref="IHost.StopAsync"/> blocks for that long.
 /// <para>
@@ -76,7 +76,7 @@ public class HostShutdownDrainTests
             TestHelper.Monitor.Info( $"Stop with one connected client took {elapsedMs} ms." );
             TimeSpan.FromMilliseconds( elapsedMs ).ShouldBeLessThan( PromptStop,
                 "A connected WebSocket client must not delay host shutdown. If this fails near ShutdownTimeout, "
-                + "the manager is not aborting the SimpleR connection on ApplicationStopping." );
+                + "the manager is not aborting the connection on ApplicationStopping." );
         }
     }
 

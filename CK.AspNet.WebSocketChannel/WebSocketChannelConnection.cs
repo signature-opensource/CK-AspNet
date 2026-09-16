@@ -1,5 +1,6 @@
 using CK.Core;
-using SimpleR;
+using CK.PerfectEvent;
+using CK.AspNet.WebSocket;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -17,25 +18,25 @@ namespace CK.AspNet.WebSocketChannel;
 /// Writes are serialized: this socket is shared by every topic, so concurrent pushes from unrelated
 /// features are the normal case, not an edge case.
 /// </para>
+/// <para>
+/// What the client says arrives on <see cref="MessageReceived"/>, for this connection only.
+/// </para>
 /// </summary>
 public sealed class WebSocketChannelConnection : IAsyncDisposable
 {
-    readonly IWebsocketConnectionContext<ReadOnlyMemory<byte>> _connection;
+    readonly IWebSocketConnectionContext<ReadOnlyMemory<byte>> _connection;
     readonly SemaphoreSlim _writeLock;
-    // Guards against in-flight pushes writing to a disposed connection, and prevents double-dispose
-    // of the semaphore if disposal paths ever overlap.
+    readonly PerfectEventSender<MessageReceivedEvent> _messageReceived;
+    IBridge? _bridge;
+    // Guards against in-flight pushes writing to a disposed connection, and makes DisposeAsync
+    // idempotent if disposal paths ever overlap.
     volatile bool _disposed;
 
-    internal WebSocketChannelConnection( IWebsocketConnectionContext<ReadOnlyMemory<byte>> connection )
+    internal WebSocketChannelConnection( IWebSocketConnectionContext<ReadOnlyMemory<byte>> connection )
     {
         _connection = connection;
         _writeLock = new SemaphoreSlim( 1, 1 );
-        // One monitor for the whole lifetime of the connection: it correlates the open and close logs
-        // of a socket. It is the monitor the manager raises its perfect events with, so a feature
-        // handling them logs in the context of the connection it is reacting to. Only that lifecycle
-        // path uses it, and SimpleR never overlaps the connect and disconnect calls of one connection,
-        // so this non thread-safe monitor is never used concurrently.
-        Monitor = new ActivityMonitor( $"WebSocket connection '{connection.ConnectionId}'." );
+        _messageReceived = new PerfectEventSender<MessageReceivedEvent>();
     }
 
     /// <summary>
@@ -48,17 +49,49 @@ public sealed class WebSocketChannelConnection : IAsyncDisposable
     /// </summary>
     public bool IsDisposed => _disposed;
 
-    internal IActivityMonitor Monitor { get; }
-
     /// <summary>
-    /// Writes a message to the client. Silently does nothing once the connection has been disposed:
-    /// a push racing with a disconnection is normal, not an error.
+    /// Raised for each message the client of this connection sends, once its envelope has been read.
+    /// This is the event a feature that works per connection subscribes to: it sees this client's traffic
+    /// only, and its handlers are removed when the connection is disposed, so there is nothing to
+    /// unsubscribe on close. A bridge created on this event (<c>PerfectEvent{T}.CreateBridge</c>) is not
+    /// a handler, though, and must still be disposed by its creator.
     /// <para>
-    /// Prefer <see cref="WebSocketChannelManager.SendAsync(string, string, ReadOnlyMemory{byte})"/>:
-    /// it is the only place that knows the envelope. This method writes the bytes as they are given.
+    /// Handlers still filter on <see cref="MessageReceivedEvent.Topic"/>: every feature shares this socket.
+    /// See <see cref="WebSocketChannelManager.AllMessagesReceived"/> for the topic namespace rules, and
+    /// for the manager-wide event that sees every connection. For one message, the handlers of this event
+    /// run first, then the manager-wide ones. A handler that throws is logged and swallowed (the raise is
+    /// safe): only the remaining synchronous handlers of this event are skipped, and
+    /// <see cref="WebSocketChannelManager.AllMessagesReceived"/> is still raised.
+    /// </para>
+    /// <para>
+    /// As long as nobody subscribes here nor on the manager, incoming messages are not even read.
+    /// <see cref="MessageReceivedEvent"/> carries nothing authenticated.
     /// </para>
     /// </summary>
-    /// <param name="message">The raw bytes to write.</param>
+    public PerfectEvent<MessageReceivedEvent> MessageReceived => _messageReceived.PerfectEvent;
+
+    internal void RegisterMessageReceivedRelay( PerfectEventSender<MessageReceivedEvent> relay )
+    {
+        Throw.CheckState( _bridge == null );
+        _bridge = _messageReceived.CreateRelay( relay );
+    }
+
+    // Lets the manager skip reading the bytes when nobody listens on this connection either.
+    internal bool HasMessageHandlers => _messageReceived.HasHandlers;
+
+    // Safe: one faulty feature must not tear down a socket that the other features share.
+    internal Task RaiseMessageReceivedAsync( IActivityMonitor monitor, MessageReceivedEvent e ) => _messageReceived.SafeRaiseAsync( monitor, e );
+
+    /// <summary>
+    /// Writes a frame to the client as it is given. Silently does nothing once the connection has been
+    /// disposed: a push racing with a disconnection is normal, not an error.
+    /// <para>
+    /// Prefer <see cref="WriteAsync(string, ReadOnlyMemory{byte})"/>, which builds the envelope. This
+    /// overload is for a frame already built by <see cref="WebSocketChannelEnvelope.Create"/>, typically
+    /// once for several connections: anything else is not routed by the client.
+    /// </para>
+    /// </summary>
+    /// <param name="message">The frame bytes to write.</param>
     public async ValueTask WriteAsync( ReadOnlyMemory<byte> message )
     {
         if( _disposed ) return; // In-flight push after dispose: silently bail out.
@@ -75,24 +108,51 @@ public sealed class WebSocketChannelConnection : IAsyncDisposable
     }
 
     /// <summary>
-    /// Aborts the connection (idempotent): cancels the pending SimpleR read and drives the normal
+    /// Wraps the payload in the <c>{topic,message}</c> envelope and writes it: this is how a feature pushes
+    /// to this client. Silently does nothing once the connection has been disposed: a push racing with a
+    /// disconnection is normal, not an error.
+    /// </summary>
+    /// <param name="topic">The topic that routes the message on the client. Must not be null or white space.</param>
+    /// <param name="message">The payload, as a JSON value. It is embedded as-is, not escaped.</param>
+    public ValueTask WriteAsync( string topic, ReadOnlyMemory<byte> message )
+    {
+        Throw.CheckNotNullOrWhiteSpaceArgument( topic );
+        // Disposed: bail out before building an envelope for nothing.
+        if( _disposed ) return ValueTask.CompletedTask;
+        return WriteAsync( WebSocketChannelEnvelope.Create( topic, message ) );
+    }
+
+    // Sent once, first, unenveloped: the client needs its identifier before anything else.
+    internal ValueTask WriteNegotiationAsync() => WriteAsync( WebSocketChannelEnvelope.CreateNegotiation( ConnectionId ) );
+
+    /// <summary>
+    /// Aborts the connection (idempotent): cancels the pending read and drives the normal
     /// disconnect path, so on host shutdown Kestrel drains immediately instead of waiting out
     /// <c>HostOptions.ShutdownTimeout</c>.
     /// </summary>
     public void Abort() => _connection.Abort();
 
     /// <summary>
-    /// Marks this connection as disposed and releases the write lock. Idempotent.
+    /// Marks this connection as disposed and clears the <see cref="MessageReceived"/> handlers. Idempotent.
+    /// The write lock itself is never disposed: a write racing this call must stay a silent no-op, and the
+    /// semaphore owns nothing that needs releasing.
     /// <para>
     /// The manager disposes the connection <em>before</em> raising its closed event, so that any write
     /// attempted from a handler is a silent no-op rather than a write onto a socket that is already gone.
+    /// </para>
+    /// <para>
+    /// Called by the manager; features never dispose a connection: doing so would clear every other
+    /// feature's subscriptions while the manager still lists it as open.
     /// </para>
     /// </summary>
     public ValueTask DisposeAsync()
     {
         if( _disposed ) return ValueTask.CompletedTask; // Already disposed.
         _disposed = true;
-        _writeLock.Dispose();
+        // Handlers die with the connection: a feature that subscribed here has nothing to unsubscribe,
+        // and whatever its closures captured is released.
+        _messageReceived.RemoveAll();
+        _bridge?.Dispose();
         return ValueTask.CompletedTask;
     }
 }

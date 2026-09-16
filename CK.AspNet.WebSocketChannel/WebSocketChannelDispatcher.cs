@@ -1,18 +1,23 @@
-using SimpleR;
+using CK.AspNet.WebSocket;
 using System;
 using System.Buffers;
 using System.Threading.Tasks;
+using CK.Core;
 
 namespace CK.AspNet.WebSocketChannel;
 
 /// <summary>
-/// The one SimpleR dispatcher of the application: it hands each connection over to the
+/// The one CK.AspNet.WebSocket dispatcher of the application: it hands each connection over to the
 /// <see cref="WebSocketChannelManager"/> and does nothing else. Features never see a dispatcher.
 /// </summary>
 public sealed class WebSocketChannelDispatcher : IWebSocketMessageDispatcher<ReadOnlySequence<byte>, ReadOnlyMemory<byte>>
 {
     readonly WebSocketChannelManager _manager;
 
+    /// <summary>
+    /// Initializes a new dispatcher bound to the one manager of the application.
+    /// </summary>
+    /// <param name="manager">The manager every connection is handed to.</param>
     public WebSocketChannelDispatcher( WebSocketChannelManager manager )
     {
         _manager = manager;
@@ -22,13 +27,14 @@ public sealed class WebSocketChannelDispatcher : IWebSocketMessageDispatcher<Rea
     /// Registers the connection with the manager, which sends the identifier back and raises
     /// <see cref="WebSocketChannelManager.ConnectionOpened"/>.
     /// </summary>
+    /// <param name="monitor">The monitor.</param>
     /// <param name="connection">The newly established connection.</param>
-    public Task OnConnectedAsync( IWebsocketConnectionContext<ReadOnlyMemory<byte>> connection )
+    public Task OnConnectedAsync( IActivityMonitor monitor, IWebSocketConnectionContext<ReadOnlyMemory<byte>> connection )
     {
         // The manager returns false (and has already aborted the connection) when the host is stopping
         // or the connection id collides. Nothing to do here in that case: the cancelled read loop ends
         // the connection.
-        return _manager.OnConnectedAsync( connection );
+        return _manager.OnConnectedAsync( monitor, connection );
     }
 
     /// <summary>
@@ -37,26 +43,34 @@ public sealed class WebSocketChannelDispatcher : IWebSocketMessageDispatcher<Rea
     /// </summary>
     /// <param name="connection">The connection that is being disconnected.</param>
     /// <param name="exception">The exception that caused the disconnection, if any.</param>
-    public Task OnDisconnectedAsync( IWebsocketConnectionContext<ReadOnlyMemory<byte>> connection, Exception? exception )
+    public Task OnDisconnectedAsync( IActivityMonitor monitor, IWebSocketConnectionContext<ReadOnlyMemory<byte>> connection, Exception? exception )
     {
-        return _manager.OnDisconnectedAsync( connection.ConnectionId, exception );
+        return _manager.OnDisconnectedAsync( monitor, connection.ConnectionId, exception );
     }
 
     /// <summary>
     /// Hands the message to the manager, which reads its envelope and raises
-    /// <see cref="WebSocketChannelManager.MessageReceived"/> - and does neither as long as no feature
-    /// subscribes, which is the usual case: what a client has to say normally travels on the
-    /// authenticated Cris endpoint, where it is validated.
+    /// <see cref="WebSocketChannelConnection.MessageReceived"/> then
+    /// <see cref="WebSocketChannelManager.AllMessagesReceived"/> - and does none of it as long as no
+    /// feature subscribes to either, which is the usual case: what a client has to say normally travels
+    /// on the authenticated Cris endpoint, where it is validated.
     /// <para>
     /// <paramref name="message"/> borrows the pipe's buffers (see
     /// <see cref="RawMessageProtocol.ParseMessage"/>), which is why it is passed on synchronously and
     /// copied there before any handler runs.
     /// </para>
     /// </summary>
+    /// <param name="monitor">The monitor.</param>
     /// <param name="connection">The connection the message came from.</param>
     /// <param name="message">The received message.</param>
-    public Task DispatchMessageAsync( IWebsocketConnectionContext<ReadOnlyMemory<byte>> connection, ReadOnlySequence<byte> message )
+    public Task DispatchMessageAsync( IActivityMonitor monitor, IWebSocketConnectionContext<ReadOnlyMemory<byte>> connection, ReadOnlySequence<byte> message )
     {
-        return _manager.OnMessageAsync( connection.ConnectionId, message );
+        return _manager.OnMessageAsync( monitor, connection.ConnectionId, message );
+    }
+
+    public Task OnParsingIssueAsync( IActivityMonitor monitor, IWebSocketConnectionContext<ReadOnlyMemory<byte>> connection, Exception exception )
+    {
+        monitor.Warn( $"Parsing issue on connection {connection.ConnectionId}: {exception}" );
+        return Task.CompletedTask;
     }
 }
