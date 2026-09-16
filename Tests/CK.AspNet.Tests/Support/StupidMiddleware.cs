@@ -1,9 +1,9 @@
 using CK.Core;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Primitives;
-using Newtonsoft.Json.Linq;
 using System;
 using System.IO;
+using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml.Linq;
@@ -42,7 +42,7 @@ public class StupidMiddleware
         {
             if( !HttpMethods.IsPost( context.Request.Method ) ) context.Response.StatusCode = StatusCodes.Status405MethodNotAllowed;
             string content = await new StreamReader( context.Request.Body ).ReadToEndAsync();
-            await context.Response.WriteAsync( $"JSON: '{JObject.Parse( content ).ToString( Newtonsoft.Json.Formatting.None )}'" );
+            await context.Response.WriteAsync( $"JSON: '{JsonNode.Parse( content )!.AsObject().ToJsonString()}'" );
             return;
         }
         if( context.Request.Query.ContainsKey( "rewriteXElement" ) )
