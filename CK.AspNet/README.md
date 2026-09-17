@@ -14,7 +14,7 @@ var app = builder.CKBuild( map );
 
 [`CKBuild`](ApplicationBuilderCKAspNetExtensions.cs) wraps `WebApplicationBuilder.Build()`. Nothing in
 the package requires it: the middleware and the scoped object work under a hand-assembled pipeline,
-and the last section shows how. It does four things.
+and *Registering CKMiddleware by hand* below shows how. It does four things.
 
 1. It registers three scoped services, chained onto one another:
 
@@ -30,9 +30,10 @@ not a new one.
 2. The `map` is optional. Pass one if the application uses CKomposable services, omit it if you only
    want the request monitor and the error guard. When given, `AddStObjMap` registers it, and the
    `SimpleServiceContainer` passed along carries the `WebApplicationBuilder` as a startup service.
-   A real object can then take the builder as a parameter of `ConfigureServices` or
-   `RegisterStartupServices` - not of `StObjConstruct`, since the map is built before `CKBuild` runs.
-   Nothing in the stack uses this yet.
+   A real object can then take the builder as an extra parameter of `ConfigureServices` - not of
+   `RegisterStartupServices`, whose signature the engine pins to `(IActivityMonitor,
+   SimpleServiceContainer)` and which has to read the builder out of that container, and not of
+   `StObjConstruct`, since the map is built before `CKBuild` runs. Nothing in the stack uses this yet.
 
 3. `ApplyAutoConfigure()` runs the deferred configuration callbacks other packages registered on the
    builder. A package that registered a callback and never sees `CKBuild` is silently not configured.
@@ -95,10 +96,11 @@ is `AppendApplicationBuilder`:
 builder.AppendApplicationBuilder( app => app.UseMiddleware<StupidMiddleware>() );
 ```
 
-`PrependApplicationBuilder`'s own summary says *"`AppendApplicationBuilder` should almost always be
-used instead of this"*. An appended action is replayed after `CKMiddleware`, so `IActivityMonitor`
-resolves to the request monitor and `ScopedHttpContext.HttpContext` is already set. Both can be
-parameters of `InvokeAsync`, or injected into a scoped service the middleware uses.
+Append unless you have a reason not to. An appended action is replayed after `CKMiddleware`, so
+`ScopedHttpContext.HttpContext` is already set. `IActivityMonitor` resolves to the request monitor
+wherever you are - that comes from the registration at step 1, not from the ordering.
+Both can be parameters of `InvokeAsync`, or injected into a scoped service the middleware uses.
+
 [`DefaultCKMiddlewareTests`](../Tests/CK.AspNet.Tests/DefaultCKMiddlewareTests.cs) is the working
 example.
 
@@ -115,7 +117,10 @@ reason.
 `beforeCKMiddleware: true` is the escape hatch. What you lose is `ScopedHttpContext.HttpContext`,
 still null at that point, and the error guard: your middleware runs outside the `try` and the
 continuation, so what it throws never reaches `LogError` and never lands in the request monitor.
-The client still gets a 500, produced by the host, but nothing in the CK log says why.
+The client still gets a 500, produced by the host, and the request monitor says nothing about it. The
+exception exists only in the host's own logger. An application that calls `UseCKMonitoring()` has that
+logger forwarded to the GrandOutput, unless `CK-Monitoring:HandleDotNetLogs` is `"false"` - so the
+exception is normally in the CK log, just never in the request's own log group.
 
 You do not lose the monitor. Resolving `IActivityMonitor` there creates the one `CKMiddleware`
 will keep, since `Setup` only makes a new one when there is none.

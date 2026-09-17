@@ -45,7 +45,8 @@ sides. Every message under a topic is:
 The payload is embedded with `WriteRawValue( ..., skipInputValidation: true )`. A feature hands over
 the exact bytes it would have written on a socket of its own, and pays no re-encoding.
 
-The first frame of a connection is the exception. It carries no topic:
+The connection is told its identifier before any feature is notified of it, in a frame that carries
+no topic:
 
 ```json
 { "connectionId": "..." }
@@ -84,22 +85,30 @@ public PerfectEvent<MessageReceivedEvent>       MessageReceived     => ...;  // 
 ```
 
 A feature that works per connection subscribes on the connection. It sees that client's traffic only,
-and its handlers are removed when the connection is disposed, so there is nothing to unsubscribe on
-close. A feature that wants every connection subscribes on the manager.
+and its handlers go away with the connection, so there is nothing to unsubscribe on close. A feature
+that wants every connection subscribes on the manager.
 
 The order is by handler kind, not by event. The manager-wide event is fed by a relay bridge built on
-the connection's event, and `PerfectEvent` runs every sequential handler before any bridge. So it is
-`MessageReceived.Sync`, then `AllMessagesReceived.Sync`, then `MessageReceived.Async`, then
+the connection's event, and a raise goes kind by kind across that bridge: the source's `.Sync`
+handlers, then each bridge's `.Sync`, then the source's `.Async`, then each bridge's `.Async`. So it
+is `MessageReceived.Sync`, then `AllMessagesReceived.Sync`, then `MessageReceived.Async`, then
 `AllMessagesReceived.Async`. A feature subscribing `.Async` on the connection runs after one that
 subscribed `.Sync` on the manager. The comments on both events say the connection's handlers run
 first, which holds only between handlers of the same kind.
 
-Prefer `.Async`, or guard your own `.Sync` handler. `PerfectEvent` calls these raises *safe*, and that
-covers less than it sounds. The outer raise swallows and logs, so the socket survives: one faulty
-feature must not tear down a socket the others share. But a throwing sequential handler aborts the
-raise it is in. The remaining `.Sync` handlers, all the `.Async` handlers, and `AllMessagesReceived`
-itself are skipped for that message, so one broken feature silences it for every other feature. Both
-declarations state that the manager-wide event is still raised; it is not.
+Guard every handler. `PerfectEvent` calls these raises *safe*, and that covers less than it sounds.
+The outer raise swallows and logs, so the socket survives: one faulty feature must not tear down a
+socket the others share. But a throwing `.Sync` handler aborts the rest of the raise: the remaining
+`.Sync` handlers and every `.Async` handler are skipped for that message, and a throw on the
+connection skips `AllMessagesReceived` entirely, so one broken feature silences it for all the
+others. A throwing `.Async` handler aborts less, since the `.Sync` handlers have already run, but it
+still skips every later `.Async` handler, the manager-wide ones included. Preferring `.Async` narrows
+the damage; it does not remove it. `.ParallelAsync` handlers sit outside all this: they are started
+before the first `.Sync` handler and only awaited at the end, so a throw elsewhere leaves them
+running unobserved.
+
+The connection's declaration says the manager-wide event is still raised, and the manager's says the
+same of the connection's event. Neither holds, and both understate what is skipped.
 
 `ConnectionClosed` carries the identifier and not the connection. By then the connection is out of the
 manager and disposed, so what a handler can do is drop what it keyed by that identifier. It also
@@ -117,7 +126,7 @@ it kept.
 ## Incoming messages
 
 A connection is anonymous by construction. Nothing in this package knows about users, tenants or
-domains, and the incoming event states the consequence:
+domains, and the event argument states the consequence:
 
 > Nothing here is authenticated. The socket is anonymous by construction and no validator ever saw
 > this message: a feature must treat it as it would treat a query string, and route anything
@@ -161,6 +170,8 @@ was added, since `AbortAll` sets it before iterating and may have missed that en
   dispatcher implement. It is a project of this repository, referenced as such.
 
 - `CK.PerfectEvent`, for the four events and the relay that forwards a connection's messages to the
-  manager-wide one.
+  manager-wide one. It references `CK.ActivityMonitor`, and so does `CK.AspNet.WebSocket` through
+  `CK.ActivityMonitor.SimpleSender` - which is where the `monitor.Warn` calls come from.
+  `IActivityMonitor` arrives by either edge, and `Throw` from the `CK.Core` underneath.
 
-- `CK.Abstractions`, for `IActivityMonitor`, `IRealObject` and `Throw`.
+- `CK.Abstractions`, for `IRealObject`.
