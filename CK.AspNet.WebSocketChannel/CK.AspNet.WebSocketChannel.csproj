@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <Description>Single WebSocket channel shared by every feature of an application: one anonymous socket per client, a process singleton that owns all the connections and exposes them through perfect events, and a {topic,message} envelope that routes each frame to the feature that registered the topic. The TypeScript client lives in CK.TS.AspNet.WebSocketChannel.</Description>
   </PropertyGroup>
 
