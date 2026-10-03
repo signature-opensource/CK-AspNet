@@ -164,7 +164,7 @@ optional sub paths, which is the "log out and start over" of an authentication t
 
 - `CK.AspNet`, whose `CKBuild` this helper calls.
 
-- `CK.Testing.Monitoring`, for the `using static CK.Testing.MonitorTestHelper;` behind the two
+- `CK.Testing`, for the `using static CK.Testing.MonitorTestHelper;` behind the two
   `TestHelper.Monitor` calls that trace the started address and report a failed start. The extension
   itself hangs off `WebApplicationBuilder`, not off a test helper.
 
