@@ -122,8 +122,10 @@ public class HostShutdownDrainTests
             {
                 // Connect/receive fails as the host stops: keep trying until cancelled.
             }
-            catch( OperationCanceledException )
+            catch
             {
+                // Cancelled: an attempt in flight can fail with any error (a reset connection), not only an
+                // OperationCanceledException.
                 break;
             }
         }
