@@ -94,3 +94,11 @@ The web application doesn't handle the console nor the process lifetime: the hos
   progress complete while the party is still whole. A web application is stopped, never disposed: its container
   would dispose the singletons it forwards to the host.
 - **A party lives and dies with its endpoints:** a web application that stops by itself stops the host.
+
+## The running status of a development party
+
+In a development solution, the "DevRunningStatus" feature of
+[CK.AppIdentity](https://github.com/signature-opensource/CK-AppIdentity) writes the running status of the party
+(`#Dev/Store/.../DevRunningStatus.json`, read by the `#Dev/Start.ps1` launcher). The
+[`HttpEndpointDevRunningStatusContributor`](HttpEndpointDevRunningStatusContributor.cs) adds the `Http` section: the
+running endpoints, with their `Name`, `Urls` and `DefaultUrl`. The party is `Ready` once the endpoints are started.

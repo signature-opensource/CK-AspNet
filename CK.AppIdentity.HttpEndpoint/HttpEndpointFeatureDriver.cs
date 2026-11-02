@@ -39,6 +39,8 @@ public sealed class HttpEndpointFeatureDriver : ApplicationIdentityStaticFeature
     readonly IServiceProvider _services;
     readonly List<RunningHttpEndpoint> _endpoints;
     List<EndpointConfiguration>? _configurations;
+    // The published endpoints: set once they are all started, emptied when they stop.
+    RunningHttpEndpoint[] _published;
     bool _stopping;
 
     // DefaultEndpointUrl: the configured "Url" of the Kestrel endpoint named by "DefaultEndpoint".
@@ -56,12 +58,25 @@ public sealed class HttpEndpointFeatureDriver : ApplicationIdentityStaticFeature
         _host = host;
         _services = services;
         _endpoints = new List<RunningHttpEndpoint>();
+        _published = [];
     }
 
     /// <summary>
     /// Gets the running endpoints (empty until the host is started and after it is stopped).
+    /// This is thread safe.
     /// </summary>
-    public IReadOnlyList<RunningHttpEndpoint> Endpoints => _endpoints;
+    public IReadOnlyList<RunningHttpEndpoint> Endpoints => _published;
+
+    /// <summary>
+    /// Gets whether this feature has nothing to start (it is not allowed or its setup failed) or its endpoints are
+    /// started.
+    /// </summary>
+    internal bool IsInactiveOrStarted => _configurations == null || _published.Length > 0;
+
+    /// <summary>
+    /// Raised when the <see cref="Endpoints"/> are started and when they are stopped.
+    /// </summary>
+    internal event Action? EndpointsChanged;
 
     /// <inheritdoc />
     protected override Task<bool> SetupAsync( FeatureLifetimeContext context )
@@ -210,6 +225,8 @@ public sealed class HttpEndpointFeatureDriver : ApplicationIdentityStaticFeature
                 _endpoints.Add( endpoint );
                 monitor.Info( $"{endpoint} started." );
             }
+            _published = _endpoints.ToArray();
+            EndpointsChanged?.Invoke();
         }
         catch
         {
@@ -269,6 +286,11 @@ public sealed class HttpEndpointFeatureDriver : ApplicationIdentityStaticFeature
     async Task StopEndpointsAsync( IActivityMonitor monitor, CancellationToken cancel )
     {
         _stopping = true;
+        if( _published.Length > 0 )
+        {
+            _published = [];
+            EndpointsChanged?.Invoke();
+        }
         for( int i = _endpoints.Count - 1; i >= 0; --i )
         {
             var e = _endpoints[i];

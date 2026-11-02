@@ -10,9 +10,12 @@ using NUnit.Framework;
 using Shouldly;
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Sockets;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using static CK.Testing.MonitorTestHelper;
@@ -67,7 +70,9 @@ public class HttpEndpointTests
                                               typeof( HttpEndpointHostRegistration ),
                                               typeof( SharedService ),
                                               typeof( PerContainerService ),
-                                              typeof( HelloPackage ) );
+                                              typeof( HelloPackage ),
+                                              typeof( DevRunningStatusFeatureDriver ),
+                                              typeof( HttpEndpointDevRunningStatusContributor ) );
         _map = (await configuration.RunSuccessfullyAsync()).LoadMap();
     }
 
@@ -309,5 +314,40 @@ public class HttpEndpointTests
         await host.StartAsync( cancel );
         GetDriver( host ).Endpoints.ShouldBeEmpty();
         await host.StopAsync( cancel );
+    }
+
+    [Test]
+    [CancelAfter( 20000 )]
+    public async Task the_endpoints_are_in_the_running_status_of_a_development_party_Async( CancellationToken cancel )
+    {
+        // A relative store, resolved against the content root: the "#Dev/Store" of a development solution.
+        using var host = BuildHost( c =>
+        {
+            c["CK-AppIdentity:StoreRootPath"] = "TestStore/DevStore";
+            c["CK-AppIdentity:Local:HttpEndpoint:Second:Urls"] = "http://127.0.0.1:0;http://[::1]:0";
+        }, b => b.AddHttpEndpoint( "Main", MapTestRoutes ).AddHttpEndpoint( "Second", MapTestRoutes ) );
+        await host.StartAsync( cancel );
+        var path = host.Services.GetRequiredService<DevRunningStatusFeatureDriver>().FilePath;
+        path.IsEmptyPath.ShouldBeFalse( "The DevRunningStatus feature is active." );
+        // The static features start in any order: the status is rewritten once the endpoints are started.
+        JsonElement status;
+        for(; ; )
+        {
+            status = JsonDocument.Parse( File.ReadAllText( path ) ).RootElement.Clone();
+            if( status.GetProperty( "Ready" ).GetBoolean() ) break;
+            await Task.Delay( 50, cancel );
+        }
+        var endpoints = GetDriver( host ).Endpoints;
+        var http = status.GetProperty( "Http" ).EnumerateArray().ToArray();
+        http.Length.ShouldBe( 2 );
+        for( int i = 0; i < 2; ++i )
+        {
+            http[i].GetProperty( "Name" ).GetString().ShouldBe( endpoints[i].Name );
+            http[i].GetProperty( "Urls" ).EnumerateArray().Select( u => u.GetString() ).ShouldBe( endpoints[i].Urls );
+            http[i].GetProperty( "DefaultUrl" ).GetString().ShouldBe( endpoints[i].DefaultUrl );
+        }
+        http[1].GetProperty( "Urls" ).GetArrayLength().ShouldBe( 2 );
+        await host.StopAsync( cancel );
+        File.Exists( path ).ShouldBeFalse();
     }
 }
