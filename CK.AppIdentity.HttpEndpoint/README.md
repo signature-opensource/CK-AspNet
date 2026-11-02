@@ -13,7 +13,8 @@ It builds on [CK.AspNet](../CK.AspNet/README.md) (`CKBuild` builds each web appl
 
 The feature is opt-in: the root party allows it (`Local:AllowFeatures`). Each child of `Local:HttpEndpoint` is an
 endpoint, named after its key, with either `Urls` (separated by `;`, or an array) or a `Kestrel` section (Kestrel's
-own configuration: `Endpoints`, `Certificates`, `Limits`...).
+own configuration: `Endpoints`, `Certificates`, `Limits`...). With a `Kestrel` section, the optional `DefaultEndpoint`
+names the Kestrel endpoint whose URL is the default one (see `RunningHttpEndpoint.DefaultUrl` below).
 
 ```json
 "CK-AppIdentity": {
@@ -30,6 +31,7 @@ own configuration: `Endpoints`, `Certificates`, `Limits`...).
 These are errors that fail the initialization of the party (nothing listens):
 - no endpoint in `Local:HttpEndpoint`, or an endpoint with both or none of `Urls` and `Kestrel`;
 - an endpoint configured by the application (below) that `Local:HttpEndpoint` doesn't define;
+- a `DefaultEndpoint` with `Urls` (the first URL is the default one), or one that names no `Kestrel:Endpoints:<Name>:Url`;
 - a tenant domain that allows the feature: only the root party has endpoints;
 - in Development, the ASP.NET defaults: the `urls`, `http_ports`, `https_ports` keys and the `Kestrel` section at the
   root of the configuration, and the `ASPNETCORE_URLS`, `ASPNETCORE_HTTP_PORTS`, `ASPNETCORE_HTTPS_PORTS`
@@ -80,13 +82,14 @@ The web application doesn't handle the console nor the process lifetime: the hos
 
 - **Start:** after the initialization of the party (all its features are set up), outside the agent's loop
   (`ApplicationIdentityStaticFeatureDriver.OnHostStartedAsync`). `HttpEndpointFeatureDriver.Endpoints` then lists the
-  `RunningHttpEndpoint` (its name, its `WebApplication`, its actual addresses: a port 0 is resolved).
-  - **`RunningHttpEndpoint.PrimaryAddress` is the address to show** (a browser, a status): the actual address of the
-    first configured URL, so the order of `Urls` expresses the preference (put https first if it is the one to use).
-  - **For a `Kestrel` section,** whose endpoints the configuration sorts by name, it is the first https address,
-    otherwise the first one.
+  `RunningHttpEndpoint` (its name, its `WebApplication`, its actual `Urls`: a port 0 is resolved).
+  - **`RunningHttpEndpoint.DefaultUrl` is the URL to show** (a browser, a status).
+    - **With `Urls`,** it is the actual URL of the first configured one: the order of `Urls` expresses the preference
+      (put https first if it is the one to use).
+    - **With a `Kestrel` section,** whose endpoints the configuration sorts by name, it is the URL of the endpoint named
+      by `DefaultEndpoint`, otherwise the first https URL, otherwise the first one.
   - **A wildcard host** (`*`, `+`, `0.0.0.0`, `[::]`) is replaced by `localhost`.
-  - **It is the bound address:** behind a reverse proxy or in a container, the public address differs.
+  - **It is the bound URL:** behind a reverse proxy or in a container, the public URL differs.
 - **Stop:** before the party stops (`ApplicationIdentityStaticFeatureDriver.OnHostStoppingAsync`): the requests in
   progress complete while the party is still whole. A web application is stopped, never disposed: its container
   would dispose the singletons it forwards to the host.

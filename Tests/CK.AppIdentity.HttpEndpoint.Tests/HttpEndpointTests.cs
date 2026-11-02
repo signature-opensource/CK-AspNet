@@ -111,7 +111,7 @@ public class HttpEndpointTests
 
     static HttpEndpointFeatureDriver GetDriver( IHost host ) => host.Services.GetRequiredService<HttpEndpointFeatureDriver>();
 
-    static string Address( IHost host, int index = 0 ) => GetDriver( host ).Endpoints[index].Addresses[0];
+    static string Address( IHost host, int index = 0 ) => GetDriver( host ).Endpoints[index].Urls[0];
 
     [Test]
     [CancelAfter( 20000 )]
@@ -152,30 +152,37 @@ public class HttpEndpointTests
     [TestCase( "http://[::1]:0;http://127.0.0.1:0", "http://[::1]:" )]
     [TestCase( "http://*:0", "http://localhost:" )]
     [CancelAfter( 20000 )]
-    public async Task the_primary_address_is_the_first_configured_url_and_is_browsable_Async( string urls, string expectedStart, CancellationToken cancel )
+    public async Task the_default_url_is_the_first_configured_one_and_is_browsable_Async( string urls, string expectedStart, CancellationToken cancel )
     {
         using var host = BuildHost( c => c["CK-AppIdentity:Local:HttpEndpoint:Main:Urls"] = urls, b => b.AddHttpEndpoint( "Main", MapTestRoutes ) );
         await host.StartAsync( cancel );
         var endpoint = GetDriver( host ).Endpoints.ShouldHaveSingleItem();
-        var primary = endpoint.PrimaryAddress.ShouldNotBeNull();
+        var primary = endpoint.DefaultUrl.ShouldNotBeNull();
         primary.ShouldStartWith( expectedStart );
         primary.ShouldNotEndWith( ":0" );
         (await _client.GetStringAsync( $"{primary}/hello", cancel )).ShouldBe( "hello" );
         await host.StopAsync( cancel );
     }
 
-    [Test]
+    // The Kestrel endpoints are sorted by name ("A" then "B"): "DefaultEndpoint" names the one to use.
+    [TestCase( null, "http://127.0.0.1:" )]
+    [TestCase( "B", "http://[::1]:" )]
+    [TestCase( "A", "http://127.0.0.1:" )]
     [CancelAfter( 20000 )]
-    public async Task with_a_Kestrel_section_the_primary_address_is_its_endpoint_Async( CancellationToken cancel )
+    public async Task with_a_Kestrel_section_DefaultEndpoint_names_the_default_url_Async( string? defaultEndpoint, string expectedStart, CancellationToken cancel )
     {
         using var host = BuildHost( c =>
         {
             c.Remove( "CK-AppIdentity:Local:HttpEndpoint:Main:Urls" );
-            c["CK-AppIdentity:Local:HttpEndpoint:Main:Kestrel:Endpoints:Http:Url"] = "http://127.0.0.1:0";
+            c["CK-AppIdentity:Local:HttpEndpoint:Main:Kestrel:Endpoints:A:Url"] = "http://127.0.0.1:0";
+            c["CK-AppIdentity:Local:HttpEndpoint:Main:Kestrel:Endpoints:B:Url"] = "http://[::1]:0";
+            if( defaultEndpoint != null ) c["CK-AppIdentity:Local:HttpEndpoint:Main:DefaultEndpoint"] = defaultEndpoint;
         }, b => b.AddHttpEndpoint( "Main", MapTestRoutes ) );
         await host.StartAsync( cancel );
-        var primary = GetDriver( host ).Endpoints.ShouldHaveSingleItem().PrimaryAddress.ShouldNotBeNull();
-        primary.ShouldStartWith( "http://127.0.0.1:" );
+        var endpoint = GetDriver( host ).Endpoints.ShouldHaveSingleItem();
+        endpoint.Urls.Count.ShouldBe( 2 );
+        var primary = endpoint.DefaultUrl.ShouldNotBeNull();
+        primary.ShouldStartWith( expectedStart );
         (await _client.GetStringAsync( $"{primary}/hello", cancel )).ShouldBe( "hello" );
         await host.StopAsync( cancel );
     }
@@ -225,6 +232,8 @@ public class HttpEndpointTests
     [TestCase( "UnknownApplicationEndpoint" )]
     [TestCase( "RootUrlsInDevelopment" )]
     [TestCase( "ConfiguredTenantDomain" )]
+    [TestCase( "DefaultEndpointWithUrls" )]
+    [TestCase( "UnknownDefaultEndpoint" )]
     [CancelAfter( 20000 )]
     public async Task configuration_errors_fail_the_initialization_Async( string error, CancellationToken cancel )
     {
@@ -235,6 +244,12 @@ public class HttpEndpointTests
                 case "NoEndpoint": c.Remove( "CK-AppIdentity:Local:HttpEndpoint:Main:Urls" ); break;
                 case "UrlsAndKestrel": c["CK-AppIdentity:Local:HttpEndpoint:Main:Kestrel:Limits:MaxRequestBodySize"] = "1000"; break;
                 case "RootUrlsInDevelopment": c["Urls"] = "http://127.0.0.1:0"; break;
+                case "DefaultEndpointWithUrls": c["CK-AppIdentity:Local:HttpEndpoint:Main:DefaultEndpoint"] = "Http"; break;
+                case "UnknownDefaultEndpoint":
+                    c.Remove( "CK-AppIdentity:Local:HttpEndpoint:Main:Urls" );
+                    c["CK-AppIdentity:Local:HttpEndpoint:Main:Kestrel:Endpoints:Http:Url"] = "http://127.0.0.1:0";
+                    c["CK-AppIdentity:Local:HttpEndpoint:Main:DefaultEndpoint"] = "Https";
+                    break;
                 case "ConfiguredTenantDomain":
                     c["CK-AppIdentity:Parties:0:FullName"] = "Tenant/$Tenant";
                     c["CK-AppIdentity:Parties:0:Local:AllowFeatures"] = "HttpEndpoint";

@@ -41,7 +41,8 @@ public sealed class HttpEndpointFeatureDriver : ApplicationIdentityStaticFeature
     List<EndpointConfiguration>? _configurations;
     bool _stopping;
 
-    sealed record EndpointConfiguration( string Name, string[]? Urls, IConfigurationSection? Kestrel );
+    // DefaultEndpointUrl: the configured "Url" of the Kestrel endpoint named by "DefaultEndpoint".
+    sealed record EndpointConfiguration( string Name, string[]? Urls, IConfigurationSection? Kestrel, string? DefaultEndpointUrl );
 
     /// <summary>
     /// Initializes a new <see cref="HttpEndpointFeatureDriver"/>.
@@ -114,9 +115,13 @@ public sealed class HttpEndpointFeatureDriver : ApplicationIdentityStaticFeature
                 monitor.Error( $"The endpoint \"Local:{ConfigurationKey}:{c.Key}\" must have either \"Urls\" or a \"Kestrel\" section." );
                 success = false;
             }
+            else if( TryReadDefaultEndpoint( monitor, c, urls, kestrel, out var defaultEndpointUrl ) )
+            {
+                result.Add( new EndpointConfiguration( c.Key, urls, kestrel, defaultEndpointUrl ) );
+            }
             else
             {
-                result.Add( new EndpointConfiguration( c.Key, urls, kestrel ) );
+                success = false;
             }
         }
         foreach( var name in _host.Configurations.Keys )
@@ -128,6 +133,32 @@ public sealed class HttpEndpointFeatureDriver : ApplicationIdentityStaticFeature
             }
         }
         return success ? result : null;
+
+        // "DefaultEndpoint" names the Kestrel endpoint whose URL is the RunningHttpEndpoint.DefaultUrl. With "Urls", the
+        // first one is the default one: "DefaultEndpoint" would say it twice.
+        static bool TryReadDefaultEndpoint( IActivityMonitor monitor,
+                                            ImmutableConfigurationSection c,
+                                            string[]? urls,
+                                            ImmutableConfigurationSection? kestrel,
+                                            out string? defaultEndpointUrl )
+        {
+            defaultEndpointUrl = null;
+            var name = c["DefaultEndpoint"];
+            if( string.IsNullOrWhiteSpace( name ) ) return true;
+            var path = $"Local:{ConfigurationKey}:{c.Key}";
+            if( urls != null )
+            {
+                monitor.Error( $"\"{path}:DefaultEndpoint\" is only for a \"Kestrel\" section: with \"Urls\", the first one is the default one." );
+                return false;
+            }
+            defaultEndpointUrl = kestrel?.TryGetSection( "Endpoints" )?.TryGetSection( name )?["Url"];
+            if( string.IsNullOrWhiteSpace( defaultEndpointUrl ) )
+            {
+                monitor.Error( $"\"{path}:DefaultEndpoint\" is '{name}': there is no \"{path}:Kestrel:Endpoints:{name}:Url\"." );
+                return false;
+            }
+            return true;
+        }
 
         static string[]? ReadUrls( ImmutableConfigurationSection c )
         {
@@ -216,7 +247,7 @@ public sealed class HttpEndpointFeatureDriver : ApplicationIdentityStaticFeature
         // A party lives and dies with its endpoints: a web application that stops by itself stops the host.
         app.Lifetime.ApplicationStopping.Register( () => OnApplicationStopping( c.Name ) );
         await app.StartAsync( cancel ).ConfigureAwait( false );
-        return new RunningHttpEndpoint( c.Name, app, configuredByUrls: c.Urls != null );
+        return new RunningHttpEndpoint( c.Name, app, configuredByUrls: c.Urls != null, c.DefaultEndpointUrl );
     }
 
     void OnApplicationStopping( string name )
