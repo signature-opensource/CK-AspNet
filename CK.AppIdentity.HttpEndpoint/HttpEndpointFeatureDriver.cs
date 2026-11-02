@@ -1,3 +1,4 @@
+using CK.AspNet;
 using CK.Core;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -208,6 +209,8 @@ public sealed class HttpEndpointFeatureDriver : ApplicationIdentityStaticFeature
         // The host handles the console (Ctrl+C) and the process lifetime, not the web application.
         builder.Services.Replace( ServiceDescriptor.Singleton<IHostLifetime, NoHostLifetime>() );
         HostServiceForwarder.Forward( monitor, _host.HostServices!, _services, builder.Services );
+        // The packages' contributions (registered by their real objects), then the application's configuration.
+        _services.GetService<WebApplicationContributions>()?.ApplyTo( builder );
         if( _host.Configurations.TryGetValue( c.Name, out var configure ) ) configure?.Invoke( builder );
         var app = builder.CKBuild();
         // A party lives and dies with its endpoints: a web application that stops by itself stops the host.

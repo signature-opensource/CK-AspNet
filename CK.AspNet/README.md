@@ -143,6 +143,41 @@ whatever you put in `builder.Services`, and resolution takes the last registrati
 `CKBuild` does not help: `Build()` has frozen the collection and it throws *"The service collection
 cannot be modified because it is read-only."*
 
+## The "Enable" convention and the contributions of the packages
+
+A package that brings a feature to a web application (its services and its middlewares) exposes it as one gesture on
+the builder: an extension method named `EnableXXX`. It is idempotent thanks to
+`ApplicationBuilderCKAspNetExtensions.TryEnable`, true only the first time for a name and a builder:
+
+```csharp
+public static WebApplicationBuilder EnableClients( this WebApplicationBuilder builder )
+{
+    if( builder.TryEnable( "Clients" ) )
+    {
+        builder.AppendApplicationBuilder( app => ((WebApplication)app).MapClients() );
+    }
+    return builder;
+}
+```
+
+The middlewares go to [the pipeline queues](#the-pipeline-queues): a feature that must run before others prepends its
+middleware instead of relying on the order of the calls.
+
+A package can also contribute to the web applications of a host without the host's code calling anything:
+its real object registers the gesture in the host's [`WebApplicationContributions`](WebApplicationContributions.cs)
+(one instance per host, in its services) when the map is registered:
+
+```csharp
+void ConfigureServices( StObjContextRoot.ServiceRegister services )
+{
+    WebApplicationContributions.FindOrAdd( services.Services ).Add( web => web.EnableClients() );
+}
+```
+
+`CKBuild` doesn't apply the contributions (an existing host that calls `app.UseXxx()` itself would get the middleware
+twice): the host that creates the web applications applies them (`WebApplicationContributions.ApplyTo`). The "HttpEndpoint"
+feature (CK.AppIdentity.HttpEndpoint) does it for each of its endpoints.
+
 ## Registering CKMiddleware by hand
 
 The class is public for an application that assembles its pipeline itself.

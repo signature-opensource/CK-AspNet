@@ -39,26 +39,28 @@ A port in use fails the start of the host.
 
 ## The services and the pipeline of an endpoint
 
-`HttpEndpointHostApplicationBuilderExtensions.AddHttpEndpoint` configures the web application of an endpoint in one
-gesture, on its `WebApplicationBuilder`: its services, and its middlewares with
-`ApplicationBuilderCKAspNetExtensions.AppendApplicationBuilder` (or `PrependApplicationBuilder`), that `CKBuild`
-applies.
+The packages do the job: the web application of each endpoint gets the contributions of the packages of the
+BinPath, registered by their real objects in the host's `WebApplicationContributions` (see
+[the "Enable" convention](../CK.AspNet/README.md#the-enable-convention-and-the-contributions-of-the-packages)). The
+host's code doesn't depend on the packages:
 
 ```csharp
 var builder = Host.CreateApplicationBuilder( args );
+builder.UseCKMonitoring();
 builder.AddApplicationIdentityServiceConfiguration();
-builder.AddHttpEndpoint( "Main", web =>
-{
-    web.Services.AddCrisAuthentication();
-    web.AppendApplicationBuilder( app =>
-    {
-        app.UseCrisAuthentication();
-        app.UseCris();
-        ((WebApplication)app).MapClients();
-    } );
-} );
 builder.Services.AddStObjMap( monitor, map );
 var host = builder.CKBuild();
+```
+
+Every endpoint gets every contribution. What the endpoints serve is decided by the packages of the BinPath, where they
+serve it by `Local:HttpEndpoint`.
+
+The application can add its own configuration to an endpoint with
+`HttpEndpointHostApplicationBuilderExtensions.AddHttpEndpoint`, in one gesture on its `WebApplicationBuilder`, after the
+contributions of the packages:
+
+```csharp
+builder.AddHttpEndpoint( "Main", web => web.AppendApplicationBuilder( app => app.UseMiddleware<MyMiddleware>() ) );
 ```
 
 The services of an endpoint are its own (its server, its routing, its lifetime...) and the host's:

@@ -17,6 +17,36 @@ public static class ApplicationBuilderCKAspNetExtensions
     sealed class PreCKMidlewarePipelineBuilder : List<Action<IApplicationBuilder>> { }
     sealed class PrePipelineBuilder : List<Action<IApplicationBuilder>> { }
     sealed class PipelineBuilder : List<Action<IApplicationBuilder>> { }
+    sealed class EnabledNames : HashSet<string> { }
+
+    /// <summary>
+    /// Supports the "Enable" convention: an extension method that configures a feature of a web application in one
+    /// gesture (its services and its middlewares) is named "EnableXXX" and is idempotent, so that a package
+    /// (see <see cref="WebApplicationContributions"/>) and an application can both enable the same feature:
+    /// <code>
+    /// public static WebApplicationBuilder EnableClients( this WebApplicationBuilder builder )
+    /// {
+    ///     if( builder.TryEnable( "Clients" ) )
+    ///     {
+    ///         builder.AppendApplicationBuilder( app => ((WebApplication)app).MapClients() );
+    ///     }
+    ///     return builder;
+    /// }
+    /// </code>
+    /// </summary>
+    /// <param name="builder">This builder.</param>
+    /// <param name="name">The name of the feature (case sensitive).</param>
+    /// <returns>True the first time (the feature must be configured), false when it is already enabled.</returns>
+    public static bool TryEnable( this WebApplicationBuilder builder, string name )
+    {
+        Throw.CheckNotNullOrWhiteSpaceArgument( name );
+        IDictionary<object, object> props = ((IHostApplicationBuilder)builder).Properties;
+        if( !props.TryGetValue( typeof( EnabledNames ), out var names ) )
+        {
+            props.Add( typeof( EnabledNames ), names = new EnabledNames() );
+        }
+        return ((EnabledNames)names).Add( name );
+    }
 
     /// <summary>
     /// Adds an action that will be executed by <see cref="CKBuild(WebApplicationBuilder, IStObjMap?)"/> on the built <see cref="WebApplication"/>.

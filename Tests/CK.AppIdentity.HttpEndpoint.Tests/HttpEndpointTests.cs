@@ -37,6 +37,23 @@ public class HttpEndpointTests
         public Guid Id { get; } = Guid.NewGuid();
     }
 
+    // A package's contribution: registered by its real object, applied to every endpoint.
+    public sealed class HelloPackage : IRealObject
+    {
+        void ConfigureServices( StObjContextRoot.ServiceRegister services )
+        {
+            WebApplicationContributions.FindOrAdd( services.Services ).Add( EnableContributedHello );
+        }
+
+        static void EnableContributedHello( WebApplicationBuilder web )
+        {
+            if( web.TryEnable( "ContributedHello" ) )
+            {
+                web.AppendApplicationBuilder( a => ((WebApplication)a).MapGet( "/contributed", () => "contributed" ) );
+            }
+        }
+    }
+
     static IStObjMap _map = null!;
     static readonly HttpClient _client = new HttpClient();
 
@@ -49,7 +66,8 @@ public class HttpEndpointTests
                                               typeof( HttpEndpointFeatureDriver ),
                                               typeof( HttpEndpointHostRegistration ),
                                               typeof( SharedService ),
-                                              typeof( PerContainerService ) );
+                                              typeof( PerContainerService ),
+                                              typeof( HelloPackage ) );
         _map = (await configuration.RunSuccessfullyAsync()).LoadMap();
     }
 
@@ -127,6 +145,19 @@ public class HttpEndpointTests
         main[0].ShouldBe( second[0], "The host singleton is shared." );
         main[0].ShouldBe( host.Services.GetRequiredService<SharedService>().Id.ToString() );
         main[1].ShouldNotBe( second[1], "Each web application has its own container-configured singleton." );
+        await host.StopAsync( cancel );
+    }
+
+    [Test]
+    [CancelAfter( 20000 )]
+    public async Task the_contributions_of_the_packages_apply_to_every_endpoint_Async( CancellationToken cancel )
+    {
+        // No application configuration at all for the endpoints: the packages do the job.
+        using var host = BuildHost( c => c["CK-AppIdentity:Local:HttpEndpoint:Second:Urls"] = "http://127.0.0.1:0" );
+        await host.StartAsync( cancel );
+        GetDriver( host ).Endpoints.Count.ShouldBe( 2 );
+        (await _client.GetStringAsync( $"{Address( host, 0 )}/contributed", cancel )).ShouldBe( "contributed" );
+        (await _client.GetStringAsync( $"{Address( host, 1 )}/contributed", cancel )).ShouldBe( "contributed" );
         await host.StopAsync( cancel );
     }
 
