@@ -81,6 +81,12 @@ The web application doesn't handle the console nor the process lifetime: the hos
 - **Start:** after the initialization of the party (all its features are set up), outside the agent's loop
   (`ApplicationIdentityStaticFeatureDriver.OnHostStartedAsync`). `HttpEndpointFeatureDriver.Endpoints` then lists the
   `RunningHttpEndpoint` (its name, its `WebApplication`, its actual addresses: a port 0 is resolved).
+  - **`RunningHttpEndpoint.PrimaryAddress` is the address to show** (a browser, a status): the actual address of the
+    first configured URL, so the order of `Urls` expresses the preference (put https first if it is the one to use).
+  - **For a `Kestrel` section,** whose endpoints the configuration sorts by name, it is the first https address,
+    otherwise the first one.
+  - **A wildcard host** (`*`, `+`, `0.0.0.0`, `[::]`) is replaced by `localhost`.
+  - **It is the bound address:** behind a reverse proxy or in a container, the public address differs.
 - **Stop:** before the party stops (`ApplicationIdentityStaticFeatureDriver.OnHostStoppingAsync`): the requests in
   progress complete while the party is still whole. A web application is stopped, never disposed: its container
   would dispose the singletons it forwards to the host.

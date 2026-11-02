@@ -148,6 +148,38 @@ public class HttpEndpointTests
         await host.StopAsync( cancel );
     }
 
+    [TestCase( "http://127.0.0.1:0;http://[::1]:0", "http://127.0.0.1:" )]
+    [TestCase( "http://[::1]:0;http://127.0.0.1:0", "http://[::1]:" )]
+    [TestCase( "http://*:0", "http://localhost:" )]
+    [CancelAfter( 20000 )]
+    public async Task the_primary_address_is_the_first_configured_url_and_is_browsable_Async( string urls, string expectedStart, CancellationToken cancel )
+    {
+        using var host = BuildHost( c => c["CK-AppIdentity:Local:HttpEndpoint:Main:Urls"] = urls, b => b.AddHttpEndpoint( "Main", MapTestRoutes ) );
+        await host.StartAsync( cancel );
+        var endpoint = GetDriver( host ).Endpoints.ShouldHaveSingleItem();
+        var primary = endpoint.PrimaryAddress.ShouldNotBeNull();
+        primary.ShouldStartWith( expectedStart );
+        primary.ShouldNotEndWith( ":0" );
+        (await _client.GetStringAsync( $"{primary}/hello", cancel )).ShouldBe( "hello" );
+        await host.StopAsync( cancel );
+    }
+
+    [Test]
+    [CancelAfter( 20000 )]
+    public async Task with_a_Kestrel_section_the_primary_address_is_its_endpoint_Async( CancellationToken cancel )
+    {
+        using var host = BuildHost( c =>
+        {
+            c.Remove( "CK-AppIdentity:Local:HttpEndpoint:Main:Urls" );
+            c["CK-AppIdentity:Local:HttpEndpoint:Main:Kestrel:Endpoints:Http:Url"] = "http://127.0.0.1:0";
+        }, b => b.AddHttpEndpoint( "Main", MapTestRoutes ) );
+        await host.StartAsync( cancel );
+        var primary = GetDriver( host ).Endpoints.ShouldHaveSingleItem().PrimaryAddress.ShouldNotBeNull();
+        primary.ShouldStartWith( "http://127.0.0.1:" );
+        (await _client.GetStringAsync( $"{primary}/hello", cancel )).ShouldBe( "hello" );
+        await host.StopAsync( cancel );
+    }
+
     [Test]
     [CancelAfter( 20000 )]
     public async Task the_contributions_of_the_packages_apply_to_every_endpoint_Async( CancellationToken cancel )

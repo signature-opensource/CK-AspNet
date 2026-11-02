@@ -216,7 +216,7 @@ public sealed class HttpEndpointFeatureDriver : ApplicationIdentityStaticFeature
         // A party lives and dies with its endpoints: a web application that stops by itself stops the host.
         app.Lifetime.ApplicationStopping.Register( () => OnApplicationStopping( c.Name ) );
         await app.StartAsync( cancel ).ConfigureAwait( false );
-        return new RunningHttpEndpoint( c.Name, app );
+        return new RunningHttpEndpoint( c.Name, app, configuredByUrls: c.Urls != null );
     }
 
     void OnApplicationStopping( string name )
