@@ -76,9 +76,12 @@ public class HttpEndpointTests
         _map = (await configuration.RunSuccessfullyAsync()).LoadMap();
     }
 
+    // devStore: the configuration has the "#Dev/Store" of a development solution (a host in Development computes it from
+    // its solution, but the tests set the DefaultStoreRootPath).
     static IHost BuildHost( Action<Dictionary<string, string?>>? configure = null,
                             Action<HostApplicationBuilder>? builder = null,
-                            string environmentName = "Production" )
+                            string environmentName = "Production",
+                            bool devStore = false )
     {
         var b = Host.CreateApplicationBuilder( new HostApplicationBuilderSettings
         {
@@ -94,7 +97,20 @@ public class HttpEndpointTests
         };
         configure?.Invoke( values );
         b.Configuration.AddInMemoryCollection( values );
-        b.AddApplicationIdentityServiceConfiguration();
+        if( devStore )
+        {
+            b.Services.AddSingleton( ApplicationIdentityServiceConfiguration.Create( TestHelper.Monitor,
+                                                                                     b.Configuration.GetSection( "CK-AppIdentity" ),
+                                                                                     null,
+                                                                                     null,
+                                                                                     CoreApplicationIdentity.DefaultEnvironmentName,
+                                                                                     TestHelper.TestProjectFolder,
+                                                                                     TestHelper.TestProjectFolder.Combine( "TestStore/#Dev/Store" ) ).ShouldNotBeNull() );
+        }
+        else
+        {
+            b.AddApplicationIdentityServiceConfiguration();
+        }
         b.Services.AddScoped<IActivityMonitor, ActivityMonitor>();
         b.Services.AddScoped( sp => sp.GetRequiredService<IActivityMonitor>().ParallelLogger );
         builder?.Invoke( b );
@@ -320,12 +336,9 @@ public class HttpEndpointTests
     [CancelAfter( 20000 )]
     public async Task the_endpoints_are_in_the_running_status_of_a_development_party_Async( CancellationToken cancel )
     {
-        // A relative store, resolved against the content root: the "#Dev/Store" of a development solution.
-        using var host = BuildHost( c =>
-        {
-            c["CK-AppIdentity:StoreRootPath"] = "TestStore/DevStore";
-            c["CK-AppIdentity:Local:HttpEndpoint:Second:Urls"] = "http://127.0.0.1:0;http://[::1]:0";
-        }, b => b.AddHttpEndpoint( "Main", MapTestRoutes ).AddHttpEndpoint( "Second", MapTestRoutes ) );
+        using var host = BuildHost( c => c["CK-AppIdentity:Local:HttpEndpoint:Second:Urls"] = "http://127.0.0.1:0;http://[::1]:0",
+                                    b => b.AddHttpEndpoint( "Main", MapTestRoutes ).AddHttpEndpoint( "Second", MapTestRoutes ),
+                                    devStore: true );
         await host.StartAsync( cancel );
         var path = host.Services.GetRequiredService<DevRunningStatusFeatureDriver>().FilePath;
         path.IsEmptyPath.ShouldBeFalse( "The DevRunningStatus feature is active." );
