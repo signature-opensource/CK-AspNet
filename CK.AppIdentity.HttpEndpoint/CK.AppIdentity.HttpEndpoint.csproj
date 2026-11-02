@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Description>The "HttpEndpoint" AppIdentity feature: a party is a Generic Host whose web servers (one WebApplication per endpoint) are started and stopped with the host, configured by its "Local:HttpEndpoint" section.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="CK.AppIdentity" Version="3.0.0-0.cris-auth.0.ci.18" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CK.AspNet\CK.AspNet.csproj" />
+  </ItemGroup>
+
+</Project>
