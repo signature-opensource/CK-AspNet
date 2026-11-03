@@ -95,6 +95,14 @@ The web application doesn't handle the console nor the process lifetime: the hos
   would dispose the singletons it forwards to the host.
 - **A party lives and dies with its endpoints:** a web application that stops by itself stops the host.
 
+## The public URL of the party
+
+The [`HttpEndpointPartyDescriptionContributor`](HttpEndpointPartyDescriptionContributor.cs) gives the public URL of the
+party (its `IParty.Description`, see the "PartyDescription" feature of
+[CK.AppIdentity](https://github.com/signature-opensource/CK-AppIdentity/blob/stable/CK.AppIdentity/README.md#the-description-of-a-party))
+when `Local:PublicUrl` is not configured: the `DefaultUrl` of the first started endpoint (a port 0 is resolved). Behind a
+reverse proxy or a public domain name, the party configures its `Local:PublicUrl`.
+
 ## The running status of a development party
 
 In a development solution, the "DevRunningStatus" feature of

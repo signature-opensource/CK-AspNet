@@ -72,7 +72,9 @@ public class HttpEndpointTests
                                               typeof( PerContainerService ),
                                               typeof( HelloPackage ),
                                               typeof( DevRunningStatusFeatureDriver ),
-                                              typeof( HttpEndpointDevRunningStatusContributor ) );
+                                              typeof( HttpEndpointDevRunningStatusContributor ),
+                                              typeof( PartyDescriptionFeatureDriver ),
+                                              typeof( HttpEndpointPartyDescriptionContributor ) );
         _map = (await configuration.RunSuccessfullyAsync()).LoadMap();
     }
 
@@ -133,6 +135,26 @@ public class HttpEndpointTests
     static HttpEndpointFeatureDriver GetDriver( IHost host ) => host.Services.GetRequiredService<HttpEndpointFeatureDriver>();
 
     static string Address( IHost host, int index = 0 ) => GetDriver( host ).Endpoints[index].Urls[0];
+
+    [Test]
+    [CancelAfter( 20000 )]
+    public async Task the_public_URL_of_the_party_is_the_default_url_of_its_first_endpoint_unless_configured_Async( CancellationToken cancel )
+    {
+        using( var host = BuildHost() )
+        {
+            await host.StartAsync( cancel );
+            var root = host.Services.GetRequiredService<ApplicationIdentityService>();
+            // The port 0 is resolved: the description follows the started endpoint.
+            root.Description.PublicUrl.ShouldNotBeNull().GetLeftPart( UriPartial.Authority ).ShouldBe( Address( host ) );
+            await host.StopAsync( cancel );
+        }
+        using( var host = BuildHost( c => c["CK-AppIdentity:Local:PublicUrl"] = "https://public.example.com" ) )
+        {
+            await host.StartAsync( cancel );
+            host.Services.GetRequiredService<ApplicationIdentityService>().Description.PublicUrl.ShouldBe( new Uri( "https://public.example.com" ) );
+            await host.StopAsync( cancel );
+        }
+    }
 
     [Test]
     [CancelAfter( 20000 )]
