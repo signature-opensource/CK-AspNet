@@ -10,10 +10,17 @@ var app = builder.CKBuild( map );
 app.UseWebSocketChannel();          // defaults to "/ws"
 ```
 
+Or, in one gesture on the builder: `builder.EnableWebSocketChannel()` (the "Enable" convention of
+[CK.AspNet](../CK.AspNet/README.md): it is idempotent). The `WebSocketChannelManager` contributes it to the web
+applications of the host (`WebApplicationContributions`): a host that applies the contributions, like the
+"HttpEndpoint" feature of [CK.AppIdentity.HttpEndpoint](../CK.AppIdentity.HttpEndpoint/README.md), serves the channel
+without calling anything.
+
 ## Setting it up
 
-The sequence above comes from
-[`WebSocketChannelHost`](../Tests/CK.AspNet.WebSocketChannel.Tests/WebSocketChannelHost.cs).
+The test host
+[`WebSocketChannelHost`](../Tests/CK.AspNet.WebSocketChannel.Tests/WebSocketChannelHost.cs) uses
+`EnableWebSocketChannel`.
 
 [`AddWebSocketChannel`](WebApplicationBuilderExtensions.cs) does one thing:
 `builder.Services.AddWebSocketServer()`. It does not register the manager, which is an `IRealObject`

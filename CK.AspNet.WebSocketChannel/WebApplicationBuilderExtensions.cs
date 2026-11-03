@@ -16,6 +16,24 @@ public static class WebApplicationBuilderExtensions
     public const string DefaultPath = "/ws";
 
     /// <summary>
+    /// Registers the services of the channel and mounts its endpoint (<see cref="AddWebSocketChannel"/> and
+    /// <see cref="UseWebSocketChannel"/>) in one gesture on the builder (the "Enable" convention of CK.AspNet: this is
+    /// idempotent). <see cref="WebSocketChannelManager"/> contributes it to the web applications of the host.
+    /// </summary>
+    /// <param name="builder">The web application builder.</param>
+    /// <param name="path">The endpoint path. Defaults to <see cref="DefaultPath"/>.</param>
+    /// <returns>The <paramref name="builder"/> for chaining.</returns>
+    public static WebApplicationBuilder EnableWebSocketChannel( this WebApplicationBuilder builder, string path = DefaultPath )
+    {
+        if( builder.TryEnable( "WebSocketChannel" ) )
+        {
+            builder.AddWebSocketChannel();
+            builder.AppendApplicationBuilder( app => app.UseWebSocketChannel( path ) );
+        }
+        return builder;
+    }
+
+    /// <summary>
     /// Registers the CK.AspNet.WebSocket services required by the channel.
     /// </summary>
     /// <param name="builder">The web application builder.</param>

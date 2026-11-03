@@ -1,5 +1,6 @@
 using CK.Core;
 using CK.PerfectEvent;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Hosting;
 using CK.AspNet.WebSocket;
 using System;
@@ -121,6 +122,13 @@ public sealed class WebSocketChannelManager : IRealObject
     public Task SendBroadcastAsync( string topic, ReadOnlyMemory<byte> message )
     {
         return SendBroadcastAsync( WebSocketChannelEnvelope.Create( topic, message ) );
+    }
+
+    // The channel is mounted on the web applications of the host: a host that applies the contributions (the
+    // "HttpEndpoint" feature of CK.AppIdentity.HttpEndpoint) serves it without calling anything.
+    void ConfigureServices( StObjContextRoot.ServiceRegister services )
+    {
+        WebApplicationContributions.FindOrAdd( services.Services ).Add( web => web.EnableWebSocketChannel() );
     }
 
     /// <summary>

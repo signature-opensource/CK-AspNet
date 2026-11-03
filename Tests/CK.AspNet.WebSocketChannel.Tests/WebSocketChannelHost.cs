@@ -53,7 +53,7 @@ sealed class WebSocketChannelHost : IAsyncDisposable
     {
         var builder = WebApplication.CreateSlimBuilder();
         builder.AddApplicationIdentityServiceConfiguration();
-        builder.AddWebSocketChannel();
+        builder.EnableWebSocketChannel();
         if( shutdownTimeout.HasValue )
         {
             builder.Services.Configure<HostOptions>( o => o.ShutdownTimeout = shutdownTimeout.Value );
@@ -61,7 +61,6 @@ sealed class WebSocketChannelHost : IAsyncDisposable
 
         var app = builder.CKBuild( map );
         app.Urls.Add( "http://127.0.0.1:0" ); // Random free port.
-        app.UseWebSocketChannel();
         await app.StartAsync();
 
         var server = app.Services.GetRequiredService<IServer>();
