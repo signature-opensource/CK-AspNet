@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Description>The bootstrap of a CKomposable application host (CKomposableAppHost.RunAsync), the same for every party: the generated code, the monitoring, the application identity, the Windows service and systemd support, and the MSBuild conventions of the host project.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CK.AppIdentity.Hosting" Version="3.0.0-0.cris-auth.0.ci.23" />
+    <PackageReference Include="CK.StObj.Model" Version="36.0.0-0.cris-auth.0.ci.25" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="10.0.14" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Systemd" Version="10.0.14" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- "build", not "buildTransitive": the conventions of the host project only (not of a test project that references it). -->
+    <None Include="build\**" Pack="true" PackagePath="build" />
+  </ItemGroup>
+
+</Project>

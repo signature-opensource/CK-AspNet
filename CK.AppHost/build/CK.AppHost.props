@@ -1,0 +1,11 @@
+<Project>
+
+  <!--
+    The host project is a party: its build writes its manifest in the "#Dev" folder of the development solution
+    (the targets of CK.AppIdentity.Hosting).
+  -->
+  <PropertyGroup>
+    <CKAppIdentityParty Condition=" '$(CKAppIdentityParty)' == '' ">true</CKAppIdentityParty>
+  </PropertyGroup>
+
+</Project>

@@ -6,12 +6,14 @@
     <File Path="NuGet.config" />
   </Folder>
   <Folder Name="/Tests/">
+    <Project Path="Tests/CK.AppHost.Tests/CK.AppHost.Tests.csproj" />
     <Project Path="Tests/CK.AppIdentity.HttpEndpoint.Tests/CK.AppIdentity.HttpEndpoint.Tests.csproj" />
     <Project Path="Tests/CK.AspNet.Tests/CK.AspNet.Tests.csproj" />
     <Project Path="Tests/CK.AspNet.WebSocket.Tests/CK.AspNet.WebSocket.Tests.csproj" />
     <Project Path="Tests/CK.AspNet.WebSocketChannel.Tests/CK.AspNet.WebSocketChannel.Tests.csproj" />
     <Project Path="Tests/WebApiMinimal/WebApiMinimal.csproj" />
   </Folder>
+  <Project Path="CK.AppHost/CK.AppHost.csproj" />
   <Project Path="CK.AppIdentity.HttpEndpoint/CK.AppIdentity.HttpEndpoint.csproj" />
   <Project Path="CK.AspNet.WebSocket/CK.AspNet.WebSocket.csproj" />
   <Project Path="CK.AspNet.WebSocketChannel/CK.AspNet.WebSocketChannel.csproj" />

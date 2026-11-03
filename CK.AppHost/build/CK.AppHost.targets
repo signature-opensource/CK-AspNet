@@ -1,0 +1,42 @@
+<Project>
+
+  <!--
+    The conventions of a host project "XXX.Host" (see the README of CK.AppHost):
+    - It is an executable.
+    - It references its "XXX.Builder" (ReferenceOutputAssembly="false"): this only orders the builds. The builder runs
+      after its own build and writes the generated code in "$StObjGen" of the host.
+      CKAppHostBuilder is the project name of the builder: it defaults to "XXX.Builder".
+    - The generated code is compiled (included just before the compilation: on a clean build, the default glob of the
+      source files is evaluated before the builder writes it).
+    - The client applications ("Clients" folder) are built by their own tool chain: they are not part of the project.
+  -->
+  <PropertyGroup>
+    <CKAppHostBuilder Condition=" '$(CKAppHostBuilder)' == '' And $(MSBuildProjectName.EndsWith('.Host')) ">$(MSBuildProjectName.Substring(0, $([MSBuild]::Subtract($(MSBuildProjectName.Length), 5)))).Builder</CKAppHostBuilder>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="Clients/**" />
+    <Content Remove="Clients/**" />
+    <None Remove="Clients/**" />
+  </ItemGroup>
+
+  <Target Name="CKAppHostCheckProject" BeforeTargets="ResolveProjectReferences">
+    <ItemGroup>
+      <_CKAppHostBuilderReference Include="@(ProjectReference)" Condition=" '%(Filename)' == '$(CKAppHostBuilder)' " />
+    </ItemGroup>
+    <Error Condition=" '$(OutputType)' != 'Exe' And '$(OutputType)' != 'WinExe' "
+           Text="CK.AppHost: '$(MSBuildProjectName)' must be an executable (its OutputType is '$(OutputType)'): only a host project references the CK.AppHost package." />
+    <Error Condition=" '$(CKAppHostBuilder)' == '' "
+           Text="CK.AppHost: the name of the host project '$(MSBuildProjectName)' doesn't end with '.Host': set the CKAppHostBuilder property to the project name of its builder." />
+    <Error Condition=" '$(CKAppHostBuilder)' != '' And '@(_CKAppHostBuilderReference)' == '' "
+           Text="CK.AppHost: '$(MSBuildProjectName)' must reference its builder (it orders the builds: the builder writes the generated code of the host): &lt;ProjectReference Include=&quot;..\$(CKAppHostBuilder)\$(CKAppHostBuilder).csproj&quot; ReferenceOutputAssembly=&quot;false&quot; Private=&quot;false&quot; /&gt;." />
+  </Target>
+
+  <Target Name="CKAppHostIncludeGeneratedCode" BeforeTargets="CoreCompile">
+    <ItemGroup>
+      <Compile Remove="$StObjGen/**/*.cs" />
+      <Compile Include="$(MSBuildProjectDirectory)/$StObjGen/**/*.cs" />
+    </ItemGroup>
+  </Target>
+
+</Project>
