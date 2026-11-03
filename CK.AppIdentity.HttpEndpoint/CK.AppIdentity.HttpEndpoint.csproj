@@ -7,7 +7,7 @@
 
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
-    <PackageReference Include="CK.AppIdentity" Version="3.0.0-0.cris-auth.0.ci.23" />
+    <PackageReference Include="CK.AppIdentity" Version="3.0.0-0.cris-auth.0.ci.24" />
   </ItemGroup>
 
   <ItemGroup>
