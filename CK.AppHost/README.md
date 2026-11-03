@@ -90,6 +90,8 @@ host):
 - **The generated code is compiled**: it is included just before the compilation (on a clean build, the default glob of
   the source files is evaluated before the builder writes it).
 - **The `Clients` folder is not part of the project**: the client applications are built by their own tool chain.
+- **The host runs in its project folder** (`dotnet run`, Visual Studio): the package sets `RunWorkingDirectory`, so
+  the content root is the project folder (its `appsettings.json`, its `Clients`).
 - **The host is a party** of the `#Dev` folder of the development solution: the package sets `CKAppIdentityParty` to
   `true` (see [CK.AppIdentity.Hosting](https://github.com/signature-opensource/CK-AppIdentity/blob/stable/CK.AppIdentity.Hosting/README.md)).
 

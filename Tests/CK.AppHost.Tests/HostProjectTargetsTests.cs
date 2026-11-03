@@ -99,6 +99,9 @@ public class HostProjectTargetsTests
             // The host is a party (its manifest in the "#Dev" folder: the targets of CK.AppIdentity.Hosting).
             var (_, party) = await DotNetAsync( $"msbuild \"{host.AppendPart( "Demo.Host.csproj" ).Path}\" -getProperty:CKAppIdentityParty -nologo" );
             party.Trim().ShouldBe( "true" );
+            // It runs in its project folder (its content root).
+            var (_, workingDirectory) = await DotNetAsync( $"msbuild \"{host.AppendPart( "Demo.Host.csproj" ).Path}\" -getProperty:RunWorkingDirectory -nologo" );
+            new NormalizedPath( workingDirectory.Trim() ).ShouldBe( host );
         }
         finally
         {

@@ -6,6 +6,8 @@
   -->
   <PropertyGroup>
     <CKAppIdentityParty Condition=" '$(CKAppIdentityParty)' == '' ">true</CKAppIdentityParty>
+    <!-- "dotnet run" and Visual Studio start the host in its project folder: its content root (appsettings.json, Clients). -->
+    <RunWorkingDirectory Condition=" '$(RunWorkingDirectory)' == '' ">$(MSBuildProjectDirectory)</RunWorkingDirectory>
   </PropertyGroup>
 
 </Project>
