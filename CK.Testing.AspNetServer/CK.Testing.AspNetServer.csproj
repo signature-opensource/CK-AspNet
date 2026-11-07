@@ -7,7 +7,7 @@
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="CK.Testing" Version="18.0.0-0.cris-auth" />
+    <PackageReference Include="CK.Testing" Version="18.0.0-0.cris-auth.0.ci.6" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\CK.AppIdentity.HttpEndpoint\CK.AppIdentity.HttpEndpoint.csproj" />
