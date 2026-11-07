@@ -158,6 +158,21 @@ public class HttpEndpointTests
 
     [Test]
     [CancelAfter( 20000 )]
+    public async Task the_host_ApplicationStopping_is_raised_before_the_endpoints_stop_Async( CancellationToken cancel )
+    {
+        // The host raises it after the StoppingAsync of its services, where the static features stop: the feature raises
+        // it first, as a web application does before its server drains (the WebSocket channel aborts its connections then).
+        using var host = BuildHost( builder: b => b.AddHttpEndpoint( "Main", MapTestRoutes ) );
+        await host.StartAsync( cancel );
+        var order = new List<string>();
+        host.Services.GetRequiredService<IHostApplicationLifetime>().ApplicationStopping.Register( () => order.Add( "host" ) );
+        GetDriver( host ).Endpoints.ShouldHaveSingleItem().Application.Lifetime.ApplicationStopping.Register( () => order.Add( "endpoint" ) );
+        await host.StopAsync( cancel );
+        order.ShouldBe( ["host", "endpoint"] );
+    }
+
+    [Test]
+    [CancelAfter( 20000 )]
     public async Task an_endpoint_answers_and_stops_with_the_host_Async( CancellationToken cancel )
     {
         using var host = BuildHost( builder: b => b.AddHttpEndpoint( "Main", MapTestRoutes ) );

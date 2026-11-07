@@ -91,7 +91,10 @@ The web application doesn't handle the console nor the process lifetime: the hos
   - **A wildcard host** (`*`, `+`, `0.0.0.0`, `[::]`) is replaced by `localhost`.
   - **It is the bound URL:** behind a reverse proxy or in a container, the public URL differs.
 - **Stop:** before the party stops (`ApplicationIdentityStaticFeatureDriver.OnHostStoppingAsync`): the requests in
-  progress complete while the party is still whole. A web application is stopped, never disposed: its container
+  progress complete while the party is still whole. The host's `IHostApplicationLifetime.ApplicationStopping` is raised
+  first, as a web application raises it before its server drains: what aborts its long running requests on
+  `ApplicationStopping` (the WebSocket channel of CK.AspNet.WebSocketChannel) does it before the drain. (The host itself
+  raises it after the `IHostedLifecycleService.StoppingAsync` of its services, where the static features stop.) A web application is stopped, never disposed: its container
   would dispose the singletons it forwards to the host.
 - **A party lives and dies with its endpoints:** a web application that stops by itself stops the host.
 

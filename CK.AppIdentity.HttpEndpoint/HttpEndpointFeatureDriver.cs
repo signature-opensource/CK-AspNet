@@ -278,8 +278,23 @@ public sealed class HttpEndpointFeatureDriver : ApplicationIdentityStaticFeature
         }
     }
 
-    /// <inheritdoc />
-    protected override Task OnHostStoppingAsync( IActivityMonitor monitor, CancellationToken cancel ) => StopEndpointsAsync( monitor, cancel );
+    /// <summary>
+    /// Raises the host's <see cref="IHostApplicationLifetime.ApplicationStopping"/>, then stops the endpoints.
+    /// <para>
+    /// The host raises it after the <see cref="IHostedLifecycleService.StoppingAsync"/> of its services, where the static
+    /// features stop: without this, what aborts its long running requests on <c>ApplicationStopping</c> (the WebSocket
+    /// channel for instance) would do it after the endpoints have drained them for their whole shutdown timeout. A web
+    /// application raises it before its server drains: the endpoints keep this order.
+    /// </para>
+    /// </summary>
+    /// <param name="monitor">The monitor to use.</param>
+    /// <param name="cancel">The cancellation token.</param>
+    /// <returns>The awaitable.</returns>
+    protected override Task OnHostStoppingAsync( IActivityMonitor monitor, CancellationToken cancel )
+    {
+        _services.GetService<IHostApplicationLifetime>()?.StopApplication();
+        return StopEndpointsAsync( monitor, cancel );
+    }
 
     // The web applications are stopped, never disposed: their containers would dispose the singletons forwarded to the host
     // (a container disposes what its factories return). Their lifetime is the host's.
