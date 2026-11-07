@@ -1,9 +1,6 @@
 using CK.Core;
 using CK.PerfectEvent;
 using CK.Testing;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting.Server;
-using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using System;
@@ -19,56 +16,64 @@ using static CK.Testing.MonitorTestHelper;
 namespace CK.AspNet.WebSocketChannel.Tests;
 
 /// <summary>
-/// A running host exposing the channel on a random free port, with the pieces every test needs:
-/// the manager to act on the server side, and a URI to connect a raw client to.
+/// A running party exposing the channel on its endpoint (the "HttpEndpoint" feature, on a random free port), with the
+/// pieces every test needs: the manager to act on the server side, and a URI to connect a raw client to.
 /// </summary>
 sealed class WebSocketChannelHost : IAsyncDisposable
 {
-    WebSocketChannelHost( WebApplication app, Uri wsUri )
-    {
-        App = app;
-        WsUri = wsUri;
-        Manager = app.Services.GetRequiredService<WebSocketChannelManager>();
-    }
+    readonly RunningAspNetServer _server;
 
-    public WebApplication App { get; }
+    WebSocketChannelHost( RunningAspNetServer server, Uri wsUri )
+    {
+        _server = server;
+        WsUri = wsUri;
+        Manager = server.Services.GetRequiredService<WebSocketChannelManager>();
+    }
 
     public Uri WsUri { get; }
 
     public WebSocketChannelManager Manager { get; }
 
     /// <summary>
-    /// Builds the StObjMap once. Only the manager is needed: features are simulated by the tests
-    /// acting directly on it, which is exactly the surface a feature sees.
+    /// Builds the StObjMap once. Only the manager is needed (with the "HttpEndpoint" feature of the party): features
+    /// are simulated by the tests acting directly on it, which is exactly the surface a feature sees.
     /// </summary>
     public static async Task<IStObjMap> BuildMapAsync()
     {
         var configuration = TestHelper.CreateDefaultEngineConfiguration();
         configuration.FirstBinPath.Path = TestHelper.BinFolder;
+        configuration.FirstBinPath.Assemblies.Add( AspNetServerTestHelperExtensions.HttpEndpointAssembly );
         configuration.FirstBinPath.Types.Add( typeof( WebSocketChannelManager ) );
         return (await configuration.RunSuccessfullyAsync()).LoadMap();
     }
 
+    /// <summary>
+    /// Starts the party: the WebSocketChannelManager contributes the channel to its endpoint.
+    /// </summary>
+    /// <param name="map">The map.</param>
+    /// <param name="shutdownTimeout">The shutdown timeout of the host and of the web application of its endpoint.</param>
+    /// <returns>The running party.</returns>
     public static async Task<WebSocketChannelHost> StartAsync( IStObjMap map, TimeSpan? shutdownTimeout = null )
     {
-        var builder = WebApplication.CreateSlimBuilder();
-        builder.AddApplicationIdentityServiceConfiguration();
-        builder.EnableWebSocketChannel();
-        if( shutdownTimeout.HasValue )
-        {
-            builder.Services.Configure<HostOptions>( o => o.ShutdownTimeout = shutdownTimeout.Value );
-        }
-
-        var app = builder.CKBuild( map );
-        app.Urls.Add( "http://127.0.0.1:0" ); // Random free port.
-        await app.StartAsync();
-
-        var server = app.Services.GetRequiredService<IServer>();
-        var address = server.Features.Get<IServerAddressesFeature>()!.Addresses.First();
-        var wsUri = new Uri( "ws" + address.Substring( "http".Length ).TrimEnd( '/' )
+        var server = await map.CreateRunningAspNetServerAsync(
+            configureHost: b =>
+            {
+                if( shutdownTimeout.HasValue ) b.Services.Configure<HostOptions>( o => o.ShutdownTimeout = shutdownTimeout.Value );
+            },
+            configureEndpoint: web =>
+            {
+                if( shutdownTimeout.HasValue ) web.Services.Configure<HostOptions>( o => o.ShutdownTimeout = shutdownTimeout.Value );
+            } );
+        var wsUri = new Uri( "ws" + server.ServerAddress.Substring( "http".Length ).TrimEnd( '/' )
                              + WebApplicationBuilderExtensions.DefaultPath );
-        return new WebSocketChannelHost( app, wsUri );
+        return new WebSocketChannelHost( server, wsUri );
     }
+
+    /// <summary>
+    /// Stops the host of the party (it stops its endpoint).
+    /// </summary>
+    /// <returns>The awaitable.</returns>
+    public Task StopAsync() => _server.Host!.StopAsync();
 
     /// <summary>
     /// Connects a client and returns it with the connection identifier the server negotiated: this
@@ -140,9 +145,5 @@ sealed class WebSocketChannelHost : IAsyncDisposable
         return JsonDocument.Parse( text.ToString() );
     }
 
-    public async ValueTask DisposeAsync()
-    {
-        await App.StopAsync();
-        await App.DisposeAsync();
-    }
+    public ValueTask DisposeAsync() => _server.DisposeAsync();
 }

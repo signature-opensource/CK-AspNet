@@ -1,41 +1,62 @@
 # CK.Testing.AspNetServer
 
-Starts a configured `WebApplication` on a random port and hands back a
+Starts a party, or a standalone web application, on a random port and hands back a
 [`RunningAspNetServer`](RunningAspNetServer.cs) with a client available on it. Not a `TestServer` and not
 an in-memory handler: a real server listening on a real port, which is what lets a test exercise
 cookies over the wire. The client is not a browser. It speaks only HTTP, follows no redirect, and
 manages its own cookies.
 
-## The entry point
+## A party, from its map
+
+```csharp
+public static async Task<RunningAspNetServer> CreateRunningAspNetServerAsync(
+        this IStObjMap map,
+        Action<MutableConfigurationSection>? identity = null,
+        Action<HostApplicationBuilder>? configureHost = null,
+        Action<WebApplicationBuilder>? configureEndpoint = null )
+```
+
+It starts what runs in production (see CK.AppHost): a Generic Host whose web application is the
+`EndpointName` ("Main") endpoint of its "HttpEndpoint" feature
+([CK.AppIdentity.HttpEndpoint](../CK.AppIdentity.HttpEndpoint/README.md)). The endpoint gets the
+contributions of the packages (`WebApplicationContributions`: Cris, the client applications, the WebSocket
+channel...), the services of the host, then `configureEndpoint`; the public URL of the party is the
+endpoint's one.
+
+- **The map contains the "HttpEndpoint" feature:** add `HttpEndpointAssembly` ("CK.AppIdentity.HttpEndpoint") to the
+  BinPath. Without it, the helper throws.
+- **The identity** is "Test/$Server" by default, the `identity` action changes it. Whatever it does, the
+  "HttpEndpoint" feature is allowed and the endpoint listens on `http://127.0.0.1:0` unless it is configured
+  (`Local:HttpEndpoint:Main`): the OS picks a free port.
+- **The host** has no default configuration source, the "Production" environment and the test project folder as its
+  content root. `configureHost` is called before the map is registered.
+- **The routes of a test** go to the endpoint, in one gesture on its builder:
+
+```csharp
+await using var server = await map.CreateRunningAspNetServerAsync(
+    configureEndpoint: web => web.AppendApplicationBuilder( app => ((WebApplication)app).MapGet( "/hello", () => "hello" ) ) );
+```
+
+`Services` and `Configuration` are the host's: the singletons of the endpoint are forwarded to them.
+`Host` is the host, `Application` the web application of the endpoint. Disposing the server stops and
+disposes the host.
+
+## A standalone web application
 
 ```csharp
 public static async Task<RunningAspNetServer> CreateRunningAspNetServerAsync(
         this WebApplicationBuilder builder,
-        IStObjMap? map = null,
         Action<WebApplication>? configureApplication = null )
 ```
 
-It calls `CKBuild`, so the request monitor and the error guard of
-[CK.AspNet](../CK.AspNet/README.md) are in place. It then adds `http://127.0.0.1:0` to `app.Urls`,
-invokes your configurator on the built `WebApplication` and starts it - the bind happens there and
-the OS picks a free port - then returns once the address is resolved. It throws on anything going
-wrong; there is no result to test.
+For a test of a middleware or of the pipeline of [CK.AspNet](../CK.AspNet/README.md): no map, no party.
+It calls `CKBuild`, so the request monitor and the error guard are in place, adds `http://127.0.0.1:0`
+to `app.Urls`, invokes `configureApplication` and starts the application. `Host` is null; disposing
+the server stops the application.
 
-`RunningAspNetServer` is `IAsyncDisposable`, and disposing it stops the application. It exposes the
-`Services` and the `Configuration` of the running app, the `ServerAddress` as
-`http://127.0.0.1:<port>`, and a `Client`. Both the class summary and `ServerAddress` give
-`http://[::1]:60346` as their example, which the bind above makes impossible.
-
-The class summary states how it is meant to grow: *"It should be extended through extension methods.
-If state must be maintained, the best way is to register a dedicated singleton service and use the
-`Services` from the extension methods to expose the state."* That also makes the state reachable from
-inside the running application, not only from the test.
-
-## Writing a test
-
-Build, create, call, assert, dispose. From
-[`DefaultCKMiddlewareTests`](../Tests/CK.AspNet.Tests/DefaultCKMiddlewareTests.cs), trimmed to that
-cycle:
+Everything registered on the builder has to be registered before the call: `CKBuild` drains the
+pipeline queues and freezes the service collection. From
+[`DefaultCKMiddlewareTests`](../Tests/CK.AspNet.Tests/DefaultCKMiddlewareTests.cs):
 
 ```csharp
 var builder = WebApplication.CreateSlimBuilder();
@@ -53,59 +74,20 @@ using( HttpResponseMessage test = await runningServer.Client.GetAsync( "" ) )
 {
     test.StatusCode.ShouldBe( HttpStatusCode.Unused );
 }
-// ...
-using( var scope = runningServer.Services.CreateScope() )
-{
-    var dependent = scope.ServiceProvider.GetRequiredService<HttpContextDependentService>();
-    dependent.HttpContextIsHere.ShouldBeFalse();
-}
 ```
 
-Keep the `await using`. `DisposeAsync` disposes the client and calls `StopAsync` on the application,
-so a test that drops it leaves a listening server behind for the rest of the run.
+## Common to both
 
-`GetAsync( "" )` is relative to `BaseAddress`, which is the `ServerAddress` the OS just assigned. A
-test never writes a port.
+Both throw on anything going wrong: there is no result to test. Keep the `await using`: a test that
+drops the server leaves a listening server behind for the rest of the run. `GetAsync( "" )` is
+relative to `BaseAddress`, the `ServerAddress` the OS just assigned: a test never writes a port.
 
-Everything registered on the builder has to be registered before the call.
-`CreateRunningAspNetServerAsync` calls `CKBuild`, which drains the pipeline queues and freezes the
-service collection.
+`RunningAspNetServer` is sealed: it is extended through extension methods. State is best kept in a
+dedicated singleton service, reached from `Services`, which also makes it reachable from inside the
+running application.
 
-The server can also be inspected from the inside rather than over HTTP.
-`runningServer.Services.CreateScope()` gives you the application's own container, which is how the
-test ends: a scoped service resolved there finds no `HttpContext`, because no request is in flight.
-
-### It does not cover WebSockets
-
-No WebSocket test in this repository uses this helper, and the two test projects have different
-reasons.
-
-`CK.AspNet.WebSocket.Tests` cannot: it references only `CK.AspNet.WebSocket`, so the helper is not on
-its compile path. Its two hosts call plain `builder.Build()` and assemble the socket URI as
-`"ws://" + Authority + Path`.
-
-`CK.AspNet.WebSocketChannel.Tests` does reference the helper and still starts its own host. The reason
-is not the server-side objects - `RunningAspNetServer.Services` is the application's own container and
-reaches them - nor the `ws://` address, which `ServerAddress` is enough to build. It is that the
-helper keeps the `WebApplication` private and only calls `StopAsync` on disposal, while the shutdown
-tests need the app itself: they time `StopAsync` and then dispose it. That host otherwise performs the
-same steps as this helper - `CKBuild`, `app.Urls.Add( "http://127.0.0.1:0" )`, `StartAsync`, then read
-the address off `IServerAddressesFeature` - and derives the socket URI from it:
-
-```csharp
-var address = server.Features.Get<IServerAddressesFeature>()!.Addresses.First();
-var wsUri = new Uri( "ws" + address.Substring( "http".Length ).TrimEnd( '/' )
-                     + WebApplicationBuilderExtensions.DefaultPath );
-```
-
-`DefaultPath` is `"/ws"`, a constant of `CK.AspNet.WebSocketChannel`. A `RunningAspNetServer` gives
-you the same two ingredients: `ServerAddress` is that address, and `Services` is the application's
-container.
-
-> ⚠️ The `<Description>` of this package advertises two methods that do not exist:
-> `WebApplicationBuilder.BuildAndCreateRunningAspNetServerAsync()` and
-> `TestHelper.CreateMinimalAspNetServerAsync()`. There is exactly one entry point, the one above, and
-> a `<see cref>` in the source points at the second of those ghosts as well.
+The WebSocket channel tests ([`WebSocketChannelHost`](../Tests/CK.AspNet.WebSocketChannel.Tests/WebSocketChannelHost.cs))
+start a party: the socket URI is `"ws" + ServerAddress[4..] + "/ws"`, and they time the stop of its `Host`.
 
 ## The client
 
@@ -162,10 +144,9 @@ optional sub paths, which is the "log out and start over" of an authentication t
 
 ## Requirements
 
-- `CK.AspNet`, whose `CKBuild` this helper calls.
+- [CK.AppIdentity.HttpEndpoint](../CK.AppIdentity.HttpEndpoint/README.md) for the party (it brings
+  [CK.AspNet](../CK.AspNet/README.md), whose `CKBuild` the standalone web application calls).
 
-- `CK.Testing`, for the `using static CK.Testing.MonitorTestHelper;` behind the two
-  `TestHelper.Monitor` calls that trace the started address and report a failed start. The extension
-  itself hangs off `WebApplicationBuilder`, not off a test helper.
+- `CK.Testing`, for `TestHelper.Monitor` and `TestHelper.TestProjectFolder`.
 
 - The `Microsoft.AspNetCore.App` framework reference.

@@ -40,9 +40,9 @@ public class HostShutdownDrainTests
         var host = await WebSocketChannelHost.StartAsync( map, ShutdownTimeout );
 
         var sw = Stopwatch.StartNew();
-        await host.App.StopAsync();
+        await host.StopAsync();
         sw.Stop();
-        await host.App.DisposeAsync();
+        await host.DisposeAsync();
 
         TestHelper.Monitor.Info( $"Stop with no client connected took {sw.ElapsedMilliseconds} ms." );
         sw.Elapsed.ShouldBeLessThan( PromptStop );
@@ -62,9 +62,9 @@ public class HostShutdownDrainTests
             using( var collector = GrandOutput.Default!.CreateMemoryCollector( 256 ) )
             {
                 var sw = Stopwatch.StartNew();
-                await host.App.StopAsync();
+                await host.StopAsync();
                 elapsedMs = sw.ElapsedMilliseconds;
-                await host.App.DisposeAsync();
+                await host.DisposeAsync();
 
                 await collector.UpdateCachedEntriesAsync();
                 var canceled = collector.CachedEntries
@@ -95,12 +95,12 @@ public class HostShutdownDrainTests
             var reconnectLoop = ReconnectLoopAsync( host.WsUri, loopStop.Token );
 
             var sw = Stopwatch.StartNew();
-            await host.App.StopAsync();
+            await host.StopAsync();
             sw.Stop();
 
             await loopStop.CancelAsync();
             await reconnectLoop;
-            await host.App.DisposeAsync();
+            await host.DisposeAsync();
 
             TestHelper.Monitor.Info( $"Stop with a reconnecting client took {sw.ElapsedMilliseconds} ms." );
             sw.Elapsed.ShouldBeLessThan( PromptStop,

@@ -10,7 +10,7 @@ namespace CK.AspNet;
 /// raised by next middlewares are logged into the current (scoped) request monitor if it exists.
 /// <para>
 /// This class is made public to allow direct <see cref="Microsoft.AspNetCore.Builder.WebApplicationBuilder"/> configuration
-/// without using <see cref="Microsoft.AspNetCore.Builder.ApplicationBuilderCKAspNetExtensions.CKBuild(Microsoft.AspNetCore.Builder.WebApplicationBuilder, IStObjMap?)"/>
+/// without using <see cref="Microsoft.AspNetCore.Builder.ApplicationBuilderCKAspNetExtensions.CKBuild(Microsoft.AspNetCore.Builder.WebApplicationBuilder)"/>
 /// helper if needed.
 /// </para>
 /// </summary>

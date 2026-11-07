@@ -10,7 +10,7 @@ namespace Microsoft.AspNetCore.Builder;
 /// <summary>
 /// Provides the <see cref="AppendApplicationBuilder(WebApplicationBuilder, Action{IApplicationBuilder})"/>
 /// (and <see cref="PrependApplicationBuilder(WebApplicationBuilder, Action{IApplicationBuilder}, bool)"/>)
-/// and <see cref="CKBuild(WebApplicationBuilder, IStObjMap?)"/> extension methods.
+/// and <see cref="CKBuild(WebApplicationBuilder)"/> extension methods.
 /// </summary>
 public static class ApplicationBuilderCKAspNetExtensions
 {
@@ -49,7 +49,7 @@ public static class ApplicationBuilderCKAspNetExtensions
     }
 
     /// <summary>
-    /// Adds an action that will be executed by <see cref="CKBuild(WebApplicationBuilder, IStObjMap?)"/> on the built <see cref="WebApplication"/>.
+    /// Adds an action that will be executed by <see cref="CKBuild(WebApplicationBuilder)"/> on the built <see cref="WebApplication"/>.
     /// </summary>
     /// <param name="builder">This builder.</param>
     /// <param name="configure">Configuration action.</param>
@@ -70,7 +70,7 @@ public static class ApplicationBuilderCKAspNetExtensions
     }
 
     /// <summary>
-    /// Adds an action that will be executed by <see cref="CKBuild(WebApplicationBuilder, IStObjMap?)"/> on the built <see cref="WebApplication"/>
+    /// Adds an action that will be executed by <see cref="CKBuild(WebApplicationBuilder)"/> on the built <see cref="WebApplication"/>
     /// before any other builders.
     /// <para>
     /// <see cref="AppendApplicationBuilder(WebApplicationBuilder, Action{IApplicationBuilder})"/>
@@ -115,7 +115,9 @@ public static class ApplicationBuilderCKAspNetExtensions
     }
 
     /// <summary>
-    /// Wraps the <see cref="WebApplicationBuilder.Build"/>.
+    /// Wraps the <see cref="WebApplicationBuilder.Build"/> of a web application: the web application of an endpoint of
+    /// a host (the "HttpEndpoint" feature of CK.AppIdentity.HttpEndpoint calls it for each endpoint), or a standalone
+    /// web application in a test of a middleware.
     /// <list type="number">
     ///     <item>
     ///     The <see cref="ScopedHttpContext"/> is added to the <see cref="WebApplicationBuilder.Services"/> as well as <see cref="IActivityMonitor"/>
@@ -126,7 +128,6 @@ public static class ApplicationBuilderCKAspNetExtensions
     ///     builder.Services.AddScoped(sp =&gt; sp.GetRequiredService&lt;IActivityMonitor&gt;().ParallelLogger );
     ///     </code>
     ///     </item>
-    ///     <item>If the <paramref name="map"/> is provided, registers it into the services.</item>
     ///     <item><see cref="WebApplicationBuilder.Build"/> is called to obtain the <see cref="WebApplication"/>.</item>
     ///     <item>
     ///      (Should rarely be used.) Executes the configurations registered by <see cref="PrependApplicationBuilder(WebApplicationBuilder, Action{IApplicationBuilder},bool)"/>
@@ -151,20 +152,12 @@ public static class ApplicationBuilderCKAspNetExtensions
     /// </list>
     /// </summary>
     /// <param name="builder">This builder.</param>
-    /// <param name="map">Optional CKomposable map to register.</param>
     /// <returns>The web application.</returns>
-    public static WebApplication CKBuild( this WebApplicationBuilder builder, IStObjMap? map = null )
+    public static WebApplication CKBuild( this WebApplicationBuilder builder )
     {
         builder.Services.AddScoped<ScopedHttpContext>();
         builder.Services.AddScoped( sp => sp.GetRequiredService<ScopedHttpContext>().Monitor );
         builder.Services.AddScoped( sp => sp.GetRequiredService<IActivityMonitor>().ParallelLogger );
-        if( map != null )
-        {
-            var ssc = new SimpleServiceContainer();
-            ssc.Add( typeof( WebApplicationBuilder ), builder );
-            builder.Services.AddStObjMap( builder.GetBuilderMonitor(), map, ssc );
-        }
-        builder.ApplyAutoConfigure();
         var app = builder.Build();
         IDictionary<object, object> props = ((IHostApplicationBuilder)builder).Properties;
         CallRevert<PreCKMidlewarePipelineBuilder>( app, props );

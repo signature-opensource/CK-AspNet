@@ -5,16 +5,18 @@ object. Together they give every request a monitor reachable from any scoped ser
 unhandled exception into a logged 500 instead of a lost stack trace.
 
 ```csharp
-// map is the StObjMap of the application, loaded by StObjContextRoot.Load(...);
-// omit it if you only want the request monitor and the error guard.
-var app = builder.CKBuild( map );
+var app = builder.CKBuild();
 ```
+
+A party is a Generic Host: its web applications are the endpoints of its "HttpEndpoint" feature
+(CK.AppIdentity.HttpEndpoint), which calls `CKBuild` for each of them. The CKomposable map is registered in the host,
+not in a web application. A standalone web application is for a test of a middleware.
 
 ## CKBuild
 
 [`CKBuild`](ApplicationBuilderCKAspNetExtensions.cs) wraps `WebApplicationBuilder.Build()`. Nothing in
 the package requires it: the middleware and the scoped object work under a hand-assembled pipeline,
-and *Registering CKMiddleware by hand* below shows how. It does four things.
+and *Registering CKMiddleware by hand* below shows how. It does two things.
 
 1. It registers three scoped services, chained onto one another:
 
@@ -27,18 +29,7 @@ builder.Services.AddScoped( sp => sp.GetRequiredService<IActivityMonitor>().Para
 `IActivityMonitor` is then resolvable in any request-scoped service, and it is the request monitor,
 not a new one.
 
-2. The `map` is optional. Pass one if the application uses CKomposable services, omit it if you only
-   want the request monitor and the error guard. When given, `AddStObjMap` registers it, and the
-   `SimpleServiceContainer` passed along carries the `WebApplicationBuilder` as a startup service.
-   A real object can then take the builder as an extra parameter of `ConfigureServices` - not of
-   `RegisterStartupServices`, whose signature the engine pins to `(IActivityMonitor,
-   SimpleServiceContainer)` and which has to read the builder out of that container, and not of
-   `StObjConstruct`, since the map is built before `CKBuild` runs. Nothing in the stack uses this yet.
-
-3. `ApplyAutoConfigure()` runs the deferred configuration callbacks other packages registered on the
-   builder. A package that registered a callback and never sees `CKBuild` is silently not configured.
-
-4. `Build()` is called, then the middleware pipeline is assembled.
+2. `Build()` is called, then the middleware pipeline is assembled.
 
 ## CKMiddleware
 
@@ -193,9 +184,6 @@ The other two registrations of step 1 do not gate invocation. They decide whethe
 reaches the request monitor or the fallback chain, since `LogError` resolves `IActivityMonitor` from
 `ctx.RequestServices` and never looks at the `scoped` parameter it was handed.
 
-`ApplyAutoConfigure()` is no longer called either, so every deferred configuration callback another
-package registered is silently skipped. No test covers this path.
-
 ## ScopedHttpContext
 
 [`ScopedHttpContext`](ScopedHttpContext.cs) is a `[ScopedContainerConfiguredService]` exposing the
@@ -221,8 +209,6 @@ context but no scoped service to inject into.
 
 ## Requirements
 
-- `CK.StObj.Model`, for `IStObjMap` and `AddStObjMap`.
-
-- `CK.Monitoring.Hosting`, for `ApplyAutoConfigure` and the builder monitor.
+- `CK.StObj.Model`, for `[ScopedContainerConfiguredService]` (`ScopedHttpContext`).
 
 - The `Microsoft.AspNetCore.App` framework reference.

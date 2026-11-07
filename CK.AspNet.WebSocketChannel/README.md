@@ -4,17 +4,12 @@ One WebSocket shared by every feature of an application: one anonymous socket pe
 singleton that owns them all, and a `{topic, message}` envelope that tells each feature which frames
 are its own. Features do not open sockets and do not mount endpoints. They observe, and they push.
 
-```csharp
-builder.AddWebSocketChannel();
-var app = builder.CKBuild( map );
-app.UseWebSocketChannel();          // defaults to "/ws"
-```
-
-Or, in one gesture on the builder: `builder.EnableWebSocketChannel()` (the "Enable" convention of
-[CK.AspNet](../CK.AspNet/README.md): it is idempotent). The `WebSocketChannelManager` contributes it to the web
-applications of the host (`WebApplicationContributions`): a host that applies the contributions, like the
-"HttpEndpoint" feature of [CK.AppIdentity.HttpEndpoint](../CK.AppIdentity.HttpEndpoint/README.md), serves the channel
-without calling anything.
+Nothing to call: the `WebSocketChannelManager` contributes `EnableWebSocketChannel` to the web applications of the host
+(`WebApplicationContributions`), so the "HttpEndpoint" feature of
+[CK.AppIdentity.HttpEndpoint](../CK.AppIdentity.HttpEndpoint/README.md) serves the channel on each endpoint.
+`EnableWebSocketChannel` is one gesture on the builder of a web application (the "Enable" convention of
+[CK.AspNet](../CK.AspNet/README.md): it is idempotent): it registers the WebSocket server
+(`builder.Services.AddWebSocketServer()`) and mounts the endpoint (`UseWebSocketChannel`, `/ws` by default).
 
 ## Setting it up
 
@@ -22,9 +17,8 @@ The test host
 [`WebSocketChannelHost`](../Tests/CK.AspNet.WebSocketChannel.Tests/WebSocketChannelHost.cs) uses
 `EnableWebSocketChannel`.
 
-[`AddWebSocketChannel`](WebApplicationBuilderExtensions.cs) does one thing:
-`builder.Services.AddWebSocketServer()`. It does not register the manager, which is an `IRealObject`
-and arrives only with the StObj map. That is why `CKBuild( map )` is on the path.
+[`EnableWebSocketChannel`](WebApplicationBuilderExtensions.cs) doesn't register the manager, which is an
+`IRealObject` and arrives only with the StObj map, registered in the host.
 
 `CK.AspNet` is a transitive dependency. `CK.AspNet.WebSocket` references it, and that edge carries
 both the ASP.NET framework reference and the `GetRequestMonitor` the server calls on every upgrade.

@@ -19,12 +19,11 @@ public static class HttpEndpointHostApplicationBuilderExtensions
     /// the "CK-AppIdentity" configuration: a configuration without this section is an error.
     /// </para>
     /// </summary>
-    /// <typeparam name="T">This builder's type.</typeparam>
-    /// <param name="builder">This builder.</param>
+    /// <param name="builder">The builder of the host.</param>
     /// <param name="name">The name of the endpoint.</param>
     /// <param name="configure">The configuration of the endpoint's web application.</param>
     /// <returns>This builder.</returns>
-    public static T AddHttpEndpoint<T>( this T builder, string name, Action<WebApplicationBuilder>? configure = null ) where T : IHostApplicationBuilder
+    public static HostApplicationBuilder AddHttpEndpoint( this HostApplicationBuilder builder, string name, Action<WebApplicationBuilder>? configure = null )
     {
         Throw.CheckNotNullOrWhiteSpaceArgument( name );
         HttpEndpointHost.FindOrAdd( builder.Services ).AddConfiguration( name, configure );
