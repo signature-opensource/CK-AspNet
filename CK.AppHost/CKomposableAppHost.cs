@@ -32,24 +32,27 @@ public static class CKomposableAppHost
 {
     /// <summary>
     /// Builds the host of the entry assembly and runs it until it stops.
+    /// See <see cref="Build(string[], Action{IActivityMonitor, HostApplicationBuilder, IStObjMap}?, string?, Assembly?)"/>.
     /// </summary>
     /// <param name="args">The command line arguments.</param>
-    /// <param name="configure">Optional configuration of the builder, called right after its creation.</param>
+    /// <param name="configure">Optional configuration of the builder, called right the creation of the builder and the successful load of the map.</param>
     /// <returns>The awaitable.</returns>
-    public static async Task RunAsync( string[] args, Action<HostApplicationBuilder>? configure = null )
+    public static async Task RunAsync( string[] args, Action<IActivityMonitor, HostApplicationBuilder, IStObjMap>? configure = null )
     {
         using var host = Build( args, configure );
         await host.RunAsync().ConfigureAwait( false );
     }
 
     /// <summary>
-    /// Builds the host, not started: <see cref="RunAsync(string[], Action{HostApplicationBuilder}?)"/> uses it, and the tests
+    /// Builds the host, not started: <see cref="RunAsync(string[], Action{IActivityMonitor, HostApplicationBuilder, IStObjMap}?)"/> uses it, and the tests
     /// use it to start and stop the host themselves.
     /// </summary>
     /// <param name="args">The command line arguments.</param>
     /// <param name="configure">
-    /// Optional configuration of the builder, called right after its creation (before the monitoring and the application
-    /// identity are configured): the tests use it to override the configuration.
+    /// Optional configuration of the builder or the <see cref="IStObjMap"/>, called right after the creation of the builder and the
+    /// successful load of the map (before the monitoring and the application identity are configured). Tests use this to override the configuration,
+    /// real hosts can use it to handle <see cref="IHostApplicationBuilder.Configuration"/> the way they want (typically configuring properties
+    /// of the map's real objects).
     /// </param>
     /// <param name="contentRoot">
     /// Optional content root (where the appsettings.json and the Clients are). Defaults to the current directory, or to the
@@ -61,7 +64,7 @@ public static class CKomposableAppHost
     /// </param>
     /// <returns>The host, not started.</returns>
     public static IHost Build( string[] args,
-                               Action<HostApplicationBuilder>? configure = null,
+                               Action<IActivityMonitor,HostApplicationBuilder, IStObjMap>? configure = null,
                                string? contentRoot = null,
                                Assembly? assembly = null )
     {
@@ -69,18 +72,21 @@ public static class CKomposableAppHost
                      ?? Throw.InvalidOperationException<Assembly>( "No entry assembly: the assembly that contains the generated code must be specified." );
         contentRoot ??= WindowsServiceHelpers.IsWindowsService() ? AppContext.BaseDirectory : null;
         var builder = Host.CreateApplicationBuilder( new HostApplicationBuilderSettings { Args = args, ContentRootPath = contentRoot } );
-        configure?.Invoke( builder );
+        var monitor = builder.GetBuilderMonitor();
+        var map = StObjContextRoot.Load( assembly, monitor )
+                  ?? Throw.InvalidOperationException<IStObjMap>( $"Unable to load the generated code of '{assembly.GetName().Name}': build its Builder." );
+
+        configure?.Invoke( monitor, builder, map );
+
         // Both do nothing when the process doesn't run as a service.
         builder.Services.AddWindowsService();
         builder.Services.AddSystemd();
+
         builder.UseCKMonitoring();
         builder.AddApplicationIdentityServiceConfiguration();
         // The monitor of the work outside the requests (the requests of the HttpEndpoints have the one of their ScopedHttpContext).
         builder.Services.AddScoped<IActivityMonitor, ActivityMonitor>();
         builder.Services.AddScoped( sp => sp.GetRequiredService<IActivityMonitor>().ParallelLogger );
-        var monitor = builder.GetBuilderMonitor();
-        var map = StObjContextRoot.Load( assembly, monitor )
-                  ?? Throw.InvalidOperationException<IStObjMap>( $"Unable to load the generated code of '{assembly.GetName().Name}': build its Builder." );
         builder.Services.AddStObjMap( monitor, map );
         return builder.CKBuild();
     }
