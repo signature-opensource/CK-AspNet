@@ -103,7 +103,8 @@ needs the `CK.AppIdentity.Engine` package.
 Behind a reverse proxy, the endpoint sees the proxy: its scheme (often `http` when the proxy terminates TLS), its host
 and its address. [`ForwardedHeadersOption`](ForwardedHeadersOption.cs) applies the `X-Forwarded-For`,
 `X-Forwarded-Proto` and `X-Forwarded-Host` headers sent by the trusted proxies, so that the whole pipeline sees the
-client: the logs, and the same origin checks of the authentication (the `Origin` of a browser is the public one).
+client: the logs, and what is derived from the request's origin (the callback URL of a remote login, the `Secure` flag
+of the cookies, the comparison with the `Origin` of a browser).
 
 ```jsonc
 "HttpEndpoint": {
