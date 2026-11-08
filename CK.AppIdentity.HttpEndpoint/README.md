@@ -32,6 +32,8 @@ These are errors that fail the initialization of the party (nothing listens):
 - no endpoint in `Local:HttpEndpoint`, or an endpoint with both or none of `Urls` and `Kestrel`;
 - an endpoint configured by the application (below) that `Local:HttpEndpoint` doesn't define;
 - a `DefaultEndpoint` with `Urls` (the first URL is the default one), or one that names no `Kestrel:Endpoints:<Name>:Url`;
+- a key of an endpoint that is neither `Urls`, `Kestrel`, `DefaultEndpoint` nor one of its [options](#the-options-of-an-endpoint),
+  and an error in the configuration of an option;
 - a tenant domain that allows the feature: only the root party has endpoints;
 - in Development, the ASP.NET defaults: the `urls`, `http_ports`, `https_ports` keys and the `Kestrel` section at the
   root of the configuration, and the `ASPNETCORE_URLS`, `ASPNETCORE_HTTP_PORTS`, `ASPNETCORE_HTTPS_PORTS`
@@ -77,6 +79,48 @@ The services of an endpoint are its own (its server, its routing, its lifetime..
 | `IHostedService`, `IActivityMonitor`, `IParallelLogger` | Not copied: the web application has its own (the request monitor of `CKBuild`) |
 
 The web application doesn't handle the console nor the process lifetime: the host does.
+
+## The options of an endpoint
+
+An endpoint is configured further by its options: what a package adds to the web application of the endpoints that enable
+it. An option is a [party component option](https://github.com/signature-opensource/CK-AppIdentity/blob/stable/CK.AppIdentity/PartyComponentOptions/README.md)
+of the `HttpEndpointFeatureDriver`: a class that specializes [`HttpEndpointOption`](HttpEndpointOption.cs), decorated
+with `[FeatureOption]`. Its key in the endpoint section is its name (its type name without the "Option" suffix): `true`
+or a section enables it, `false` disables it, and its default applies when the key is absent.
+
+- `HttpEndpointOption.Initialize` reads and checks its configuration, for each endpoint that enables it, when the
+  feature is set up: an error fails the initialization of the party.
+- `HttpEndpointOption.ConfigureServices` configures the services of the web application, before the contributions of
+  the packages.
+- `HttpEndpointOption.ConfigurePipeline` adds its middlewares: the options' middlewares are the first ones of the
+  pipeline, before the CKMiddleware, in the order of the options (their topology attributes order them).
+
+The options are known by the engine (CK.AppIdentity.Engine), not discovered at runtime: a BinPath with this feature
+needs the `CK.AppIdentity.Engine` package.
+
+### The forwarded headers
+
+Behind a reverse proxy, the endpoint sees the proxy: its scheme (often `http` when the proxy terminates TLS), its host
+and its address. [`ForwardedHeadersOption`](ForwardedHeadersOption.cs) applies the `X-Forwarded-For`,
+`X-Forwarded-Proto` and `X-Forwarded-Host` headers sent by the trusted proxies, so that the whole pipeline sees the
+client: the logs, and the same origin checks of the authentication (the `Origin` of a browser is the public one).
+
+```jsonc
+"HttpEndpoint": {
+  "Main": {
+    "Urls": "http://0.0.0.0:5300",
+    "ForwardedHeaders": {
+      "KnownProxies": "10.0.0.12",     // IP addresses, separated by ';' (or an array).
+      "KnownNetworks": "10.0.0.0/8",   // CIDR networks, separated by ';' (or an array).
+      "Headers": "XForwardedFor, XForwardedProto, XForwardedHost", // The default.
+      "ForwardLimit": 1                // The default.
+    }
+  }
+}
+```
+
+It fails closed: the proxies are trusted explicitly, never by default (not even the loopback). `"ForwardedHeaders": true`,
+a section without `KnownProxies` nor `KnownNetworks`, an invalid address or network and an unknown key are errors.
 
 ## Lifetime
 

@@ -23,6 +23,10 @@ namespace CK.AppIdentity;
 /// services and the pipeline of an endpoint with <see cref="HttpEndpointHostApplicationBuilderExtensions.AddHttpEndpoint"/>.
 /// </para>
 /// <para>
+/// The other keys of an endpoint are its options (<see cref="HttpEndpointOption"/>, like the <see cref="ForwardedHeadersOption"/>):
+/// any other key is an error.
+/// </para>
+/// <para>
 /// This is a static feature: only the root party can have endpoints (a tenant domain that allows it is an error).
 /// </para>
 /// </summary>
@@ -37,6 +41,7 @@ public sealed class HttpEndpointFeatureDriver : ApplicationIdentityStaticFeature
 
     readonly HttpEndpointHost _host;
     readonly IServiceProvider _services;
+    readonly PartyComponentOptionDirectory _optionDirectory;
     readonly List<RunningHttpEndpoint> _endpoints;
     List<EndpointConfiguration>? _configurations;
     // The published endpoints: set once they are all started, emptied when they stop.
@@ -44,7 +49,12 @@ public sealed class HttpEndpointFeatureDriver : ApplicationIdentityStaticFeature
     bool _stopping;
 
     // DefaultEndpointUrl: the configured "Url" of the Kestrel endpoint named by "DefaultEndpoint".
-    sealed record EndpointConfiguration( string Name, string[]? Urls, IConfigurationSection? Kestrel, string? DefaultEndpointUrl );
+    // Options: the enabled options of the endpoint, initialized, in their order.
+    sealed record EndpointConfiguration( string Name,
+                                         string[]? Urls,
+                                         IConfigurationSection? Kestrel,
+                                         string? DefaultEndpointUrl,
+                                         IReadOnlyList<HttpEndpointOption> Options );
 
     /// <summary>
     /// Initializes a new <see cref="HttpEndpointFeatureDriver"/>.
@@ -52,11 +62,16 @@ public sealed class HttpEndpointFeatureDriver : ApplicationIdentityStaticFeature
     /// <param name="s">The application identity service.</param>
     /// <param name="host">The endpoints of the host.</param>
     /// <param name="services">The services of the host.</param>
-    public HttpEndpointFeatureDriver( ApplicationIdentityService s, HttpEndpointHost host, IServiceProvider services )
+    /// <param name="optionDirectory">The options of the party components (the options of the endpoints).</param>
+    public HttpEndpointFeatureDriver( ApplicationIdentityService s,
+                                      HttpEndpointHost host,
+                                      IServiceProvider services,
+                                      PartyComponentOptionDirectory optionDirectory )
         : base( s, isAllowedByDefault: false )
     {
         _host = host;
         _services = services;
+        _optionDirectory = optionDirectory;
         _endpoints = new List<RunningHttpEndpoint>();
         _published = [];
     }
@@ -130,9 +145,10 @@ public sealed class HttpEndpointFeatureDriver : ApplicationIdentityStaticFeature
                 monitor.Error( $"The endpoint \"Local:{ConfigurationKey}:{c.Key}\" must have either \"Urls\" or a \"Kestrel\" section." );
                 success = false;
             }
-            else if( TryReadDefaultEndpoint( monitor, c, urls, kestrel, out var defaultEndpointUrl ) )
+            else if( TryReadDefaultEndpoint( monitor, c, urls, kestrel, out var defaultEndpointUrl )
+                     && TryCreateOptions( monitor, c, out var options ) )
             {
-                result.Add( new EndpointConfiguration( c.Key, urls, kestrel, defaultEndpointUrl ) );
+                result.Add( new EndpointConfiguration( c.Key, urls, kestrel, defaultEndpointUrl, options ) );
             }
             else
             {
@@ -183,6 +199,44 @@ public sealed class HttpEndpointFeatureDriver : ApplicationIdentityStaticFeature
                         : c.TryGetSection( "Urls" )?.GetChildren().Select( u => u.Value ).Where( u => !string.IsNullOrWhiteSpace( u ) ).Select( u => u!.Trim() ).ToArray();
             return urls is { Length: > 0 } ? urls : null;
         }
+    }
+
+    // The options enabled by the endpoint section, created from the host services and initialized. A key that is neither an
+    // endpoint key nor an option is an error.
+    bool TryCreateOptions( IActivityMonitor monitor, ImmutableConfigurationSection endpoint, out IReadOnlyList<HttpEndpointOption> options )
+    {
+        options = [];
+        var ownerType = typeof( HttpEndpointFeatureDriver );
+        bool success = true;
+        foreach( var k in endpoint.GetChildren() )
+        {
+            if( k.Key is not ("Urls" or "Kestrel" or "DefaultEndpoint") && !_optionDirectory.IsOptionName( ownerType, k.Key ) )
+            {
+                var names = _optionDirectory.GetOptions( ownerType ).Select( o => o.Name ).Concatenate();
+                monitor.Error( $"Unknown \"{k.Path}\": the keys of an endpoint are Urls, Kestrel, DefaultEndpoint and its options ({(names.Length > 0 ? names : "none")})." );
+                success = false;
+            }
+        }
+        if( !success || !_optionDirectory.TrySelect( monitor, ownerType, endpoint, out var selected ) ) return false;
+        var result = new List<HttpEndpointOption>( selected.Count );
+        foreach( var (info, configuration) in selected )
+        {
+            if( info.Create( _services ) is not HttpEndpointOption o )
+            {
+                monitor.Error( $"The option '{info.OptionType:C}' of the '{FeatureName}' feature must specialize '{typeof( HttpEndpointOption ):C}'." );
+                success = false;
+            }
+            else if( o.Initialize( monitor, endpoint, configuration ) )
+            {
+                result.Add( o );
+            }
+            else
+            {
+                success = false;
+            }
+        }
+        if( success ) options = result;
+        return success;
     }
 
     // The endpoints are configured in "Local:HttpEndpoint" only: two places must not configure the same port.
@@ -258,8 +312,17 @@ public sealed class HttpEndpointFeatureDriver : ApplicationIdentityStaticFeature
         builder.Services.Replace( ServiceDescriptor.Singleton<IHostLifetime, NoHostLifetime>() );
         HostServiceForwarder.Forward( monitor, _host.HostServices!, _services, builder.Services );
         // The packages' contributions (registered by their real objects), then the application's configuration.
+        foreach( var o in c.Options ) o.ConfigureServices( builder );
         _services.GetService<WebApplicationContributions>()?.ApplyTo( builder );
         if( _host.Configurations.TryGetValue( c.Name, out var configure ) ) configure?.Invoke( builder );
+        // The middlewares of the options are the first ones, in their order: the last prepended action runs first.
+        if( c.Options.Count > 0 )
+        {
+            builder.PrependApplicationBuilder( app =>
+            {
+                foreach( var o in c.Options ) o.ConfigurePipeline( app );
+            }, beforeCKMiddleware: true );
+        }
         var app = builder.CKBuild();
         // A party lives and dies with its endpoints: a web application that stops by itself stops the host.
         app.Lifetime.ApplicationStopping.Register( () => OnApplicationStopping( c.Name ) );

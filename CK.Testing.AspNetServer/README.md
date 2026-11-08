@@ -149,4 +149,7 @@ optional sub paths, which is the "log out and start over" of an authentication t
 
 - `CK.Testing`, for `TestHelper.Monitor` and `TestHelper.TestProjectFolder`.
 
+- `CK.AppIdentity.Engine`: a BinPath with the "HttpEndpoint" feature has the options of the endpoints (the
+  `PartyComponentOptionDirectory` of CK.AppIdentity), that this engine generates.
+
 - The `Microsoft.AspNetCore.App` framework reference.

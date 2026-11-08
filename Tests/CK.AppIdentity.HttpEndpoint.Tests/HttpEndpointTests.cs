@@ -68,6 +68,7 @@ public class HttpEndpointTests
         configuration.FirstBinPath.Types.Add( typeof( ApplicationIdentityService ),
                                               typeof( HttpEndpointFeatureDriver ),
                                               typeof( HttpEndpointHostRegistration ),
+                                              typeof( PartyComponentOptionDirectory ),
                                               typeof( SharedService ),
                                               typeof( PerContainerService ),
                                               typeof( HelloPackage ),
