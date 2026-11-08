@@ -93,6 +93,27 @@ public sealed class HttpEndpointFeatureDriver : ApplicationIdentityStaticFeature
     /// </summary>
     internal event Action? EndpointsChanged;
 
+    /// <summary>
+    /// Contributes the public URL of the root party when "Local:PublicUrl" is not configured: the
+    /// <see cref="RunningHttpEndpoint.DefaultUrl"/> of the first started endpoint (a port 0 is resolved). Behind a reverse
+    /// proxy or a public domain name, "Local:PublicUrl" is configured.
+    /// </summary>
+    /// <param name="party">The local party to describe.</param>
+    /// <param name="builder">The description builder.</param>
+    protected override void ContributeDescription( ILocalParty party, PartyDescription.Builder builder )
+    {
+        if( party != ApplicationIdentityService || builder.PublicUrl != null ) return;
+        foreach( var e in _published )
+        {
+            if( e.DefaultUrl != null
+                && PartyDescription.TryParsePublicUrl( e.DefaultUrl, out var url, out _ ) )
+            {
+                builder.PublicUrl = url;
+                return;
+            }
+        }
+    }
+
     /// <inheritdoc />
     protected override Task<bool> SetupAsync( FeatureLifetimeContext context )
     {
@@ -281,6 +302,7 @@ public sealed class HttpEndpointFeatureDriver : ApplicationIdentityStaticFeature
             }
             _published = _endpoints.ToArray();
             EndpointsChanged?.Invoke();
+            await OnDescriptionChangedAsync( monitor, ApplicationIdentityService ).ConfigureAwait( false );
         }
         catch
         {
@@ -368,6 +390,7 @@ public sealed class HttpEndpointFeatureDriver : ApplicationIdentityStaticFeature
         {
             _published = [];
             EndpointsChanged?.Invoke();
+            await OnDescriptionChangedAsync( monitor, ApplicationIdentityService ).ConfigureAwait( false );
         }
         for( int i = _endpoints.Count - 1; i >= 0; --i )
         {

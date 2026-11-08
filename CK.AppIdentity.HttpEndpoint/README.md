@@ -145,8 +145,8 @@ a section without `KnownProxies` nor `KnownNetworks`, an invalid address or netw
 
 ## The public URL of the party
 
-The [`HttpEndpointPartyDescriptionContributor`](HttpEndpointPartyDescriptionContributor.cs) gives the public URL of the
-party (its `IParty.Description`, see the "PartyDescription" feature of
+The `HttpEndpointFeatureDriver` gives the public URL of the root party (its `IParty.Description`, see the
+"PartyDescription" feature of
 [CK.AppIdentity](https://github.com/signature-opensource/CK-AppIdentity/blob/stable/CK.AppIdentity/README.md#the-description-of-a-party))
 when `Local:PublicUrl` is not configured: the `DefaultUrl` of the first started endpoint (a port 0 is resolved). Behind a
 reverse proxy or a public domain name, the party configures its `Local:PublicUrl`.
