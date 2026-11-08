@@ -9,6 +9,7 @@ using Microsoft.Extensions.Hosting;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -29,8 +30,13 @@ namespace CK.AppIdentity;
 /// <para>
 /// This is a static feature: only the root party can have endpoints (a tenant domain that allows it is an error).
 /// </para>
+/// <para>
+/// It contributes the "Http" section of the running status of a development party (the "DevRunningStatus" feature of
+/// CK.AppIdentity): the <see cref="Endpoints"/> with their "Name", "Urls" and "DefaultUrl" (see <see cref="RunningHttpEndpoint"/>).
+/// The party is ready once the endpoints are started (or when this feature has nothing to start).
+/// </para>
 /// </summary>
-public sealed class HttpEndpointFeatureDriver : ApplicationIdentityStaticFeatureDriver
+public sealed class HttpEndpointFeatureDriver : ApplicationIdentityStaticFeatureDriver, IDevRunningStatusContributor
 {
     /// <summary>
     /// The configuration key of the feature, in the "Local" section.
@@ -82,16 +88,29 @@ public sealed class HttpEndpointFeatureDriver : ApplicationIdentityStaticFeature
     /// </summary>
     public IReadOnlyList<RunningHttpEndpoint> Endpoints => _published;
 
-    /// <summary>
-    /// Gets whether this feature has nothing to start (it is not allowed or its setup failed) or its endpoints are
-    /// started.
-    /// </summary>
-    internal bool IsInactiveOrStarted => _configurations == null || _published.Length > 0;
+    // Set by an active running status writer (dormant otherwise).
+    Action? _onRunningStatusChanged;
 
-    /// <summary>
-    /// Raised when the <see cref="Endpoints"/> are started and when they are stopped.
-    /// </summary>
-    internal event Action? EndpointsChanged;
+    void IDevRunningStatusContributor.Activate( IActivityMonitor monitor, Action onChanged ) => _onRunningStatusChanged = onChanged;
+
+    // Nothing to start (not allowed or the setup failed), or the endpoints are started.
+    bool IDevRunningStatusContributor.IsReady => _configurations == null || _published.Length > 0;
+
+    void IDevRunningStatusContributor.Write( Utf8JsonWriter writer )
+    {
+        writer.WriteStartArray( "Http" );
+        foreach( var e in _published )
+        {
+            writer.WriteStartObject();
+            writer.WriteString( "Name", e.Name );
+            writer.WriteStartArray( "Urls" );
+            foreach( var u in e.Urls ) writer.WriteStringValue( u );
+            writer.WriteEndArray();
+            writer.WriteString( "DefaultUrl", e.DefaultUrl );
+            writer.WriteEndObject();
+        }
+        writer.WriteEndArray();
+    }
 
     /// <summary>
     /// Contributes the public URL of the root party when "Local:PublicUrl" is not configured: the
@@ -301,7 +320,7 @@ public sealed class HttpEndpointFeatureDriver : ApplicationIdentityStaticFeature
                 monitor.Info( $"{endpoint} started." );
             }
             _published = _endpoints.ToArray();
-            EndpointsChanged?.Invoke();
+            _onRunningStatusChanged?.Invoke();
             await OnDescriptionChangedAsync( monitor, ApplicationIdentityService ).ConfigureAwait( false );
         }
         catch
@@ -389,7 +408,7 @@ public sealed class HttpEndpointFeatureDriver : ApplicationIdentityStaticFeature
         if( _published.Length > 0 )
         {
             _published = [];
-            EndpointsChanged?.Invoke();
+            _onRunningStatusChanged?.Invoke();
             await OnDescriptionChangedAsync( monitor, ApplicationIdentityService ).ConfigureAwait( false );
         }
         for( int i = _endpoints.Count - 1; i >= 0; --i )

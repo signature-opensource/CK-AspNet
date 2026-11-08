@@ -155,6 +155,6 @@ reverse proxy or a public domain name, the party configures its `Local:PublicUrl
 
 In a development solution, the "DevRunningStatus" feature of
 [CK.AppIdentity](https://github.com/signature-opensource/CK-AppIdentity) writes the running status of the party
-(`#Dev/Store/.../DevRunningStatus.json`, read by the `#Dev/Start.ps1` launcher). The
-[`HttpEndpointDevRunningStatusContributor`](HttpEndpointDevRunningStatusContributor.cs) adds the `Http` section: the
+(`#Dev/Store/.../DevRunningStatus.json`, read by the `#Dev/Start.ps1` launcher). The `HttpEndpointFeatureDriver` adds
+the `Http` section: the
 running endpoints, with their `Name`, `Urls` and `DefaultUrl`. The party is `Ready` once the endpoints are started.
