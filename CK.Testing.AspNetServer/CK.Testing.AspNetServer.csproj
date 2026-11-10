@@ -9,7 +9,7 @@
   <ItemGroup>
     <PackageReference Include="CK.Testing" Version="18.0.0-0.cris-auth.0.ci.6" />
     <!-- The engine of CK.AppIdentity: a BinPath with the HttpEndpoint feature has the PartyComponentOptionDirectory. -->
-    <PackageReference Include="CK.AppIdentity.Engine" Version="3.0.0-0.cris-auth.1.ci.46" />
+    <PackageReference Include="CK.AppIdentity.Engine" Version="3.0.0-0.cris-auth.1.ci.47" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\CK.AppIdentity.HttpEndpoint\CK.AppIdentity.HttpEndpoint.csproj" />
