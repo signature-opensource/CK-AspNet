@@ -6,8 +6,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="CK.AppIdentity.Hosting" Version="3.0.0-0.uc.0.ci.66" />
-    <PackageReference Include="CK.StObj.Model" Version="36.0.0-0.uc.0.ci.48" />
+    <PackageReference Include="CK.AppIdentity.Hosting" Version="3.0.0-0.uc.0.ci.69" />
+    <PackageReference Include="CK.StObj.Model" Version="36.0.0-0.uc.0.ci.49" />
     <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="10.0.14" />
     <PackageReference Include="Microsoft.Extensions.Hosting.Systemd" Version="10.0.14" />
   </ItemGroup>
