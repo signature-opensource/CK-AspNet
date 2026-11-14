@@ -25,7 +25,7 @@ namespace CK.AspNet;
 /// </para>
 /// <para>
 /// <c>CKBuild</c> doesn't apply them: the host that creates the web applications does (the "HttpEndpoint" feature of
-/// CK.AppIdentity.HttpEndpoint applies them to each of its endpoints).
+/// CK.AppIdentity.HttpEndpoint applies them to its endpoint).
 /// </para>
 /// </summary>
 public sealed class WebApplicationContributions

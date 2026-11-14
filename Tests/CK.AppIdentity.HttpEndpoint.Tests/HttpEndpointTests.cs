@@ -94,7 +94,7 @@ public class HttpEndpointTests
         {
             ["CK-AppIdentity:FullName"] = "Test/$Server/#Dev",
             ["CK-AppIdentity:Local:AllowFeatures"] = "HttpEndpoint",
-            ["CK-AppIdentity:Local:HttpEndpoint:Main:Urls"] = "http://127.0.0.1:0"
+            ["CK-AppIdentity:Local:HttpEndpoint:Urls"] = "http://127.0.0.1:0"
         };
         configure?.Invoke( values );
         b.Configuration.AddInMemoryCollection( values );
@@ -133,11 +133,11 @@ public class HttpEndpointTests
 
     static HttpEndpointFeatureDriver GetDriver( IHost host ) => host.Services.GetRequiredService<HttpEndpointFeatureDriver>();
 
-    static string Address( IHost host, int index = 0 ) => GetDriver( host ).Endpoints[index].Urls[0];
+    static string Address( IHost host ) => GetDriver( host ).Endpoint.ShouldNotBeNull().Urls[0];
 
     [Test]
     [CancelAfter( 20000 )]
-    public async Task the_public_URL_of_the_party_is_the_default_url_of_its_first_endpoint_unless_configured_Async( CancellationToken cancel )
+    public async Task the_public_URL_of_the_party_is_the_default_url_of_its_endpoint_unless_configured_Async( CancellationToken cancel )
     {
         using( var host = BuildHost() )
         {
@@ -157,15 +157,15 @@ public class HttpEndpointTests
 
     [Test]
     [CancelAfter( 20000 )]
-    public async Task the_host_ApplicationStopping_is_raised_before_the_endpoints_stop_Async( CancellationToken cancel )
+    public async Task the_host_ApplicationStopping_is_raised_before_the_endpoint_stops_Async( CancellationToken cancel )
     {
         // The host raises it after the StoppingAsync of its services, where the static features stop: the feature raises
         // it first, as a web application does before its server drains (the WebSocket channel aborts its connections then).
-        using var host = BuildHost( builder: b => b.AddHttpEndpoint( "Main", MapTestRoutes ) );
+        using var host = BuildHost( builder: b => b.ConfigureHttpEndpoint( MapTestRoutes ) );
         await host.StartAsync( cancel );
         var order = new List<string>();
         host.Services.GetRequiredService<IHostApplicationLifetime>().ApplicationStopping.Register( () => order.Add( "host" ) );
-        GetDriver( host ).Endpoints.ShouldHaveSingleItem().Application.Lifetime.ApplicationStopping.Register( () => order.Add( "endpoint" ) );
+        GetDriver( host ).Endpoint.ShouldNotBeNull().Application.Lifetime.ApplicationStopping.Register( () => order.Add( "endpoint" ) );
         await host.StopAsync( cancel );
         order.ShouldBe( ["host", "endpoint"] );
     }
@@ -174,34 +174,43 @@ public class HttpEndpointTests
     [CancelAfter( 20000 )]
     public async Task an_endpoint_answers_and_stops_with_the_host_Async( CancellationToken cancel )
     {
-        using var host = BuildHost( builder: b => b.AddHttpEndpoint( "Main", MapTestRoutes ) );
+        using var host = BuildHost( builder: b => b.ConfigureHttpEndpoint( MapTestRoutes ) );
         await host.StartAsync( cancel );
         var driver = GetDriver( host );
-        var endpoint = driver.Endpoints.ShouldHaveSingleItem();
-        endpoint.Name.ShouldBe( "Main" );
+        driver.Endpoint.ShouldNotBeNull();
         var address = Address( host );
         address.ShouldNotEndWith( ":0" );
         (await _client.GetStringAsync( $"{address}/hello", cancel )).ShouldBe( "hello" );
         (await _client.GetStringAsync( $"{address}/monitor", cancel )).ShouldBe( "same" );
 
         await host.StopAsync( cancel );
-        driver.Endpoints.ShouldBeEmpty();
+        driver.Endpoint.ShouldBeNull();
         await Should.ThrowAsync<HttpRequestException>( () => _client.GetStringAsync( $"{address}/hello", cancel ) );
     }
 
     [Test]
     [CancelAfter( 20000 )]
-    public async Task two_endpoints_share_the_host_singletons_and_have_their_own_container_configured_ones_Async( CancellationToken cancel )
+    public async Task the_endpoint_shares_the_host_singletons_and_has_its_own_container_configured_ones_Async( CancellationToken cancel )
     {
-        using var host = BuildHost( c => c["CK-AppIdentity:Local:HttpEndpoint:Second:Urls"] = "http://127.0.0.1:0",
-                                    b => b.AddHttpEndpoint( "Main", MapTestRoutes ).AddHttpEndpoint( "Second", MapTestRoutes ) );
+        using var host = BuildHost( builder: b => b.ConfigureHttpEndpoint( MapTestRoutes ) );
         await host.StartAsync( cancel );
-        GetDriver( host ).Endpoints.Count.ShouldBe( 2 );
-        var main = (await _client.GetStringAsync( $"{Address( host, 0 )}/ids", cancel )).Split( ' ' );
-        var second = (await _client.GetStringAsync( $"{Address( host, 1 )}/ids", cancel )).Split( ' ' );
-        main[0].ShouldBe( second[0], "The host singleton is shared." );
-        main[0].ShouldBe( host.Services.GetRequiredService<SharedService>().Id.ToString() );
-        main[1].ShouldNotBe( second[1], "Each web application has its own container-configured singleton." );
+        var ids = (await _client.GetStringAsync( $"{Address( host )}/ids", cancel )).Split( ' ' );
+        ids[0].ShouldBe( host.Services.GetRequiredService<SharedService>().Id.ToString(), "The host singleton is shared." );
+        ids[1].ShouldNotBe( host.Services.GetRequiredService<PerContainerService>().Id.ToString(), "The web application has its own container-configured singleton." );
+        await host.StopAsync( cancel );
+    }
+
+    [Test]
+    [CancelAfter( 20000 )]
+    public async Task the_application_configurations_apply_in_their_order_Async( CancellationToken cancel )
+    {
+        var order = new List<string>();
+        using var host = BuildHost( builder: b => b.ConfigureHttpEndpoint( MapTestRoutes )
+                                                   .ConfigureHttpEndpoint( _ => order.Add( "first" ) )
+                                                   .ConfigureHttpEndpoint( _ => order.Add( "second" ) ) );
+        await host.StartAsync( cancel );
+        order.ShouldBe( ["first", "second"] );
+        (await _client.GetStringAsync( $"{Address( host )}/hello", cancel )).ShouldBe( "hello" );
         await host.StopAsync( cancel );
     }
 
@@ -211,9 +220,9 @@ public class HttpEndpointTests
     [CancelAfter( 20000 )]
     public async Task the_default_url_is_the_first_configured_one_and_is_browsable_Async( string urls, string expectedStart, CancellationToken cancel )
     {
-        using var host = BuildHost( c => c["CK-AppIdentity:Local:HttpEndpoint:Main:Urls"] = urls, b => b.AddHttpEndpoint( "Main", MapTestRoutes ) );
+        using var host = BuildHost( c => c["CK-AppIdentity:Local:HttpEndpoint:Urls"] = urls, b => b.ConfigureHttpEndpoint( MapTestRoutes ) );
         await host.StartAsync( cancel );
-        var endpoint = GetDriver( host ).Endpoints.ShouldHaveSingleItem();
+        var endpoint = GetDriver( host ).Endpoint.ShouldNotBeNull();
         var primary = endpoint.DefaultUrl.ShouldNotBeNull();
         primary.ShouldStartWith( expectedStart );
         primary.ShouldNotEndWith( ":0" );
@@ -230,13 +239,13 @@ public class HttpEndpointTests
     {
         using var host = BuildHost( c =>
         {
-            c.Remove( "CK-AppIdentity:Local:HttpEndpoint:Main:Urls" );
-            c["CK-AppIdentity:Local:HttpEndpoint:Main:Kestrel:Endpoints:A:Url"] = "http://127.0.0.1:0";
-            c["CK-AppIdentity:Local:HttpEndpoint:Main:Kestrel:Endpoints:B:Url"] = "http://[::1]:0";
-            if( defaultEndpoint != null ) c["CK-AppIdentity:Local:HttpEndpoint:Main:DefaultEndpoint"] = defaultEndpoint;
-        }, b => b.AddHttpEndpoint( "Main", MapTestRoutes ) );
+            c.Remove( "CK-AppIdentity:Local:HttpEndpoint:Urls" );
+            c["CK-AppIdentity:Local:HttpEndpoint:Kestrel:Endpoints:A:Url"] = "http://127.0.0.1:0";
+            c["CK-AppIdentity:Local:HttpEndpoint:Kestrel:Endpoints:B:Url"] = "http://[::1]:0";
+            if( defaultEndpoint != null ) c["CK-AppIdentity:Local:HttpEndpoint:DefaultEndpoint"] = defaultEndpoint;
+        }, b => b.ConfigureHttpEndpoint( MapTestRoutes ) );
         await host.StartAsync( cancel );
-        var endpoint = GetDriver( host ).Endpoints.ShouldHaveSingleItem();
+        var endpoint = GetDriver( host ).Endpoint.ShouldNotBeNull();
         endpoint.Urls.Count.ShouldBe( 2 );
         var primary = endpoint.DefaultUrl.ShouldNotBeNull();
         primary.ShouldStartWith( expectedStart );
@@ -246,14 +255,12 @@ public class HttpEndpointTests
 
     [Test]
     [CancelAfter( 20000 )]
-    public async Task the_contributions_of_the_packages_apply_to_every_endpoint_Async( CancellationToken cancel )
+    public async Task the_contributions_of_the_packages_apply_to_the_endpoint_Async( CancellationToken cancel )
     {
-        // No application configuration at all for the endpoints: the packages do the job.
-        using var host = BuildHost( c => c["CK-AppIdentity:Local:HttpEndpoint:Second:Urls"] = "http://127.0.0.1:0" );
+        // No application configuration at all for the endpoint: the packages do the job.
+        using var host = BuildHost();
         await host.StartAsync( cancel );
-        GetDriver( host ).Endpoints.Count.ShouldBe( 2 );
-        (await _client.GetStringAsync( $"{Address( host, 0 )}/contributed", cancel )).ShouldBe( "contributed" );
-        (await _client.GetStringAsync( $"{Address( host, 1 )}/contributed", cancel )).ShouldBe( "contributed" );
+        (await _client.GetStringAsync( $"{Address( host )}/contributed", cancel )).ShouldBe( "contributed" );
         await host.StopAsync( cancel );
     }
 
@@ -262,7 +269,7 @@ public class HttpEndpointTests
     public async Task a_disposable_host_singleton_is_disposed_once_by_the_host_Async( CancellationToken cancel )
     {
         SharedService._disposeCount = 0;
-        using( var host = BuildHost( builder: b => b.AddHttpEndpoint( "Main", MapTestRoutes ) ) )
+        using( var host = BuildHost( builder: b => b.ConfigureHttpEndpoint( MapTestRoutes ) ) )
         {
             await host.StartAsync( cancel );
             await _client.GetStringAsync( $"{Address( host )}/ids", cancel );
@@ -279,14 +286,15 @@ public class HttpEndpointTests
         using var listener = new TcpListener( IPAddress.Loopback, 0 );
         listener.Start();
         var port = ((IPEndPoint)listener.LocalEndpoint).Port;
-        using var host = BuildHost( c => c["CK-AppIdentity:Local:HttpEndpoint:Main:Urls"] = $"http://127.0.0.1:{port}" );
+        using var host = BuildHost( c => c["CK-AppIdentity:Local:HttpEndpoint:Urls"] = $"http://127.0.0.1:{port}" );
         await Should.ThrowAsync<Exception>( () => host.StartAsync( cancel ) );
-        GetDriver( host ).Endpoints.ShouldBeEmpty();
+        GetDriver( host ).Endpoint.ShouldBeNull();
     }
 
     [TestCase( "NoEndpoint" )]
     [TestCase( "UrlsAndKestrel" )]
-    [TestCase( "UnknownApplicationEndpoint" )]
+    [TestCase( "NamedEndpoint" )]
+    [TestCase( "UnknownKey" )]
     [TestCase( "RootUrlsInDevelopment" )]
     [TestCase( "ConfiguredTenantDomain" )]
     [TestCase( "DefaultEndpointWithUrls" )]
@@ -298,14 +306,20 @@ public class HttpEndpointTests
         {
             switch( error )
             {
-                case "NoEndpoint": c.Remove( "CK-AppIdentity:Local:HttpEndpoint:Main:Urls" ); break;
-                case "UrlsAndKestrel": c["CK-AppIdentity:Local:HttpEndpoint:Main:Kestrel:Limits:MaxRequestBodySize"] = "1000"; break;
+                case "NoEndpoint": c.Remove( "CK-AppIdentity:Local:HttpEndpoint:Urls" ); break;
+                case "UrlsAndKestrel": c["CK-AppIdentity:Local:HttpEndpoint:Kestrel:Limits:MaxRequestBodySize"] = "1000"; break;
+                case "NamedEndpoint":
+                    // The endpoint level is removed.
+                    c.Remove( "CK-AppIdentity:Local:HttpEndpoint:Urls" );
+                    c["CK-AppIdentity:Local:HttpEndpoint:Main:Urls"] = "http://127.0.0.1:0";
+                    break;
+                case "UnknownKey": c["CK-AppIdentity:Local:HttpEndpoint:Compression"] = "true"; break;
                 case "RootUrlsInDevelopment": c["Urls"] = "http://127.0.0.1:0"; break;
-                case "DefaultEndpointWithUrls": c["CK-AppIdentity:Local:HttpEndpoint:Main:DefaultEndpoint"] = "Http"; break;
+                case "DefaultEndpointWithUrls": c["CK-AppIdentity:Local:HttpEndpoint:DefaultEndpoint"] = "Http"; break;
                 case "UnknownDefaultEndpoint":
-                    c.Remove( "CK-AppIdentity:Local:HttpEndpoint:Main:Urls" );
-                    c["CK-AppIdentity:Local:HttpEndpoint:Main:Kestrel:Endpoints:Http:Url"] = "http://127.0.0.1:0";
-                    c["CK-AppIdentity:Local:HttpEndpoint:Main:DefaultEndpoint"] = "Https";
+                    c.Remove( "CK-AppIdentity:Local:HttpEndpoint:Urls" );
+                    c["CK-AppIdentity:Local:HttpEndpoint:Kestrel:Endpoints:Http:Url"] = "http://127.0.0.1:0";
+                    c["CK-AppIdentity:Local:HttpEndpoint:DefaultEndpoint"] = "Https";
                     break;
                 case "ConfiguredTenantDomain":
                     c["CK-AppIdentity:Parties:0:FullName"] = "Tenant/$Tenant";
@@ -313,17 +327,17 @@ public class HttpEndpointTests
                     break;
             }
         },
-        b => b.AddHttpEndpoint( error == "UnknownApplicationEndpoint" ? "Other" : "Main" ),
+        b => b.ConfigureHttpEndpoint( MapTestRoutes ),
         environmentName: error == "RootUrlsInDevelopment" ? "Development" : "Production" );
         await Should.ThrowAsync<Exception>( () => host.StartAsync( cancel ) );
-        GetDriver( host ).Endpoints.ShouldBeEmpty();
+        GetDriver( host ).Endpoint.ShouldBeNull();
     }
 
     [Test]
     [CancelAfter( 20000 )]
     public async Task root_urls_are_only_a_warning_in_Production_Async( CancellationToken cancel )
     {
-        using var host = BuildHost( c => c["Urls"] = "http://127.0.0.1:0", b => b.AddHttpEndpoint( "Main", MapTestRoutes ) );
+        using var host = BuildHost( c => c["Urls"] = "http://127.0.0.1:0", b => b.ConfigureHttpEndpoint( MapTestRoutes ) );
         await host.StartAsync( cancel );
         (await _client.GetStringAsync( $"{Address( host )}/hello", cancel )).ShouldBe( "hello" );
         await host.StopAsync( cancel );
@@ -333,20 +347,20 @@ public class HttpEndpointTests
     [CancelAfter( 20000 )]
     public async Task a_web_application_that_stops_stops_the_host_Async( CancellationToken cancel )
     {
-        using var host = BuildHost( builder: b => b.AddHttpEndpoint( "Main" ) );
+        using var host = BuildHost();
         await host.StartAsync( cancel );
         var hostLifetime = host.Services.GetRequiredService<IHostApplicationLifetime>();
         hostLifetime.ApplicationStopping.IsCancellationRequested.ShouldBeFalse();
-        GetDriver( host ).Endpoints[0].Application.Lifetime.StopApplication();
+        GetDriver( host ).Endpoint.ShouldNotBeNull().Application.Lifetime.StopApplication();
         hostLifetime.ApplicationStopping.IsCancellationRequested.ShouldBeTrue();
         await host.StopAsync( cancel );
     }
 
     [Test]
     [CancelAfter( 20000 )]
-    public async Task a_dynamic_tenant_domain_cannot_have_endpoints_Async( CancellationToken cancel )
+    public async Task a_dynamic_tenant_domain_cannot_have_an_endpoint_Async( CancellationToken cancel )
     {
-        using var host = BuildHost( builder: b => b.AddHttpEndpoint( "Main" ) );
+        using var host = BuildHost();
         await host.StartAsync( cancel );
         var s = host.Services.GetRequiredService<ApplicationIdentityService>();
         (await s.AddTenantDomainAsync( TestHelper.Monitor, c =>
@@ -362,23 +376,23 @@ public class HttpEndpointTests
     [CancelAfter( 20000 )]
     public async Task without_the_feature_the_application_configurations_are_ignored_Async( CancellationToken cancel )
     {
-        using var host = BuildHost( c => c["CK-AppIdentity:Local:AllowFeatures"] = "", b => b.AddHttpEndpoint( "Main" ) );
+        using var host = BuildHost( c => c["CK-AppIdentity:Local:AllowFeatures"] = "", b => b.ConfigureHttpEndpoint( MapTestRoutes ) );
         await host.StartAsync( cancel );
-        GetDriver( host ).Endpoints.ShouldBeEmpty();
+        GetDriver( host ).Endpoint.ShouldBeNull();
         await host.StopAsync( cancel );
     }
 
     [Test]
     [CancelAfter( 20000 )]
-    public async Task the_endpoints_are_in_the_running_status_of_a_development_party_Async( CancellationToken cancel )
+    public async Task the_endpoint_is_in_the_running_status_of_a_development_party_Async( CancellationToken cancel )
     {
-        using var host = BuildHost( c => c["CK-AppIdentity:Local:HttpEndpoint:Second:Urls"] = "http://127.0.0.1:0;http://[::1]:0",
-                                    b => b.AddHttpEndpoint( "Main", MapTestRoutes ).AddHttpEndpoint( "Second", MapTestRoutes ),
+        using var host = BuildHost( c => c["CK-AppIdentity:Local:HttpEndpoint:Urls"] = "http://127.0.0.1:0;http://[::1]:0",
+                                    b => b.ConfigureHttpEndpoint( MapTestRoutes ),
                                     devStore: true );
         await host.StartAsync( cancel );
         var path = host.Services.GetRequiredService<DevRunningStatusFeatureDriver>().FilePath;
         path.IsEmptyPath.ShouldBeFalse( "The DevRunningStatus feature is active." );
-        // The static features start in any order: the status is rewritten once the endpoints are started.
+        // The static features start in any order: the status is rewritten once the endpoint is started.
         JsonElement status;
         for(; ; )
         {
@@ -386,16 +400,11 @@ public class HttpEndpointTests
             if( status.GetProperty( "Ready" ).GetBoolean() ) break;
             await Task.Delay( 50, cancel );
         }
-        var endpoints = GetDriver( host ).Endpoints;
-        var http = status.GetProperty( "Http" ).EnumerateArray().ToArray();
-        http.Length.ShouldBe( 2 );
-        for( int i = 0; i < 2; ++i )
-        {
-            http[i].GetProperty( "Name" ).GetString().ShouldBe( endpoints[i].Name );
-            http[i].GetProperty( "Urls" ).EnumerateArray().Select( u => u.GetString() ).ShouldBe( endpoints[i].Urls );
-            http[i].GetProperty( "DefaultUrl" ).GetString().ShouldBe( endpoints[i].DefaultUrl );
-        }
-        http[1].GetProperty( "Urls" ).GetArrayLength().ShouldBe( 2 );
+        var endpoint = GetDriver( host ).Endpoint.ShouldNotBeNull();
+        var http = status.GetProperty( "Http" );
+        http.GetProperty( "Urls" ).EnumerateArray().Select( u => u.GetString() ).ShouldBe( endpoint.Urls );
+        http.GetProperty( "Urls" ).GetArrayLength().ShouldBe( 2 );
+        http.GetProperty( "DefaultUrl" ).GetString().ShouldBe( endpoint.DefaultUrl );
         await host.StopAsync( cancel );
         File.Exists( path ).ShouldBeFalse();
     }

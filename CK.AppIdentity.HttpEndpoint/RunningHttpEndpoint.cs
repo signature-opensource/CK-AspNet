@@ -9,13 +9,12 @@ using System.Linq;
 namespace CK.AppIdentity;
 
 /// <summary>
-/// A running endpoint of the <see cref="HttpEndpointFeatureDriver"/>: its web application.
+/// The running endpoint of the <see cref="HttpEndpointFeatureDriver"/>: its web application.
 /// </summary>
 public sealed class RunningHttpEndpoint
 {
-    internal RunningHttpEndpoint( string name, WebApplication application, bool configuredByUrls, string? defaultEndpointUrl )
+    internal RunningHttpEndpoint( WebApplication application, bool configuredByUrls, string? defaultEndpointUrl )
     {
-        Name = name;
         Application = application;
         var addresses = application.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>();
         Urls = addresses != null ? [.. addresses.Addresses] : [];
@@ -29,11 +28,6 @@ public sealed class RunningHttpEndpoint
                               ?? Urls.FirstOrDefault();
         DefaultUrl = defaultUrl != null ? ToBrowsable( defaultUrl ) : null;
     }
-
-    /// <summary>
-    /// Gets the name of this endpoint (its "Local:HttpEndpoint" section).
-    /// </summary>
-    public string Name { get; }
 
     /// <summary>
     /// Gets the web application of this endpoint.
@@ -62,10 +56,10 @@ public sealed class RunningHttpEndpoint
     public string? DefaultUrl { get; }
 
     /// <summary>
-    /// Overridden to return the name and the URLs.
+    /// Overridden to return the URLs.
     /// </summary>
     /// <returns>A readable string.</returns>
-    public override string ToString() => $"HttpEndpoint '{Name}' ({string.Join( ", ", Urls )})";
+    public override string ToString() => $"HttpEndpoint ({string.Join( ", ", Urls )})";
 
     // The actual URL of a configured one: the same scheme, and the same port (or the same host when the configured port
     // is 0, the wildcard hosts being equivalent).

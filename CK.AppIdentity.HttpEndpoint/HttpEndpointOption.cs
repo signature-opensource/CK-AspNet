@@ -4,8 +4,8 @@ using Microsoft.AspNetCore.Builder;
 namespace CK.AppIdentity;
 
 /// <summary>
-/// The base class of the options of the <see cref="HttpEndpointFeatureDriver"/>: what an endpoint adds to its web
-/// application, enabled or disabled by the configuration of each endpoint (its key in the endpoint section is the
+/// The base class of the options of the <see cref="HttpEndpointFeatureDriver"/>: what the endpoint adds to its web
+/// application, enabled or disabled by the "Local:HttpEndpoint" section of the party (its key in this section is the
 /// option name: the type name without its "Option" suffix).
 /// <para>
 /// A concrete option is decorated with <see cref="FeatureOptionAttribute"/> and has one public constructor whose parameters
@@ -13,7 +13,7 @@ namespace CK.AppIdentity;
 /// <c>[RequiredBy&lt;T&gt;]</c> and their optional forms) order them; a non optional relation also means "only with it".
 /// </para>
 /// <para>
-/// An instance is created for each endpoint that enables the option: <see cref="Initialize"/> is called when the feature
+/// An instance is created when the party enables the option: <see cref="Initialize"/> is called when the feature
 /// is set up (a configuration error fails the setup), then <see cref="ConfigureServices"/> and <see cref="ConfigurePipeline"/>
 /// when the endpoint starts.
 /// </para>
@@ -21,12 +21,12 @@ namespace CK.AppIdentity;
 public abstract class HttpEndpointOption : IPartyComponentOption<HttpEndpointFeatureDriver>
 {
     /// <summary>
-    /// Reads and checks the configuration of this option for an endpoint. Does nothing by default.
+    /// Reads and checks the configuration of this option. Does nothing by default.
     /// </summary>
     /// <param name="monitor">The monitor to use.</param>
-    /// <param name="endpoint">The configuration section of the endpoint (its key is the endpoint name).</param>
+    /// <param name="endpoint">The "Local:HttpEndpoint" configuration section.</param>
     /// <param name="configuration">
-    /// The section of this option in the endpoint section. Null when the option is enabled by default or by <c>true</c>.
+    /// The section of this option in the "Local:HttpEndpoint" section. Null when the option is enabled by default or by <c>true</c>.
     /// </param>
     /// <returns>True on success, false on error (errors must be logged).</returns>
     public virtual bool Initialize( IActivityMonitor monitor, ImmutableConfigurationSection endpoint, ImmutableConfigurationSection? configuration ) => true;

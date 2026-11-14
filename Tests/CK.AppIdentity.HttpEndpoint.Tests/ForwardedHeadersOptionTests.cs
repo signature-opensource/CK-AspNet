@@ -47,14 +47,14 @@ public class ForwardedHeadersOptionTests
         {
             ["CK-AppIdentity:FullName"] = "Test/$Server/#Dev",
             ["CK-AppIdentity:Local:AllowFeatures"] = "HttpEndpoint",
-            ["CK-AppIdentity:Local:HttpEndpoint:Main:Urls"] = "http://127.0.0.1:0"
+            ["CK-AppIdentity:Local:HttpEndpoint:Urls"] = "http://127.0.0.1:0"
         };
         configure?.Invoke( values );
         b.Configuration.AddInMemoryCollection( values );
         b.AddApplicationIdentityServiceConfiguration();
         b.Services.AddScoped<IActivityMonitor, ActivityMonitor>();
         b.Services.AddScoped( sp => sp.GetRequiredService<IActivityMonitor>().ParallelLogger );
-        b.AddHttpEndpoint( "Main", web => web.AppendApplicationBuilder( a =>
+        b.ConfigureHttpEndpoint( web => web.AppendApplicationBuilder( a =>
         {
             // What the pipeline sees of the client.
             ((WebApplication)a).MapGet( "/client", ( HttpContext c ) => $"{c.Request.Scheme}://{c.Request.Host} {c.Connection.RemoteIpAddress}" );
@@ -65,7 +65,7 @@ public class ForwardedHeadersOptionTests
 
     static async Task<string> GetClientAsync( IHost host, CancellationToken cancel )
     {
-        var address = host.Services.GetRequiredService<HttpEndpointFeatureDriver>().Endpoints[0].Urls[0];
+        var address = host.Services.GetRequiredService<HttpEndpointFeatureDriver>().Endpoint!.Urls[0];
         using var request = new HttpRequestMessage( HttpMethod.Get, $"{address}/client" );
         request.Headers.Add( "X-Forwarded-Proto", "https" );
         request.Headers.Add( "X-Forwarded-Host", "public.example" );
@@ -79,7 +79,7 @@ public class ForwardedHeadersOptionTests
     [CancelAfter( 20000 )]
     public async Task the_headers_of_a_known_proxy_are_applied_Async( CancellationToken cancel )
     {
-        using var host = BuildHost( c => c["CK-AppIdentity:Local:HttpEndpoint:Main:ForwardedHeaders:KnownProxies"] = "127.0.0.1" );
+        using var host = BuildHost( c => c["CK-AppIdentity:Local:HttpEndpoint:ForwardedHeaders:KnownProxies"] = "127.0.0.1" );
         await host.StartAsync( cancel );
         (await GetClientAsync( host, cancel )).ShouldBe( "https://public.example 203.0.113.7" );
         await host.StopAsync( cancel );
@@ -89,7 +89,7 @@ public class ForwardedHeadersOptionTests
     [CancelAfter( 20000 )]
     public async Task the_headers_of_a_known_network_are_applied_Async( CancellationToken cancel )
     {
-        using var host = BuildHost( c => c["CK-AppIdentity:Local:HttpEndpoint:Main:ForwardedHeaders:KnownNetworks:0"] = "127.0.0.0/8" );
+        using var host = BuildHost( c => c["CK-AppIdentity:Local:HttpEndpoint:ForwardedHeaders:KnownNetworks:0"] = "127.0.0.0/8" );
         await host.StartAsync( cancel );
         (await GetClientAsync( host, cancel )).ShouldBe( "https://public.example 203.0.113.7" );
         await host.StopAsync( cancel );
@@ -102,7 +102,7 @@ public class ForwardedHeadersOptionTests
     {
         using var host = BuildHost( c =>
         {
-            if( mode == "OtherProxy" ) c["CK-AppIdentity:Local:HttpEndpoint:Main:ForwardedHeaders:KnownProxies"] = "10.0.0.12";
+            if( mode == "OtherProxy" ) c["CK-AppIdentity:Local:HttpEndpoint:ForwardedHeaders:KnownProxies"] = "10.0.0.12";
         } );
         await host.StartAsync( cancel );
         var client = await GetClientAsync( host, cancel );
@@ -111,17 +111,17 @@ public class ForwardedHeadersOptionTests
         await host.StopAsync( cancel );
     }
 
-    [TestCase( "true", "Main:ForwardedHeaders\" must be a section with \"KnownProxies\" or \"KnownNetworks\"" )]
+    [TestCase( "true", "HttpEndpoint:ForwardedHeaders\" must be a section with \"KnownProxies\" or \"KnownNetworks\"" )]
     [TestCase( "NoProxy", "must have \"KnownProxies\" or \"KnownNetworks\": the proxies are never trusted by default." )]
     [TestCase( "InvalidProxy", "'not-an-ip' is not an IP address." )]
     [TestCase( "InvalidNetwork", "'10.0.0.0' is not a CIDR network" )]
-    [TestCase( "InvalidHeaders", "Invalid \"CK-AppIdentity:Local:HttpEndpoint:Main:ForwardedHeaders:Headers\": 'XForwardedNothing'." )]
-    [TestCase( "UnknownOptionKey", "Unknown \"CK-AppIdentity:Local:HttpEndpoint:Main:ForwardedHeaders:Trust\"" )]
-    [TestCase( "UnknownEndpointKey", "Unknown \"CK-AppIdentity:Local:HttpEndpoint:Main:Compression\": the keys of an endpoint are Urls, Kestrel, DefaultEndpoint and its options (ForwardedHeaders)." )]
+    [TestCase( "InvalidHeaders", "Invalid \"CK-AppIdentity:Local:HttpEndpoint:ForwardedHeaders:Headers\": 'XForwardedNothing'." )]
+    [TestCase( "UnknownOptionKey", "Unknown \"CK-AppIdentity:Local:HttpEndpoint:ForwardedHeaders:Trust\"" )]
+    [TestCase( "UnknownEndpointKey", "Unknown \"CK-AppIdentity:Local:HttpEndpoint:Compression\": the keys of \"Local:HttpEndpoint\" are Urls, Kestrel, DefaultEndpoint and its options (ForwardedHeaders)." )]
     [CancelAfter( 20000 )]
     public async Task configuration_errors_fail_the_start_Async( string error, string expected, CancellationToken cancel )
     {
-        const string p = "CK-AppIdentity:Local:HttpEndpoint:Main:";
+        const string p = "CK-AppIdentity:Local:HttpEndpoint:";
         using var host = BuildHost( c =>
         {
             switch( error )

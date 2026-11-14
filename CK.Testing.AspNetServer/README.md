@@ -17,7 +17,7 @@ public static async Task<RunningAspNetServer> CreateRunningAspNetServerAsync(
 ```
 
 It starts what runs in production (see CK.AppHost): a Generic Host whose web application is the
-`EndpointName` ("Main") endpoint of its "HttpEndpoint" feature
+endpoint of its "HttpEndpoint" feature
 ([CK.AppIdentity.HttpEndpoint](../CK.AppIdentity.HttpEndpoint/README.md)). The endpoint gets the
 contributions of the packages (`WebApplicationContributions`: Cris, the client applications, the WebSocket
 channel...), the services of the host, then `configureEndpoint`; the public URL of the party is the
@@ -27,7 +27,7 @@ endpoint's one.
   BinPath. Without it, the helper throws.
 - **The identity** is "Test/$Server" by default, the `identity` action changes it. Whatever it does, the
   "HttpEndpoint" feature is allowed and the endpoint listens on `http://127.0.0.1:0` unless it is configured
-  (`Local:HttpEndpoint:Main`): the OS picks a free port.
+  (`Local:HttpEndpoint:Urls` or `Local:HttpEndpoint:Kestrel`): the OS picks a free port.
 - **The host** has no default configuration source, the "Production" environment and the test project folder as its
   content root. `configureHost` is called before the map is registered.
 - **The routes of a test** go to the endpoint, in one gesture on its builder:
@@ -149,7 +149,7 @@ optional sub paths, which is the "log out and start over" of an authentication t
 
 - `CK.Testing`, for `TestHelper.Monitor` and `TestHelper.TestProjectFolder`.
 
-- `CK.AppIdentity.Engine`: a BinPath with the "HttpEndpoint" feature has the options of the endpoints (the
+- `CK.AppIdentity.Engine`: a BinPath with the "HttpEndpoint" feature has the options of the endpoint (the
   `PartyComponentOptionDirectory` of CK.AppIdentity), that this engine generates.
 
 - The `Microsoft.AspNetCore.App` framework reference.

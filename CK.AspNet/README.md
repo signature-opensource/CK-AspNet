@@ -8,8 +8,8 @@ unhandled exception into a logged 500 instead of a lost stack trace.
 var app = builder.CKBuild();
 ```
 
-A party is a Generic Host: its web applications are the endpoints of its "HttpEndpoint" feature
-(CK.AppIdentity.HttpEndpoint), which calls `CKBuild` for each of them. The CKomposable map is registered in the host,
+A party is a Generic Host: its web application is the endpoint of its "HttpEndpoint" feature
+(CK.AppIdentity.HttpEndpoint), which calls `CKBuild`. The CKomposable map is registered in the host,
 not in a web application. A standalone web application is for a test of a middleware.
 
 ## CKBuild
@@ -167,7 +167,7 @@ void ConfigureServices( StObjContextRoot.ServiceRegister services )
 
 `CKBuild` doesn't apply the contributions (an existing host that calls `app.UseXxx()` itself would get the middleware
 twice): the host that creates the web applications applies them (`WebApplicationContributions.ApplyTo`). The "HttpEndpoint"
-feature (CK.AppIdentity.HttpEndpoint) does it for each of its endpoints.
+feature (CK.AppIdentity.HttpEndpoint) does it for its endpoint.
 
 ## Registering CKMiddleware by hand
 

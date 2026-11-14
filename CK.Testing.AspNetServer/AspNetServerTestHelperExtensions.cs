@@ -17,20 +17,16 @@ namespace CK.Testing;
 /// </summary>
 public static class AspNetServerTestHelperExtensions
 {
-    /// <summary>
-    /// The name of the endpoint of a party created by <see cref="CreateRunningAspNetServerAsync(IStObjMap, Action{MutableConfigurationSection}?, Action{HostApplicationBuilder}?, Action{WebApplicationBuilder}?)"/>.
-    /// </summary>
-    public const string EndpointName = "Main";
 
     /// <summary>
     /// Creates and starts a party from this map, as <c>CK.Core.CKomposableAppHost</c> (CK.AppHost) does: a Generic Host
-    /// whose web application is the <see cref="EndpointName"/> endpoint of its "HttpEndpoint" feature, on a random port.
+    /// whose web application is the endpoint of its "HttpEndpoint" feature, on a random port.
     /// The endpoint gets the contributions of the packages (<c>WebApplicationContributions</c>), the services of the host,
     /// then <paramref name="configureEndpoint"/>; the public URL of the party is the endpoint's one.
     /// <para>
     /// The map must contain the "HttpEndpoint" feature (the CK.AppIdentity.HttpEndpoint assembly, see
     /// <see cref="HttpEndpointAssembly"/>). The identity is "Test/$Server" by default; whatever <paramref name="identity"/>
-    /// does, the "HttpEndpoint" feature is allowed and the <see cref="EndpointName"/> endpoint listens on
+    /// does, the "HttpEndpoint" feature is allowed and the endpoint listens on
     /// "http://127.0.0.1:0" unless it is configured.
     /// </para>
     /// <para>
@@ -65,9 +61,9 @@ public static class AspNetServerTestHelperExtensions
                 if( string.IsNullOrWhiteSpace( allowed ) ) c["Local:AllowFeatures"] = "HttpEndpoint";
                 else if( !allowed.Split( ',' ).Any( f => f.Trim() == "HttpEndpoint" ) ) c["Local:AllowFeatures"] = allowed + ",HttpEndpoint";
                 // A configured endpoint (its "Urls" or its "Kestrel" section) is kept.
-                if( Find( c, "Local", "HttpEndpoint", EndpointName ) == null )
+                if( Find( c, "Local", "HttpEndpoint", "Urls" ) == null && Find( c, "Local", "HttpEndpoint", "Kestrel" ) == null )
                 {
-                    c[$"Local:HttpEndpoint:{EndpointName}:Urls"] = "http://127.0.0.1:0";
+                    c["Local:HttpEndpoint:Urls"] = "http://127.0.0.1:0";
                 }
             } );
             Throw.CheckState( "Invalid identity configuration.", configuration != null );
@@ -77,14 +73,14 @@ public static class AspNetServerTestHelperExtensions
             builder.Services.AddScoped( sp => sp.GetRequiredService<IActivityMonitor>().ParallelLogger );
             configureHost?.Invoke( builder );
             builder.Services.AddStObjMap( TestHelper.Monitor, map );
-            builder.AddHttpEndpoint( EndpointName, configureEndpoint );
+            if( configureEndpoint != null ) builder.ConfigureHttpEndpoint( configureEndpoint );
             host = builder.Build();
             await host.StartAsync().ConfigureAwait( false );
 
             var driver = host.Services.GetService<HttpEndpointFeatureDriver>();
             Throw.CheckState( "The map doesn't contain the \"HttpEndpoint\" feature (CK.AppIdentity.HttpEndpoint).", driver != null );
-            var endpoint = driver.Endpoints.FirstOrDefault( e => e.Name == EndpointName );
-            Throw.CheckState( $"The endpoint '{EndpointName}' is not running: see the logs of the \"HttpEndpoint\" feature.", endpoint != null );
+            var endpoint = driver.Endpoint;
+            Throw.CheckState( "The endpoint is not running: see the logs of the \"HttpEndpoint\" feature.", endpoint != null );
             var serverAddress = endpoint.Urls[0];
             TestHelper.Monitor.Info( $"Party started. Endpoint address: '{serverAddress}'." );
             return new RunningAspNetServer( host, endpoint.Application, serverAddress );

@@ -9,8 +9,8 @@ namespace CK.AppIdentity;
 
 /// <summary>
 /// One instance per host: the services of the host (captured by <see cref="HttpEndpointHostRegistration"/> when the
-/// map is registered) and the application's configurations of the endpoints (added by
-/// <see cref="HttpEndpointHostApplicationBuilderExtensions.AddHttpEndpoint"/>), by endpoint name.
+/// map is registered) and the application's configurations of the endpoint (added by
+/// <see cref="HttpEndpointHostApplicationBuilderExtensions.ConfigureHttpEndpoint"/>), in their order.
 /// <para>
 /// Both find or add the instance in the host's services: their order doesn't matter.
 /// </para>
@@ -18,12 +18,12 @@ namespace CK.AppIdentity;
 [SingletonService]
 public sealed class HttpEndpointHost
 {
-    readonly Dictionary<string, Action<WebApplicationBuilder>?> _configurations;
+    readonly List<Action<WebApplicationBuilder>> _configurations;
     IServiceCollection? _hostServices;
 
     HttpEndpointHost()
     {
-        _configurations = new Dictionary<string, Action<WebApplicationBuilder>?>( StringComparer.OrdinalIgnoreCase );
+        _configurations = new List<Action<WebApplicationBuilder>>();
     }
 
     /// <summary>
@@ -33,19 +33,13 @@ public sealed class HttpEndpointHost
     public IServiceCollection? HostServices => _hostServices;
 
     /// <summary>
-    /// Gets the application's configurations of the endpoints, by endpoint name.
+    /// Gets the application's configurations of the endpoint, in their order.
     /// </summary>
-    public IReadOnlyDictionary<string, Action<WebApplicationBuilder>?> Configurations => _configurations;
+    public IReadOnlyList<Action<WebApplicationBuilder>> Configurations => _configurations;
 
     internal void SetHostServices( IServiceCollection services ) => _hostServices = services;
 
-    internal void AddConfiguration( string name, Action<WebApplicationBuilder>? configure )
-    {
-        if( !_configurations.TryAdd( name, configure ) )
-        {
-            Throw.InvalidOperationException( $"The HttpEndpoint '{name}' is already configured." );
-        }
-    }
+    internal void AddConfiguration( Action<WebApplicationBuilder> configure ) => _configurations.Add( configure );
 
     internal static HttpEndpointHost FindOrAdd( IServiceCollection services )
     {

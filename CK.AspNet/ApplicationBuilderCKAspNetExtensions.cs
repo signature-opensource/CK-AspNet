@@ -115,8 +115,8 @@ public static class ApplicationBuilderCKAspNetExtensions
     }
 
     /// <summary>
-    /// Wraps the <see cref="WebApplicationBuilder.Build"/> of a web application: the web application of an endpoint of
-    /// a host (the "HttpEndpoint" feature of CK.AppIdentity.HttpEndpoint calls it for each endpoint), or a standalone
+    /// Wraps the <see cref="WebApplicationBuilder.Build"/> of a web application: the web application of the endpoint of
+    /// a host (the "HttpEndpoint" feature of CK.AppIdentity.HttpEndpoint calls it for its endpoint), or a standalone
     /// web application in a test of a middleware.
     /// <list type="number">
     ///     <item>
