@@ -40,7 +40,7 @@ public class HttpEndpointTests
         public Guid Id { get; } = Guid.NewGuid();
     }
 
-    // A package's contribution: registered by its real object, applied to every endpoint.
+    // A package's contribution: registered by its real object, applied to the endpoint.
     public sealed class HelloPackage : IRealObject
     {
         void ConfigureServices( StObjContextRoot.ServiceRegister services )

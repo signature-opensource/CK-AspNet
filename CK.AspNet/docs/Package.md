@@ -2,7 +2,7 @@ Helpers that give an ASP.NET Core application a request monitor and an error gua
 
 `CKBuild` wraps `WebApplicationBuilder.Build`: it registers the request `IActivityMonitor` as a
 scoped service, then assembles the pipeline. The "HttpEndpoint" feature of CK.AppIdentity.HttpEndpoint
-calls it for each endpoint of a host.
+calls it for the endpoint of a host.
 
 A middleware sits at the pipeline head by default. It sets up the scoped HTTP context and catches
 what the rest of the pipeline throws, logging it as fatal and closing the request monitor. The

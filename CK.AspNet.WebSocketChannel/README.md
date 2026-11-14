@@ -6,7 +6,7 @@ are its own. Features do not open sockets and do not mount endpoints. They obser
 
 Nothing to call: the `WebSocketChannelManager` contributes `EnableWebSocketChannel` to the web applications of the host
 (`WebApplicationContributions`), so the "HttpEndpoint" feature of
-[CK.AppIdentity.HttpEndpoint](../CK.AppIdentity.HttpEndpoint/README.md) serves the channel on each endpoint.
+[CK.AppIdentity.HttpEndpoint](../CK.AppIdentity.HttpEndpoint/README.md) serves the channel on its endpoint.
 `EnableWebSocketChannel` is one gesture on the builder of a web application (the "Enable" convention of
 [CK.AspNet](../CK.AspNet/README.md): it is idempotent): it registers the WebSocket server
 (`builder.Services.AddWebSocketServer()`) and mounts the endpoint (`UseWebSocketChannel`, `/ws` by default).
