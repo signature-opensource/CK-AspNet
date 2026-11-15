@@ -7,7 +7,7 @@
 
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
-    <PackageReference Include="CK.AppIdentity" Version="3.0.0-0.uc.0.ci.79" />
+    <PackageReference Include="CK.AppIdentity" Version="3.0.0-0.uc.0.ci.81" />
   </ItemGroup>
 
   <ItemGroup>
