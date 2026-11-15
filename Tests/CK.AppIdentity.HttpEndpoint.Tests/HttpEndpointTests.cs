@@ -305,7 +305,11 @@ public class HttpEndpointTests
         {
             switch( error )
             {
-                case "NoEndpoint": c.Remove( "CK-AppIdentity:Local:HttpEndpoint:Urls" ); break;
+                case "NoEndpoint":
+                    // Declared without endpoint.
+                    c.Remove( "CK-AppIdentity:Local:HttpEndpoint:Urls" );
+                    c["CK-AppIdentity:Local:HttpEndpoint"] = "true";
+                    break;
                 case "UrlsAndKestrel": c["CK-AppIdentity:Local:HttpEndpoint:Kestrel:Limits:MaxRequestBodySize"] = "1000"; break;
                 case "NamedEndpoint":
                     // The endpoint level is removed.
