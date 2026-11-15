@@ -31,6 +31,7 @@ public class ForwardedHeadersOptionTests
                                               typeof( HttpEndpointFeatureDriver ),
                                               typeof( HttpEndpointHostRegistration ),
                                               typeof( PartyComponentOptionDirectory ),
+                                              typeof( PartyComponentDirectory ),
                                               typeof( ForwardedHeadersOption ) );
         _map = (await configuration.RunSuccessfullyAsync()).LoadMap();
     }
@@ -147,7 +148,7 @@ public class ForwardedHeadersOptionTests
         // An invalid option is an exception of its constructor, logged with the option's path.
         if( error != "UnknownEndpointKey" )
         {
-            (await logs.WaitForAsync( t => t.Contains( "Unable to create the option 'CK-AppIdentity:Local:HttpEndpoint:ForwardedHeaders'." ) )).ShouldBeTrue();
+            (await logs.WaitForAsync( t => t.Contains( "Unable to create the option 'CK-AppIdentity:Local:HttpEndpoint:ForwardedHeaders': " ) )).ShouldBeTrue();
         }
     }
 }

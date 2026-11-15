@@ -69,6 +69,7 @@ public class HttpEndpointTests
                                               typeof( HttpEndpointFeatureDriver ),
                                               typeof( HttpEndpointHostRegistration ),
                                               typeof( PartyComponentOptionDirectory ),
+                                              typeof( PartyComponentDirectory ),
                                               typeof( SharedService ),
                                               typeof( PerContainerService ),
                                               typeof( HelloPackage ),
