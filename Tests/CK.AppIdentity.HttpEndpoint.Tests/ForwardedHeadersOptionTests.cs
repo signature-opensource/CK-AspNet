@@ -111,12 +111,12 @@ public class ForwardedHeadersOptionTests
         await host.StopAsync( cancel );
     }
 
-    [TestCase( "true", "HttpEndpoint:ForwardedHeaders\" must be a section with \"KnownProxies\" or \"KnownNetworks\"" )]
+    [TestCase( "true", "It must be a section with \"KnownProxies\" or \"KnownNetworks\"" )]
     [TestCase( "NoProxy", "must have \"KnownProxies\" or \"KnownNetworks\": the proxies are never trusted by default." )]
     [TestCase( "InvalidProxy", "'not-an-ip' is not an IP address." )]
     [TestCase( "InvalidNetwork", "'10.0.0.0' is not a CIDR network" )]
-    [TestCase( "InvalidHeaders", "Invalid \"CK-AppIdentity:Local:HttpEndpoint:ForwardedHeaders:Headers\": 'XForwardedNothing'." )]
-    [TestCase( "UnknownOptionKey", "Unknown \"CK-AppIdentity:Local:HttpEndpoint:ForwardedHeaders:Trust\"" )]
+    [TestCase( "InvalidHeaders", "Invalid \"Headers\": 'XForwardedNothing'." )]
+    [TestCase( "UnknownOptionKey", "Unknown \"Trust\"" )]
     [TestCase( "UnknownEndpointKey", "Unknown \"CK-AppIdentity:Local:HttpEndpoint:Compression\": the keys of \"Local:HttpEndpoint\" are Urls, Kestrel, DefaultEndpoint and its options (ForwardedHeaders)." )]
     [CancelAfter( 20000 )]
     public async Task configuration_errors_fail_the_start_Async( string error, string expected, CancellationToken cancel )
@@ -144,5 +144,10 @@ public class ForwardedHeadersOptionTests
         using var logs = new AllMonitorsTexts();
         await Should.ThrowAsync<Exception>( () => host.StartAsync( cancel ) );
         (await logs.WaitForAsync( t => t.Contains( expected ) )).ShouldBeTrue( $"Expected: {expected}" );
+        // An invalid option is an exception of its constructor, logged with the option's path.
+        if( error != "UnknownEndpointKey" )
+        {
+            (await logs.WaitForAsync( t => t.Contains( "Unable to create the option 'CK-AppIdentity:Local:HttpEndpoint:ForwardedHeaders'." ) )).ShouldBeTrue();
+        }
     }
 }

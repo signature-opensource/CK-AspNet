@@ -72,8 +72,7 @@ public class HttpEndpointTests
                                               typeof( SharedService ),
                                               typeof( PerContainerService ),
                                               typeof( HelloPackage ),
-                                              typeof( DevRunningStatusFeatureDriver ),
-                                              typeof( PartyDescriptionFeatureDriver ) );
+                                              typeof( DevRunningStatusFeatureDriver ) );
         _map = (await configuration.RunSuccessfullyAsync()).LoadMap();
     }
 

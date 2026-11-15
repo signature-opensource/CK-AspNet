@@ -8,29 +8,18 @@ namespace CK.AppIdentity;
 /// application, enabled or disabled by the "Local:HttpEndpoint" section of the party (its key in this section is the
 /// option name: the type name without its "Option" suffix).
 /// <para>
-/// A concrete option is decorated with <see cref="FeatureOptionAttribute"/> and has one public constructor whose parameters
-/// are resolved from the services of the host. The topology attributes between options (<c>[Requires&lt;T&gt;]</c>,
+/// A concrete option is decorated with <see cref="FeatureOptionAttribute"/> and has one public constructor: its
+/// <c>IConfiguration</c> parameter is its section (null when it is enabled by default or by <c>true</c>), read into its
+/// properties (an invalid value throws), the other ones are resolved from the services of the host. The topology attributes between options (<c>[Requires&lt;T&gt;]</c>,
 /// <c>[RequiredBy&lt;T&gt;]</c> and their optional forms) order them; a non optional relation also means "only with it".
 /// </para>
 /// <para>
-/// An instance is created when the party enables the option: <see cref="Initialize"/> is called when the feature
-/// is set up (a configuration error fails the setup), then <see cref="ConfigureServices"/> and <see cref="ConfigurePipeline"/>
-/// when the endpoint starts.
+/// An instance is created before the feature is set up when the party enables the option (an invalid configuration fails
+/// the setup), then <see cref="ConfigureServices"/> and <see cref="ConfigurePipeline"/> are called when the endpoint starts.
 /// </para>
 /// </summary>
 public abstract class HttpEndpointOption : IPartyComponentOption<HttpEndpointFeatureDriver>
 {
-    /// <summary>
-    /// Reads and checks the configuration of this option. Does nothing by default.
-    /// </summary>
-    /// <param name="monitor">The monitor to use.</param>
-    /// <param name="endpoint">The "Local:HttpEndpoint" configuration section.</param>
-    /// <param name="configuration">
-    /// The section of this option in the "Local:HttpEndpoint" section. Null when the option is enabled by default or by <c>true</c>.
-    /// </param>
-    /// <returns>True on success, false on error (errors must be logged).</returns>
-    public virtual bool Initialize( IActivityMonitor monitor, ImmutableConfigurationSection endpoint, ImmutableConfigurationSection? configuration ) => true;
-
     /// <summary>
     /// Configures the services of the web application of the endpoint. Does nothing by default.
     /// </summary>

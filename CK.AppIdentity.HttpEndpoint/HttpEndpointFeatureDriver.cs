@@ -223,7 +223,7 @@ public sealed class HttpEndpointFeatureDriver : ApplicationIdentityStaticFeature
         }
     }
 
-    // The options enabled by the "Local:HttpEndpoint" section, created from the host services and initialized. A key that is
+    // The options enabled by the "Local:HttpEndpoint" section (created before the setup, see GetOptions). A key that is
     // neither a key of the endpoint nor an option is an error.
     bool TryCreateOptions( IActivityMonitor monitor, ImmutableConfigurationSection section, out IReadOnlyList<HttpEndpointOption> options )
     {
@@ -239,21 +239,13 @@ public sealed class HttpEndpointFeatureDriver : ApplicationIdentityStaticFeature
                 success = false;
             }
         }
-        if( !success || !_optionDirectory.TrySelect( monitor, ownerType, section, out var selected ) ) return false;
-        var result = new List<HttpEndpointOption>( selected.Count );
-        foreach( var (info, configuration) in selected )
+        var result = new List<HttpEndpointOption>();
+        foreach( var option in GetOptions( ApplicationIdentityService ) )
         {
-            if( info.Create( _services ) is not HttpEndpointOption o )
-            {
-                monitor.Error( $"The option '{info.OptionType:C}' of the '{FeatureName}' feature must specialize '{typeof( HttpEndpointOption ):C}'." );
-                success = false;
-            }
-            else if( o.Initialize( monitor, section, configuration ) )
-            {
-                result.Add( o );
-            }
+            if( option is HttpEndpointOption o ) result.Add( o );
             else
             {
+                monitor.Error( $"The option '{option.GetType():C}' of the '{FeatureName}' feature must specialize '{typeof( HttpEndpointOption ):C}'." );
                 success = false;
             }
         }
