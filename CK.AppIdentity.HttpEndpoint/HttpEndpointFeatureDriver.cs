@@ -74,7 +74,7 @@ public sealed class HttpEndpointFeatureDriver : ApplicationIdentityStaticFeature
                                       HttpEndpointHost host,
                                       IServiceProvider services,
                                       PartyComponentOptionDirectory optionDirectory )
-        : base( s, isAllowedByDefault: false )
+        : base( s )
     {
         _host = host;
         _services = services;
