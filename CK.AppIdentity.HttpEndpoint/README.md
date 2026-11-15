@@ -12,7 +12,7 @@ It builds on [CK.AspNet](../CK.AspNet/README.md) (`CKBuild` builds the web appli
 
 ## Configuration
 
-The feature is opt-in: the root party allows it (`Local:AllowFeatures`). `Local:HttpEndpoint` has either `Urls`
+The feature is opt-in: the root party declares it by its `Local:HttpEndpoint` section, that has either `Urls`
 (separated by `;`, or an array) or a `Kestrel` section (Kestrel's own configuration: `Endpoints`, `Certificates`,
 `Limits`...): several listening addresses don't need several pipelines. With a `Kestrel` section, the optional `DefaultEndpoint`
 names the Kestrel endpoint whose URL is the default one (see `RunningHttpEndpoint.DefaultUrl` below).
@@ -21,7 +21,6 @@ names the Kestrel endpoint whose URL is the default one (see `RunningHttpEndpoin
 "CK-AppIdentity": {
   "FullName": "Sample/$Front/#Dev",
   "Local": {
-    "AllowFeatures": "HttpEndpoint",
     "HttpEndpoint": { "Urls": "http://localhost:5300" }
   }
 }
@@ -33,7 +32,7 @@ These are errors that fail the initialization of the party (nothing listens):
 - a `DefaultEndpoint` with `Urls` (the first URL is the default one), or one that names no `Kestrel:Endpoints:<Name>:Url`;
 - a key of `Local:HttpEndpoint` that is neither `Urls`, `Kestrel`, `DefaultEndpoint` nor one of its [options](#the-options-of-the-endpoint),
   and an error in the configuration of an option;
-- a tenant domain that allows the feature: only the root party has an endpoint;
+- a tenant domain that declares the feature: only the root party has an endpoint;
 - in Development, the ASP.NET defaults: the `urls`, `http_ports`, `https_ports` keys and the `Kestrel` section at the
   root of the configuration, and the `ASPNETCORE_URLS`, `ASPNETCORE_HTTP_PORTS`, `ASPNETCORE_HTTPS_PORTS`
   environment variables. Otherwise they are a warning: they are ignored.

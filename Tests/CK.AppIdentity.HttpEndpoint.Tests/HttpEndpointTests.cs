@@ -93,7 +93,6 @@ public class HttpEndpointTests
         var values = new Dictionary<string, string?>
         {
             ["CK-AppIdentity:FullName"] = "Test/$Server/#Dev",
-            ["CK-AppIdentity:Local:AllowFeatures"] = "HttpEndpoint",
             ["CK-AppIdentity:Local:HttpEndpoint:Urls"] = "http://127.0.0.1:0"
         };
         configure?.Invoke( values );
@@ -323,7 +322,7 @@ public class HttpEndpointTests
                     break;
                 case "ConfiguredTenantDomain":
                     c["CK-AppIdentity:Parties:0:FullName"] = "Tenant/$Tenant";
-                    c["CK-AppIdentity:Parties:0:Local:AllowFeatures"] = "HttpEndpoint";
+                    c["CK-AppIdentity:Parties:0:Local:HttpEndpoint"] = "true";
                     break;
             }
         },
@@ -366,7 +365,7 @@ public class HttpEndpointTests
         (await s.AddTenantDomainAsync( TestHelper.Monitor, c =>
         {
             c["FullName"] = "Tenant/$Tenant";
-            c["Local:AllowFeatures"] = "HttpEndpoint";
+            c["Local:HttpEndpoint"] = "true";
         } )).ShouldBeNull();
         (await s.AddTenantDomainAsync( TestHelper.Monitor, c => c["FullName"] = "Tenant/$Tenant" )).ShouldNotBeNull();
         await host.StopAsync( cancel );
@@ -376,7 +375,7 @@ public class HttpEndpointTests
     [CancelAfter( 20000 )]
     public async Task without_the_feature_the_application_configurations_are_ignored_Async( CancellationToken cancel )
     {
-        using var host = BuildHost( c => c["CK-AppIdentity:Local:AllowFeatures"] = "", b => b.ConfigureHttpEndpoint( MapTestRoutes ) );
+        using var host = BuildHost( c => c["CK-AppIdentity:Local:HttpEndpoint"] = "false", b => b.ConfigureHttpEndpoint( MapTestRoutes ) );
         await host.StartAsync( cancel );
         GetDriver( host ).Endpoint.ShouldBeNull();
         await host.StopAsync( cancel );

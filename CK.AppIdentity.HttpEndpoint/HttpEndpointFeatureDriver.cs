@@ -137,7 +137,7 @@ public sealed class HttpEndpointFeatureDriver : ApplicationIdentityStaticFeature
         {
             if( local != ApplicationIdentityService && IsAllowedFeature( local ) )
             {
-                monitor.Error( $"'{local}' allows the '{FeatureName}' feature: only the root party can have an HTTP endpoint." );
+                monitor.Error( $"'{local}' declares the '{FeatureName}' feature: only the root party can have an HTTP endpoint." );
                 success = false;
             }
         }
@@ -145,7 +145,7 @@ public sealed class HttpEndpointFeatureDriver : ApplicationIdentityStaticFeature
         {
             if( _host.Configurations.Count > 0 )
             {
-                monitor.Warn( $"The '{FeatureName}' feature is not allowed (\"Local:AllowFeatures\"): the application's configuration of the endpoint is ignored." );
+                monitor.Warn( $"The '{FeatureName}' feature is not declared (\"Local:{FeatureName}\"): the application's configuration of the endpoint is ignored." );
             }
             return Task.FromResult( success );
         }

@@ -26,7 +26,7 @@ public static class AspNetServerTestHelperExtensions
     /// <para>
     /// The map must contain the "HttpEndpoint" feature (the CK.AppIdentity.HttpEndpoint assembly, see
     /// <see cref="HttpEndpointAssembly"/>). The identity is "Test/$Server" by default; whatever <paramref name="identity"/>
-    /// does, the "HttpEndpoint" feature is allowed and the endpoint listens on
+    /// does, the "HttpEndpoint" feature is declared and the endpoint listens on
     /// "http://127.0.0.1:0" unless it is configured.
     /// </para>
     /// <para>
@@ -57,12 +57,11 @@ public static class AspNetServerTestHelperExtensions
             {
                 c["FullName"] = "Test/$Server";
                 identity?.Invoke( c );
-                var allowed = c["Local:AllowFeatures"];
-                if( string.IsNullOrWhiteSpace( allowed ) ) c["Local:AllowFeatures"] = "HttpEndpoint";
-                else if( !allowed.Split( ',' ).Any( f => f.Trim() == "HttpEndpoint" ) ) c["Local:AllowFeatures"] = allowed + ",HttpEndpoint";
-                // A configured endpoint (its "Urls" or its "Kestrel" section) is kept.
+                // The endpoint is declared by its section: a configured endpoint (its "Urls" or its "Kestrel" section) is
+                // kept, otherwise it listens on "http://127.0.0.1:0" (this section replaces a "HttpEndpoint": true).
                 if( Find( c, "Local", "HttpEndpoint", "Urls" ) == null && Find( c, "Local", "HttpEndpoint", "Kestrel" ) == null )
                 {
+                    if( c["Local:HttpEndpoint"] != null ) c["Local:HttpEndpoint"] = null;
                     c["Local:HttpEndpoint:Urls"] = "http://127.0.0.1:0";
                 }
             } );

@@ -46,7 +46,7 @@ public class ForwardedHeadersOptionTests
         var values = new Dictionary<string, string?>
         {
             ["CK-AppIdentity:FullName"] = "Test/$Server/#Dev",
-            ["CK-AppIdentity:Local:AllowFeatures"] = "HttpEndpoint",
+            ["CK-AppIdentity:Local:HttpEndpoint"] = "true",
             ["CK-AppIdentity:Local:HttpEndpoint:Urls"] = "http://127.0.0.1:0"
         };
         configure?.Invoke( values );
