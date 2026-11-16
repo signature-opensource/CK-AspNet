@@ -17,5 +17,5 @@
   <Project Path="CK.AspNet.WebSocket/CK.AspNet.WebSocket.csproj" />
   <Project Path="CK.AspNet.WebSocketChannel/CK.AspNet.WebSocketChannel.csproj" />
   <Project Path="CK.AspNet/CK.AspNet.csproj" />
-  <Project Path="CK.Testing.AspNetServer/CK.Testing.AspNetServer.csproj" />
+  <Project Path="CK.Testing.Engine.HttpEndpoint/CK.Testing.Engine.HttpEndpoint.csproj" />
 </Solution>

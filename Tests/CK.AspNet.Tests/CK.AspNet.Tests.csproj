@@ -9,6 +9,6 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\CK.Testing.AspNetServer\CK.Testing.AspNetServer.csproj" />
+    <ProjectReference Include="..\..\CK.Testing.Engine.HttpEndpoint\CK.Testing.Engine.HttpEndpoint.csproj" />
   </ItemGroup>
 </Project>

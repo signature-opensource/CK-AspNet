@@ -1,4 +1,4 @@
-# CK.Testing.AspNetServer
+# CK.Testing.Engine.HttpEndpoint
 
 Starts a party, or a standalone web application, on a random port and hands back a
 [`RunningAspNetServer`](RunningAspNetServer.cs) with a client available on it. Not a `TestServer` and not

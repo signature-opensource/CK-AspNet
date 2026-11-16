@@ -13,11 +13,11 @@ of its host, and a way to start the whole thing in a test.
 | [CK.AspNet.WebSocketChannel](CK.AspNet.WebSocketChannel/README.md) | One anonymous socket per client, shared by every feature and routed by topic. | [![nuget](https://img.shields.io/nuget/v/CK.AspNet.WebSocketChannel.svg?label=CK.AspNet.WebSocketChannel)](https://www.nuget.org/packages/CK.AspNet.WebSocketChannel/) |
 | [CK.AppIdentity.HttpEndpoint](CK.AppIdentity.HttpEndpoint/README.md) | The "HttpEndpoint" AppIdentity feature: a party is a Generic Host whose web servers (one per endpoint of its `Local:HttpEndpoint` configuration) start and stop with it. | [![nuget](https://img.shields.io/nuget/v/CK.AppIdentity.HttpEndpoint.svg?label=CK.AppIdentity.HttpEndpoint)](https://www.nuget.org/packages/CK.AppIdentity.HttpEndpoint/) |
 | [CK.AppHost](CK.AppHost/README.md) | The bootstrap of a CKomposable application host, the same for every party (`CKomposableAppHost.RunAsync`), its Windows service and systemd support, and the MSBuild conventions of the host project. | [![nuget](https://img.shields.io/nuget/v/CK.AppHost.svg?label=CK.AppHost)](https://www.nuget.org/packages/CK.AppHost/) |
-| [CK.Testing.AspNetServer](CK.Testing.AspNetServer/README.md) | Starts a party (or a standalone web application) on a random port and hands back a running server with a client. | [![nuget](https://img.shields.io/nuget/v/CK.Testing.AspNetServer.svg?label=CK.Testing.AspNetServer)](https://www.nuget.org/packages/CK.Testing.AspNetServer/) |
+| [CK.Testing.Engine.HttpEndpoint](CK.Testing.Engine.HttpEndpoint/README.md) | Starts a party (or a standalone web application) on a random port and hands back a running server with a client. | [![nuget](https://img.shields.io/nuget/v/CK.Testing.Engine.HttpEndpoint.svg?label=CK.Testing.Engine.HttpEndpoint)](https://www.nuget.org/packages/CK.Testing.Engine.HttpEndpoint/) |
 
 They form a chain: `CK.AspNet.WebSocketChannel` → `CK.AspNet.WebSocket` → `CK.AspNet`. Only the
 middle link is named in the channel's csproj; `CK.AspNet` arrives through it.
-`CK.Testing.AspNetServer` and `CK.AppIdentity.HttpEndpoint` also build on `CK.AspNet`, by calling its
+`CK.Testing.Engine.HttpEndpoint` and `CK.AppIdentity.HttpEndpoint` also build on `CK.AspNet`, by calling its
 `CKBuild`. `CK.AspNet` and `CK.AppHost` depend on none of the others (`CK.AppHost` doesn't use
 ASP.NET: a host's web servers come from `CK.AppIdentity.HttpEndpoint`, through its App project).
 
