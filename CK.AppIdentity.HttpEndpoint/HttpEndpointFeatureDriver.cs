@@ -37,6 +37,7 @@ namespace CK.AppIdentity;
 /// The party is ready once the endpoint is started (or when this feature has nothing to start).
 /// </para>
 /// </summary>
+[PartyFeature( "HttpEndpoint", TypeActivation.Optional )]
 public sealed class HttpEndpointFeatureDriver : ApplicationIdentityStaticFeatureDriver, IDevRunningStatusContributor
 {
     /// <summary>

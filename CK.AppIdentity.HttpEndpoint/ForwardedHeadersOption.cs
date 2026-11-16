@@ -28,7 +28,7 @@ namespace CK.AppIdentity;
 /// An invalid configuration throws (the proxies are never trusted by default: a section with "KnownProxies" or
 /// "KnownNetworks" is required).
 /// </summary>
-[FeatureOption]
+[PartyFeatureOption( "ForwardedHeaders", TypeActivation.Optional )]
 public sealed class ForwardedHeadersOption : HttpEndpointOption
 {
     static readonly string[] _keys = ["KnownProxies", "KnownNetworks", "Headers", "ForwardLimit"];

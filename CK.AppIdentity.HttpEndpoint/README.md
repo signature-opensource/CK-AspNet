@@ -82,10 +82,12 @@ The web application doesn't handle the console nor the process lifetime: the hos
 The endpoint is configured further by its options: what a package adds to its web application when the party enables
 it. An option is a [party component option](https://github.com/signature-opensource/CK-AppIdentity/blob/stable/CK.AppIdentity/PartyComponentOptions/README.md)
 of the `HttpEndpointFeatureDriver`: a class that specializes [`HttpEndpointOption`](HttpEndpointOption.cs), decorated
-with `[FeatureOption]`. Its key in `Local:HttpEndpoint` is its name (its type name without the "Option" suffix): `true`
-or a section enables it, `false` disables it, and its default applies when the key is absent.
+with `[PartyFeatureOption( "Name", TypeActivation.X )]`. Its key in `Local:HttpEndpoint` is the name declared by this
+attribute: `true` or a section enables it, `false` disables it, and its activation applies when the key is absent
+(`Optional`: disabled, `ByDefault`: enabled).
 
-- `HttpEndpointOption.Initialize` reads and checks its configuration when the feature is set up: an error fails the initialization of the party.
+- Its constructor reads and checks its configuration (an invalid value throws): an option that can't be created fails
+  the setup of the party.
 - `HttpEndpointOption.ConfigureServices` configures the services of the web application, before the contributions of
   the packages.
 - `HttpEndpointOption.ConfigurePipeline` adds its middlewares: the options' middlewares are the first ones of the

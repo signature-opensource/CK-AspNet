@@ -6,9 +6,9 @@ namespace CK.AppIdentity;
 /// <summary>
 /// The base class of the options of the <see cref="HttpEndpointFeatureDriver"/>: what the endpoint adds to its web
 /// application, enabled or disabled by the "Local:HttpEndpoint" section of the party (its key in this section is the
-/// option name: the type name without its "Option" suffix).
+/// option name declared by its <see cref="PartyFeatureOptionAttribute"/>).
 /// <para>
-/// A concrete option is decorated with <see cref="FeatureOptionAttribute"/> and has one public constructor: its
+/// A concrete option is decorated with <see cref="PartyFeatureOptionAttribute"/> and has one public constructor: its
 /// <c>IConfiguration</c> parameter is its section (null when it is enabled by default or by <c>true</c>), read into its
 /// properties (an invalid value throws), the other ones are resolved from the services of the host. The topology attributes between options (<c>[Requires&lt;T&gt;]</c>,
 /// <c>[RequiredBy&lt;T&gt;]</c> and their optional forms) order them; a non optional relation also means "only with it".
