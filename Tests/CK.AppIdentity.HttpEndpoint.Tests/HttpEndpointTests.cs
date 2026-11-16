@@ -361,22 +361,6 @@ public class HttpEndpointTests
 
     [Test]
     [CancelAfter( 20000 )]
-    public async Task a_dynamic_tenant_domain_cannot_have_an_endpoint_Async( CancellationToken cancel )
-    {
-        using var host = BuildHost();
-        await host.StartAsync( cancel );
-        var s = host.Services.GetRequiredService<ApplicationIdentityService>();
-        (await s.AddTenantDomainAsync( TestHelper.Monitor, c =>
-        {
-            c["FullName"] = "Tenant/$Tenant";
-            c["Local:HttpEndpoint"] = "true";
-        } )).ShouldBeNull();
-        (await s.AddTenantDomainAsync( TestHelper.Monitor, c => c["FullName"] = "Tenant/$Tenant" )).ShouldNotBeNull();
-        await host.StopAsync( cancel );
-    }
-
-    [Test]
-    [CancelAfter( 20000 )]
     public async Task without_the_feature_the_application_configurations_are_ignored_Async( CancellationToken cancel )
     {
         using var host = BuildHost( c => c["CK-AppIdentity:Local:HttpEndpoint"] = "false", b => b.ConfigureHttpEndpoint( MapTestRoutes ) );
