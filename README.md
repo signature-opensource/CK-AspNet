@@ -14,6 +14,7 @@ of its host, and a way to start the whole thing in a test.
 | [CK.AppIdentity.HttpEndpoint](CK.AppIdentity.HttpEndpoint/README.md) | The "HttpEndpoint" AppIdentity feature: a party is a Generic Host whose web servers (one per endpoint of its `Local:HttpEndpoint` configuration) start and stop with it. | [![nuget](https://img.shields.io/nuget/v/CK.AppIdentity.HttpEndpoint.svg?label=CK.AppIdentity.HttpEndpoint)](https://www.nuget.org/packages/CK.AppIdentity.HttpEndpoint/) |
 | [CK.AppHost](CK.AppHost/README.md) | The bootstrap of a CKomposable application host, the same for every party (`CKomposableAppHost.RunAsync`), its Windows service and systemd support, and the MSBuild conventions of the host project. | [![nuget](https://img.shields.io/nuget/v/CK.AppHost.svg?label=CK.AppHost)](https://www.nuget.org/packages/CK.AppHost/) |
 | [CK.Testing.Engine.HttpEndpoint](CK.Testing.Engine.HttpEndpoint/README.md) | Starts a party (or a standalone web application) on a random port and hands back a running server with a client. | [![nuget](https://img.shields.io/nuget/v/CK.Testing.Engine.HttpEndpoint.svg?label=CK.Testing.Engine.HttpEndpoint)](https://www.nuget.org/packages/CK.Testing.Engine.HttpEndpoint/) |
+| [CK.Testing.AspNetServer](CK.Testing.AspNetServer/README.md) | **Deprecated**: replaced by CK.Testing.Engine.HttpEndpoint. | |
 
 They form a chain: `CK.AspNet.WebSocketChannel` → `CK.AspNet.WebSocket` → `CK.AspNet`. Only the
 middle link is named in the channel's csproj; `CK.AspNet` arrives through it.

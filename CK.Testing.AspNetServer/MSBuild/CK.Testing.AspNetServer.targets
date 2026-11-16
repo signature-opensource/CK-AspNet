@@ -1,0 +1,6 @@
+<Project>
+  <Target Name="CK_Testing_AspNetServer_IsDeprecated" BeforeTargets="ResolveAssemblyReferences">
+    <Error Code="CKDEPRECATED"
+           Text="Package 'CK.Testing.AspNetServer' is deprecated and must be replaced by 'CK.Testing.Engine.HttpEndpoint': see https://github.com/signature-opensource/CK-AspNet/blob/stable/CK.Testing.Engine.HttpEndpoint/README.md." />
+  </Target>
+</Project>
