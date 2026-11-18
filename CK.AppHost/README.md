@@ -19,25 +19,32 @@ Only the host project references this package.
 
 ```csharp
 public static IHost Build( string[] args,
-                           Action<HostApplicationBuilder>? configure = null,
+                           Action<IActivityMonitor,HostApplicationBuilder, IStObjMap>? configure = null,
                            string? contentRoot = null,
                            Assembly? assembly = null )
 {
     assembly ??= Assembly.GetEntryAssembly()
-                 ?? Throw.InvalidOperationException<Assembly>( "No entry assembly: ..." );
+                 ?? Throw.InvalidOperationException<Assembly>( "No entry assembly: the assembly that contains the generated code must be specified." );
     contentRoot ??= WindowsServiceHelpers.IsWindowsService() ? AppContext.BaseDirectory : null;
     var builder = Host.CreateApplicationBuilder( new HostApplicationBuilderSettings { Args = args, ContentRootPath = contentRoot } );
-    configure?.Invoke( builder );
+    var monitor = builder.GetBuilderMonitor();
+    var map = StObjContextRoot.Load( assembly, monitor )
+              ?? Throw.InvalidOperationException<IStObjMap>( $"Unable to load the generated code of '{assembly.GetName().Name}': build its Builder." );
+
+    configure?.Invoke( monitor, builder, map );
+
+    // A fleet: the instance is chosen before anything reads the configuration.
+    ApplyInstance( monitor, builder.Configuration, assembly );
+
     // Both do nothing when the process doesn't run as a service.
     builder.Services.AddWindowsService();
     builder.Services.AddSystemd();
+
     builder.UseCKMonitoring();
     builder.AddApplicationIdentityServiceConfiguration();
+    // The monitor of the work outside the requests (the requests of the HttpEndpoints have the one of their ScopedHttpContext).
     builder.Services.AddScoped<IActivityMonitor, ActivityMonitor>();
     builder.Services.AddScoped( sp => sp.GetRequiredService<IActivityMonitor>().ParallelLogger );
-    var monitor = builder.GetBuilderMonitor();
-    var map = StObjContextRoot.Load( assembly, monitor )
-              ?? Throw.InvalidOperationException<IStObjMap>( "Unable to load the generated code of '...': build its Builder." );
     builder.Services.AddStObjMap( monitor, map );
     return builder.CKBuild();
 }
@@ -48,6 +55,12 @@ public static IHost Build( string[] args,
   the web servers of [CK.AppIdentity.HttpEndpoint](../CK.AppIdentity.HttpEndpoint/README.md)), and in its configuration.
 - **The generated code** is loaded from the entry assembly (the host).
 - **`CKomposableAppHost.RunAsync( args, configure? )`** builds the host and runs it until it stops.
+- **A fleet runs one of its instances:** when the configuration has `"InstanceCount"` or `"Instances"` at its root (a
+  fleet App, projected from its builder's `ckonf.json`), the `"Instance"` key (`--Instance=Red` on the command line, an
+  index or a name) chooses the instance, and a last configuration source holds the values whose placeholders it
+  resolves (`{Index}`, `{Name}`, `{n+Index}`, and `{App.Name}` for the App whose host assembly is "App.Host": see
+  `ConfigurationTemplate` in CK.Configuration). A missing or unknown instance in a fleet, an `"Instance"` in a host that
+  is not a fleet, fail the start.
 
 ## The tests
 

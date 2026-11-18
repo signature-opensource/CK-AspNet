@@ -1,7 +1,10 @@
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Hosting.WindowsServices;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 
@@ -78,6 +81,9 @@ public static class CKomposableAppHost
 
         configure?.Invoke( monitor, builder, map );
 
+        // A fleet: the instance is chosen before anything reads the configuration.
+        ApplyInstance( monitor, builder.Configuration, assembly );
+
         // Both do nothing when the process doesn't run as a service.
         builder.Services.AddWindowsService();
         builder.Services.AddSystemd();
@@ -89,5 +95,46 @@ public static class CKomposableAppHost
         builder.Services.AddScoped( sp => sp.GetRequiredService<IActivityMonitor>().ParallelLogger );
         builder.Services.AddStObjMap( monitor, map );
         return builder.CKBuild();
+    }
+
+    /// <summary>
+    /// The configuration of a fleet (a template: "InstanceCount" or "Instances" at its root) is the one of an instance: the
+    /// "Instance" key (the command line "--Instance=Red", or an environment variable) is its name or its 1-based index,
+    /// and the placeholders of the values (<c>{Index}</c>, <c>{Name}</c>, <c>{n+Index}</c>, <c>{Trolley.Name}</c>
+    /// where "Trolley" is the name of the App: the host assembly "Trolley.Host" without ".Host") are resolved by a last
+    /// configuration source (see <see cref="ConfigurationTemplate"/>). A missing or unknown instance in a fleet, an
+    /// "Instance" in a host that is not a fleet, are errors.
+    /// </summary>
+    internal static void ApplyInstance( IActivityMonitor monitor, ConfigurationManager configuration, Assembly assembly )
+    {
+        const string root = "Host";
+        var snapshot = new MutableConfigurationSection( root );
+        snapshot.Add( configuration.AsEnumerable().Where( kv => kv.Value != null ) );
+        var section = new ImmutableConfigurationSection( snapshot );
+        var appName = assembly.GetName().Name ?? "";
+        if( appName.EndsWith( ".Host", StringComparison.OrdinalIgnoreCase ) ) appName = appName[..^5];
+        var key = configuration["Instance"];
+        if( !ConfigurationTemplate.TryReadInstances( monitor, section, appName, out var instances ) )
+        {
+            Throw.InvalidOperationException( "Invalid instances of the host: see the logs." );
+        }
+        if( instances == null )
+        {
+            if( key != null )
+            {
+                Throw.InvalidOperationException( $"The host is started with the instance '{key}' but its configuration has no \"InstanceCount\" nor \"Instances\": it is not a fleet." );
+            }
+            return;
+        }
+        var instance = key != null ? ConfigurationTemplate.FindInstance( instances, key ) : null;
+        if( instance == null )
+        {
+            Throw.InvalidOperationException( $"{(key == null ? "The host is a fleet: its instance must be specified" : $"Unknown instance '{key}'")} (the \"Instance\" configuration key, \"--Instance=Name\" on the command line). Its instances are: '{instances.Select( i => i.Name ).Concatenate( "', '" )}'." );
+        }
+        var changes = ConfigurationTemplate.ResolveSection( monitor, section, instance )
+                      ?? Throw.InvalidOperationException<List<KeyValuePair<string, string?>>>( $"Unable to resolve the configuration of the {instance}: see the logs." );
+        monitor.Info( $"Running the {instance}: {changes.Count} configuration value(s) resolved." );
+        var prefix = root + ":";
+        configuration.AddInMemoryCollection( changes.Select( kv => new KeyValuePair<string, string?>( kv.Key[prefix.Length..], kv.Value ) ) );
     }
 }

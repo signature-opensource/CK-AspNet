@@ -13,6 +13,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="CK.AppHost.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- "build", not "buildTransitive": the conventions of the host project only (not of a test project that references it). -->
     <None Include="build\**" Pack="true" PackagePath="build" />
   </ItemGroup>
