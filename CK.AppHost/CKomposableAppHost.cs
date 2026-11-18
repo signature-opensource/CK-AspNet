@@ -102,8 +102,9 @@ public static class CKomposableAppHost
     /// "Instance" key (the command line "--Instance=Red", or an environment variable) is its name or its 1-based index,
     /// and the placeholders of the values (<c>{Index}</c>, <c>{Name}</c>, <c>{n+Index}</c>, <c>{Trolley.Name}</c>
     /// where "Trolley" is the name of the App: the host assembly "Trolley.Host" without ".Host") are resolved by a last
-    /// configuration source (see <see cref="ConfigurationTemplate"/>). A missing or unknown instance in a fleet, an
-    /// "Instance" in a host that is not a fleet, are errors.
+    /// configuration source (see <see cref="ConfigurationTemplate"/>). An Opened fleet ("MaxInstanceCount") also accepts
+    /// the index of a dynamic instance, after the configured ones (its name is its index). A missing or unknown instance
+    /// in a fleet, an "Instance" in a host that is not a fleet, are errors.
     /// </summary>
     internal static void ApplyInstance( IActivityMonitor monitor, ConfigurationManager configuration, Assembly assembly )
     {
@@ -122,14 +123,20 @@ public static class CKomposableAppHost
         {
             if( key != null )
             {
-                Throw.InvalidOperationException( $"The host is started with the instance '{key}' but its configuration has no \"InstanceCount\" nor \"Instances\": it is not a fleet." );
+                Throw.InvalidOperationException( $"The host is started with the instance '{key}' but its configuration has no \"InstanceCount\", \"Instances\" nor \"MaxInstanceCount\": it is not a fleet." );
             }
             return;
         }
-        var instance = key != null ? ConfigurationTemplate.FindInstance( instances, key ) : null;
+        var instance = key != null ? instances.Find( key ) : null;
         if( instance == null )
         {
-            Throw.InvalidOperationException( $"{(key == null ? "The host is a fleet: its instance must be specified" : $"Unknown instance '{key}'")} (the \"Instance\" configuration key, \"--Instance=Name\" on the command line). Its instances are: '{instances.Select( i => i.Name ).Concatenate( "', '" )}'." );
+            var known = instances.Count > 0 ? $"Its instances are: '{instances.Select( i => i.Name ).Concatenate( "', '" )}'" : "It has no configured instance";
+            var dynamic = instances.IsOpened && instances.MaxInstanceCount > instances.Count
+                            ? instances.MaxInstanceCount == instances.Count + 1
+                                ? $", and the dynamic instance {instances.MaxInstanceCount}"
+                                : $", and the dynamic instances {instances.Count + 1} to {instances.MaxInstanceCount}"
+                            : "";
+            Throw.InvalidOperationException( $"{(key == null ? "The host is a fleet: its instance must be specified" : $"Unknown instance '{key}'")} (the \"Instance\" configuration key, \"--Instance=Name\" on the command line). {known}{dynamic}." );
         }
         var changes = ConfigurationTemplate.ResolveSection( monitor, section, instance )
                       ?? Throw.InvalidOperationException<List<KeyValuePair<string, string?>>>( $"Unable to resolve the configuration of the {instance}: see the logs." );

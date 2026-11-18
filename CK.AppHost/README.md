@@ -55,12 +55,13 @@ public static IHost Build( string[] args,
   the web servers of [CK.AppIdentity.HttpEndpoint](../CK.AppIdentity.HttpEndpoint/README.md)), and in its configuration.
 - **The generated code** is loaded from the entry assembly (the host).
 - **`CKomposableAppHost.RunAsync( args, configure? )`** builds the host and runs it until it stops.
-- **A fleet runs one of its instances:** when the configuration has `"InstanceCount"` or `"Instances"` at its root (a
-  fleet App, projected from its builder's `ckonf.json`), the `"Instance"` key (`--Instance=Red` on the command line, an
-  index or a name) chooses the instance, and a last configuration source holds the values whose placeholders it
-  resolves (`{Index}`, `{Name}`, `{n+Index}`, and `{App.Name}` for the App whose host assembly is "App.Host": see
-  `ConfigurationTemplate` in CK.Configuration). A missing or unknown instance in a fleet, an `"Instance"` in a host that
-  is not a fleet, fail the start.
+- **A fleet runs one of its instances:** when the configuration has `"InstanceCount"`, `"Instances"` or
+  `"MaxInstanceCount"` at its root (a fleet App, projected from its builder's `ckonf.json`), the `"Instance"` key
+  (`--Instance=Red` on the command line, an index or a name) chooses the instance, and a last configuration source holds
+  the values whose placeholders it resolves (`{Index}`, `{Name}`, `{n+Index}`, and `{App.Name}` for the App whose host
+  assembly is "App.Host": see `ConfigurationTemplate` in CK.Configuration). An Opened fleet (`"MaxInstanceCount"`) also
+  runs a dynamic instance: its index, after the configured ones (`--Instance=3`). A missing or unknown instance in a
+  fleet, an `"Instance"` in a host that is not a fleet, fail the start.
 
 ## The tests
 

@@ -50,6 +50,14 @@ public class InstanceTests
     }
 
     [Test]
+    public void an_Opened_fleet_accepts_a_dynamic_index()
+    {
+        var c = Create( ("InstanceCount", "2"), ("MaxInstanceCount", "4"), ("Instance", "3"), ("Path", "Logs/{Name}-{5400+Index}") );
+        CKomposableAppHost.ApplyInstance( TestHelper.Monitor, c, _host );
+        c["Path"].ShouldBe( "Logs/3-5403" );
+    }
+
+    [Test]
     public void a_host_that_is_not_a_fleet_is_unchanged()
     {
         var c = Create( ("Path", "Logs/{Name}") );
@@ -60,6 +68,9 @@ public class InstanceTests
     [TestCase( "Instance=Red", "it is not a fleet" )]
     [TestCase( "InstanceCount=2", "its instance must be specified" )]
     [TestCase( "InstanceCount=2;Instance=Green", "Unknown instance 'Green'" )]
+    [TestCase( "InstanceCount=2;Instance=3", "Unknown instance '3'" )]
+    [TestCase( "InstanceCount=2;MaxInstanceCount=4;Instance=5", "the dynamic instances 3 to 4" )]
+    [TestCase( "MaxInstanceCount=1;Instance=Red", "It has no configured instance, and the dynamic instance 1" )]
     public void instance_errors( string config, string expected )
     {
         var values = new List<(string, string)>();
