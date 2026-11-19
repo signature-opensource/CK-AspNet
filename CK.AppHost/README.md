@@ -28,13 +28,25 @@ public static IHost Build( string[] args,
     contentRoot ??= WindowsServiceHelpers.IsWindowsService() ? AppContext.BaseDirectory : null;
     var builder = Host.CreateApplicationBuilder( new HostApplicationBuilderSettings { Args = args, ContentRootPath = contentRoot } );
     var monitor = builder.GetBuilderMonitor();
+    // The secrets of the development: the "#Dev/Secrets.json" of the solution (where the "#Dev/Store" is).
+    if( builder.Environment.IsDevelopment() && !LocalDevSolution.SolutionFolder.IsEmptyPath )
+    {
+        AddSecretsFile( monitor, builder.Configuration, LocalDevSolution.SolutionFolder.AppendPart( "#Dev" ).AppendPart( ConfigurationSecret.DevFileName ) );
+    }
     var map = StObjContextRoot.Load( assembly, monitor )
               ?? Throw.InvalidOperationException<IStObjMap>( $"Unable to load the generated code of '{assembly.GetName().Name}': build its Builder." );
 
     configure?.Invoke( monitor, builder, map );
 
+    // The values burnt by the build win over every other source (they are not part of the deployed configuration).
+    // Before the fleet resolution: a burnt value of a template is resolved for the instance.
+    ApplyCompiledConfiguration( monitor, builder.Configuration, map );
+
     // A fleet: the instance is chosen before anything reads the configuration.
     ApplyInstance( monitor, builder.Configuration, assembly );
+
+    // The secrets last: a handle may be a burnt value, or a value of the instance.
+    ApplySecrets( monitor, builder.Configuration );
 
     // Both do nothing when the process doesn't run as a service.
     builder.Services.AddWindowsService();
@@ -62,6 +74,33 @@ public static IHost Build( string[] args,
   assembly is "App.Host": see `ConfigurationTemplate` in CK.Configuration). An Opened fleet (`"MaxInstanceCount"`) also
   runs a dynamic instance: its index, after the configured ones (`--Instance=3`). A missing or unknown instance in a
   fleet, an `"Instance"` in a host that is not a fleet, fail the start.
+- **The values burnt by the build** (`CK.AppIdentity.CompiledConfiguration`: the values restricted to the `Compile`
+  level) are added as a source after the others: a configured value that differs, or that a lock covers, is ignored with
+  a warning. The values are never logged.
+- **The secrets are resolved last** (see the next section).
+
+## The secrets
+
+A secret is never written in a configuration file: its place holds a handle, `{ "$SECRET": "<Name>" }`
+(`ConfigurationSecret` of CK.ResourceSpace.Abstractions; the builder projects it, or burns it, as is). The bootstrap
+replaces each handle by the value of the configuration key `Secrets:<Name>`, through a last configuration source:
+
+```jsonc
+// appsettings.json (projected by the builder)
+"Oidc": { "Google": { "ClientId": "...", "ClientSecret": { "$SECRET": "Google:ClientSecret" } } }
+```
+
+- **The value comes from any source of the host:** an environment variable (`Secrets__Google__ClientSecret`), a file
+  mounted by a container, a vault provider added by the `configure` action.
+- **In development** (the host environment is Development and the solution folder is found, like the `#Dev/Store` of
+  [CK.AppIdentity](https://github.com/signature-opensource/CK-AppIdentity/blob/stable/CK.AppIdentity/README.md)), the
+  `#Dev/Secrets.json` file of the solution is a source: its root is the content of the `Secrets` section, shared by the
+  parties of the solution (`#Dev` is ignored by git).
+
+  ```json
+  { "Google": { "ClientSecret": "..." } }
+  ```
+- **A missing secret fails the start**, with all the missing names at once. A value is never logged.
 
 ## The tests
 

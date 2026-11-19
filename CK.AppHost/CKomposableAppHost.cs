@@ -76,6 +76,11 @@ public static class CKomposableAppHost
         contentRoot ??= WindowsServiceHelpers.IsWindowsService() ? AppContext.BaseDirectory : null;
         var builder = Host.CreateApplicationBuilder( new HostApplicationBuilderSettings { Args = args, ContentRootPath = contentRoot } );
         var monitor = builder.GetBuilderMonitor();
+        // The secrets of the development: the "#Dev/Secrets.json" of the solution (where the "#Dev/Store" is).
+        if( builder.Environment.IsDevelopment() && !LocalDevSolution.SolutionFolder.IsEmptyPath )
+        {
+            AddSecretsFile( monitor, builder.Configuration, LocalDevSolution.SolutionFolder.AppendPart( "#Dev" ).AppendPart( ConfigurationSecret.DevFileName ) );
+        }
         var map = StObjContextRoot.Load( assembly, monitor )
                   ?? Throw.InvalidOperationException<IStObjMap>( $"Unable to load the generated code of '{assembly.GetName().Name}': build its Builder." );
 
@@ -87,6 +92,9 @@ public static class CKomposableAppHost
 
         // A fleet: the instance is chosen before anything reads the configuration.
         ApplyInstance( monitor, builder.Configuration, assembly );
+
+        // The secrets last: a handle may be a burnt value, or a value of the instance.
+        ApplySecrets( monitor, builder.Configuration );
 
         // Both do nothing when the process doesn't run as a service.
         builder.Services.AddWindowsService();
@@ -132,6 +140,51 @@ public static class CKomposableAppHost
         }
         configuration.AddInMemoryCollection( burnt );
         monitor.Info( $"{compiled.Values.Count} compile time configuration value(s) applied." );
+    }
+
+    /// <summary>
+    /// Adds a file of secrets (<see cref="ConfigurationSecret.TryReadFile"/>: its root is the content of the "Secrets"
+    /// section) as a configuration source. A missing file adds nothing, an invalid one throws.
+    /// </summary>
+    internal static void AddSecretsFile( IActivityMonitor monitor, ConfigurationManager configuration, NormalizedPath file )
+    {
+        if( !ConfigurationSecret.TryReadFile( file, out var secrets, out var error ) ) Throw.InvalidOperationException( error );
+        if( secrets.Count == 0 ) return;
+        configuration.AddInMemoryCollection( secrets.Select( kv => new KeyValuePair<string, string?>( $"{ConfigurationSecret.SectionName}:{kv.Key}", kv.Value ) ) );
+        monitor.Info( $"{secrets.Count} secret(s) read from '{file}'." );
+    }
+
+    /// <summary>
+    /// Resolves the secret handles (<c>{ "$SECRET": "&lt;Name&gt;" }</c>, see <see cref="ConfigurationSecret"/>): the value of
+    /// "&lt;path&gt;:$SECRET" is the name of a secret whose value, the configuration key "Secrets:&lt;Name&gt;" (an environment
+    /// variable "Secrets__Name", a vault added by the configure action, the "#Dev/Secrets.json" of the solution in
+    /// development), becomes the value of "&lt;path&gt;" through a last configuration source. A missing secret throws (all the
+    /// missing names at once). The values are never logged.
+    /// </summary>
+    internal static void ApplySecrets( IActivityMonitor monitor, ConfigurationManager configuration )
+    {
+        List<KeyValuePair<string, string?>>? resolved = null;
+        SortedSet<string>? missing = null;
+        foreach( var (path, name) in configuration.AsEnumerable() )
+        {
+            if( name == null || !ConfigurationSecret.IsHandlePath( path, out var valuePath ) ) continue;
+            if( !ConfigurationSecret.IsValidName( name ) )
+            {
+                Throw.InvalidOperationException( $"Invalid secret name '{name}' at '{path}': a name is made of segments separated by ':' made of letters, digits, '_' and '-'." );
+            }
+            var value = configuration[$"{ConfigurationSecret.SectionName}:{name}"];
+            if( value == null ) (missing ??= new SortedSet<string>( StringComparer.OrdinalIgnoreCase )).Add( name );
+            else (resolved ??= new List<KeyValuePair<string, string?>>()).Add( new KeyValuePair<string, string?>( valuePath, value ) );
+        }
+        if( missing != null )
+        {
+            Throw.InvalidOperationException( $"Missing secret(s) '{missing.Concatenate( "', '" )}': the value of a secret is the configuration key \"{ConfigurationSecret.SectionName}:<Name>\" (an environment variable \"{ConfigurationSecret.SectionName}__Name\", a vault, or \"#Dev/{ConfigurationSecret.DevFileName}\" in development)." );
+        }
+        if( resolved != null )
+        {
+            configuration.AddInMemoryCollection( resolved );
+            monitor.Info( $"{resolved.Count} secret(s) resolved." );
+        }
     }
 
     /// <summary>
