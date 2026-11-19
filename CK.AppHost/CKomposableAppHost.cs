@@ -81,6 +81,10 @@ public static class CKomposableAppHost
 
         configure?.Invoke( monitor, builder, map );
 
+        // The values burnt by the build win over every other source (they are not part of the deployed configuration).
+        // Before the fleet resolution: a burnt value of a template is resolved for the instance.
+        ApplyCompiledConfiguration( monitor, builder.Configuration, map );
+
         // A fleet: the instance is chosen before anything reads the configuration.
         ApplyInstance( monitor, builder.Configuration, assembly );
 
@@ -95,6 +99,39 @@ public static class CKomposableAppHost
         builder.Services.AddScoped( sp => sp.GetRequiredService<IActivityMonitor>().ParallelLogger );
         builder.Services.AddStObjMap( monitor, map );
         return builder.CKBuild();
+    }
+
+    /// <summary>
+    /// The values that the build burnt in the generated code (<see cref="CK.AppIdentity.CompiledConfiguration"/>: the values
+    /// restricted to the Compile level by a "$LOCK" or a package) are added as the last source: nothing outside the build
+    /// changes them. A value of the other sources that differs from a burnt one, or that a lock covers without being burnt,
+    /// is ignored with a warning (the deployed configuration lags behind the build). The values are never logged (a
+    /// connection string is a secret).
+    /// </summary>
+    internal static void ApplyCompiledConfiguration( IActivityMonitor monitor, ConfigurationManager configuration, IStObjMap map )
+    {
+        if( map.StObjs.Obtain( typeof( CK.AppIdentity.CompiledConfiguration ) ) is not CK.AppIdentity.CompiledConfiguration compiled
+            || (compiled.Values.Count == 0 && compiled.Locks.Count == 0) )
+        {
+            return;
+        }
+        var burnt = new Dictionary<string, string?>( compiled.Values, StringComparer.OrdinalIgnoreCase );
+        foreach( var (path, value) in compiled.Values )
+        {
+            var actual = configuration[path];
+            if( actual != null && actual != value )
+            {
+                monitor.Warn( $"The configuration value '{path}' is compile time here: the configured value is ignored (rebuild to change it)." );
+            }
+        }
+        foreach( var (path, value) in configuration.AsEnumerable() )
+        {
+            if( value == null || burnt.ContainsKey( path ) || !compiled.IsLocked( path ) ) continue;
+            monitor.Warn( $"The configuration value '{path}' is locked by the build: it is ignored." );
+            burnt[path] = null;
+        }
+        configuration.AddInMemoryCollection( burnt );
+        monitor.Info( $"{compiled.Values.Count} compile time configuration value(s) applied." );
     }
 
     /// <summary>
