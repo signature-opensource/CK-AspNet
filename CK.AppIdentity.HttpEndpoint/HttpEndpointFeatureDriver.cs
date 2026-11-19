@@ -38,6 +38,8 @@ namespace CK.AppIdentity;
 /// </para>
 /// </summary>
 [PartyFeature( "HttpEndpoint", TypeActivation.Optional )]
+// The URLs are the ones of a deployment: each one writes its own.
+[ConfigurationPerDeployment( "Party:Urls" )]
 public sealed class HttpEndpointFeatureDriver : ApplicationIdentityStaticFeatureDriver, IDevRunningStatusContributor
 {
     /// <summary>
