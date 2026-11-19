@@ -30,6 +30,11 @@ public static class AspNetServerTestHelperExtensions
     /// "http://127.0.0.1:0" unless it is configured.
     /// </para>
     /// <para>
+    /// The store of the party is the "TestStore" folder of the test project unless <paramref name="identity"/> configures
+    /// its "StoreRootPath": a local party runs in one process at a time and the test projects of a solution run in parallel
+    /// processes, so each one has its own store (the repository ignores "/Tests/*/TestStore/").
+    /// </para>
+    /// <para>
     /// This throws if anything goes wrong. Disposing the server stops and disposes the host.
     /// </para>
     /// </summary>
@@ -53,10 +58,13 @@ public static class AspNetServerTestHelperExtensions
                 EnvironmentName = Environments.Production,
                 ContentRootPath = TestHelper.TestProjectFolder
             } );
-            var configuration = ApplicationIdentityServiceConfiguration.Create( TestHelper.Monitor, c =>
+            var c = new MutableConfigurationSection( "CK-AppIdentity" );
             {
                 c["FullName"] = "Test/$Server";
                 identity?.Invoke( c );
+                // Each test project has its own store ("TestStore" in its folder, unless the identity says otherwise): a local
+                // party runs in one process at a time, and the test projects of a solution run in parallel processes.
+                if( c["StoreRootPath"] == null ) c["StoreRootPath"] = "TestStore";
                 // The endpoint is declared by its section: a configured endpoint (its "Urls" or its "Kestrel" section) is
                 // kept, otherwise it listens on "http://127.0.0.1:0" (this section replaces a "HttpEndpoint": true).
                 if( Find( c, "Local", "HttpEndpoint", "Urls" ) == null && Find( c, "Local", "HttpEndpoint", "Kestrel" ) == null )
@@ -64,7 +72,8 @@ public static class AspNetServerTestHelperExtensions
                     if( c["Local:HttpEndpoint"] != null ) c["Local:HttpEndpoint"] = null;
                     c["Local:HttpEndpoint:Urls"] = "http://127.0.0.1:0";
                 }
-            } );
+            }
+            var configuration = ApplicationIdentityServiceConfiguration.Create( TestHelper.Monitor, c, basePath: TestHelper.TestProjectFolder );
             Throw.CheckState( "Invalid identity configuration.", configuration != null );
             builder.Services.AddSingleton( configuration );
             // The monitor of the work outside the requests (the requests have the one of their ScopedHttpContext).
