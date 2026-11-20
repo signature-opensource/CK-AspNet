@@ -162,6 +162,8 @@ host):
 - **The `Clients` folder is not part of the project**: the client applications are built by their own tool chain.
 - **The host runs in its project folder** (`dotnet run`, Visual Studio): the package sets `RunWorkingDirectory`, so
   the content root is the project folder (its `appsettings.json`, its `Clients`).
+- **The `appsettings.json` is published with the host**, also by a host of the base SDK (`Microsoft.NET.Sdk`: a worker;
+  the Web SDK publishes it).
 - **The host is a party** of the `#Dev` folder of the development solution: the package sets `CKAppIdentityParty` to
   `true` (see [CK.AppIdentity.Hosting](https://github.com/signature-opensource/CK-AppIdentity/blob/stable/CK.AppIdentity.Hosting/README.md)).
 

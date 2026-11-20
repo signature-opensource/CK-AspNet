@@ -32,6 +32,20 @@
            Text="CK.AppHost: '$(MSBuildProjectName)' must reference its builder (it orders the builds: the builder writes the generated code of the host): &lt;ProjectReference Include=&quot;..\$(CKAppHostBuilder)\$(CKAppHostBuilder).csproj&quot; ReferenceOutputAssembly=&quot;false&quot; Private=&quot;false&quot; /&gt;." />
   </Target>
 
+  <!--
+    The configuration of the host ("appsettings.json", written by the builder) is published with it. The Web SDK does it
+    (a json file is Content), the base SDK doesn't: it is added to the published files, evaluated after the build (the
+    builder may have just written it).
+  -->
+  <Target Name="CKAppHostPublishAppSettings" AfterTargets="ComputeResolvedFilesToPublishList" Condition=" '$(UsingMicrosoftNETSdkWeb)' != 'true' ">
+    <ItemGroup>
+      <ResolvedFileToPublish Include="$(MSBuildProjectDirectory)/appsettings.json"
+                             Condition=" Exists('$(MSBuildProjectDirectory)/appsettings.json') "
+                             RelativePath="appsettings.json"
+                             CopyToPublishDirectory="PreserveNewest" />
+    </ItemGroup>
+  </Target>
+
   <Target Name="CKAppHostIncludeGeneratedCode" BeforeTargets="CoreCompile">
     <ItemGroup>
       <Compile Remove="$StObjGen/**/*.cs" />
