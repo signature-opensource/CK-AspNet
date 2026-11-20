@@ -247,27 +247,33 @@ public static class CKomposableAppHost
     /// "&lt;path&gt;:$SECRET" is the name of a secret whose value, the configuration key "Secrets:&lt;Name&gt;" (an environment
     /// variable "Secrets__Name", a vault added by the configure action, the "#Dev/Secrets.json" of the solution in
     /// development), becomes the value of "&lt;path&gt;" through a last configuration source. A missing secret throws (all the
-    /// missing names at once). The values are never logged.
+    /// missing names at once), except for an optional handle (<c>{ "$SECRET?": "&lt;Name&gt;" }</c>): "&lt;path&gt;" stays
+    /// absent (the missing optional names are logged). The values are never logged.
     /// </summary>
     internal static void ApplySecrets( IActivityMonitor monitor, ConfigurationManager configuration )
     {
         List<KeyValuePair<string, string?>>? resolved = null;
         SortedSet<string>? missing = null;
+        SortedSet<string>? missingOptional = null;
         // In the order of the paths: the reported spelling of a name doesn't depend on the order of the sources.
         foreach( var (path, name) in configuration.AsEnumerable().OrderBy( kv => kv.Key, StringComparer.Ordinal ) )
         {
-            if( name == null || !ConfigurationSecret.IsHandlePath( path, out var valuePath ) ) continue;
+            if( name == null || !ConfigurationSecret.IsHandlePath( path, out var valuePath, out var isOptional ) ) continue;
             if( !ConfigurationSecret.IsValidName( name ) )
             {
                 Throw.InvalidOperationException( $"Invalid secret name '{name}' at '{path}': a name is made of segments separated by ':' made of letters, digits, '_' and '-'." );
             }
             var value = configuration[$"{ConfigurationSecret.SectionName}:{name}"];
-            if( value == null ) (missing ??= new SortedSet<string>( StringComparer.OrdinalIgnoreCase )).Add( name );
+            if( value == null ) (isOptional ? missingOptional ??= new SortedSet<string>( StringComparer.OrdinalIgnoreCase ) : missing ??= new SortedSet<string>( StringComparer.OrdinalIgnoreCase )).Add( name );
             else (resolved ??= new List<KeyValuePair<string, string?>>()).Add( new KeyValuePair<string, string?>( valuePath, value ) );
         }
         if( missing != null )
         {
             Throw.InvalidOperationException( $"Missing secret(s) '{missing.Concatenate( "', '" )}': the value of a secret is the configuration key \"{ConfigurationSecret.SectionName}:<Name>\" (an environment variable \"{ConfigurationSecret.SectionName}__Name\", a vault, or \"#Dev/{ConfigurationSecret.DevFileName}\" in development)." );
+        }
+        if( missingOptional != null )
+        {
+            monitor.Info( $"Optional secret(s) '{missingOptional.Concatenate( "', '" )}' not given: their values are absent." );
         }
         if( resolved != null )
         {

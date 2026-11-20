@@ -118,6 +118,10 @@ replaces each handle by the value of the configuration key `Secrets:<Name>`, thr
   { "Google": { "ClientSecret": "..." } }
   ```
 - **A missing secret fails the start**, with all the missing names at once. A value is never logged.
+- **An optional handle**, `{ "$SECRET?": "<Name>" }`, names a secret that may be missing: its path is then absent (as if
+  nothing were configured there) and the missing optional names are logged. A one-time enlistment ticket is given this
+  way (`{ "$SECRET?": "Enlist:Worker2" }`: `Secrets__Enlist__Worker2` at the first start only), and so is a feature
+  activated by its secret.
 
 ## The tests
 

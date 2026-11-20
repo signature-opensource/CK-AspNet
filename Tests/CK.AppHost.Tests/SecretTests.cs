@@ -43,6 +43,16 @@ public class SecretTests
     }
 
     [Test]
+    public void a_missing_optional_secret_leaves_its_path_absent()
+    {
+        var c = Create( ("A:$SECRET?", "One"), ("B:$SECRET?", "Two"), ("C:$SECRET", "Three"), ("Secrets:Two", "2"), ("Secrets:Three", "3") );
+        CKomposableAppHost.ApplySecrets( TestHelper.Monitor, c );
+        c["A"].ShouldBeNull();
+        c["B"].ShouldBe( "2" );
+        c["C"].ShouldBe( "3" );
+    }
+
+    [Test]
     public void an_invalid_name_throws()
     {
         var c = Create( ("A:$SECRET", "Bad Name") );
