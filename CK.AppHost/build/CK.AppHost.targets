@@ -37,12 +37,26 @@
     - Its configuration ("appsettings.json", written by the builder) is published with it. The Web SDK does it (a json
       file is Content), the base SDK doesn't: it is added to the published files, evaluated after the build (the builder
       may have just written it).
-    - A marker file, "CK.AppHost.published", tells CK.AppHost that the host is published: its content root is its own
-      folder (appsettings.json, Clients), whatever the current directory of its process.
+    - "CK.AppHost.Published.json", next to the executable, tells CK.AppHost that the host is published: its content
+      root is its own folder (appsettings.json, Clients), whatever the current directory of its process. It holds the
+      effective properties of the publication (for the platform that receives it); CK.AppDeployment adds the deployment
+      to it (its manifest).
   -->
   <Target Name="CKAppHostPublish" AfterTargets="ComputeResolvedFilesToPublishList">
-    <WriteLinesToFile File="$(IntermediateOutputPath)CK.AppHost.published"
-                      Lines="A published host: its content root is this folder (CK.AppHost)."
+    <PropertyGroup>
+      <_CKAppHostPublished>{
+  "Publish": {
+    "TargetFramework": "$(TargetFramework)",
+    "RuntimeIdentifier": "$(RuntimeIdentifier)",
+    "SelfContained": "$(SelfContained)",
+    "PublishSingleFile": "$(PublishSingleFile)",
+    "PublishTrimmed": "$(PublishTrimmed)",
+    "PublishAot": "$(PublishAot)"
+  }
+}</_CKAppHostPublished>
+    </PropertyGroup>
+    <WriteLinesToFile File="$(IntermediateOutputPath)CK.AppHost.Published.json"
+                      Lines="$(_CKAppHostPublished)"
                       Overwrite="true"
                       WriteOnlyWhenDifferent="true" />
     <ItemGroup>
@@ -50,8 +64,8 @@
                              Condition=" '$(UsingMicrosoftNETSdkWeb)' != 'true' And Exists('$(MSBuildProjectDirectory)/appsettings.json') "
                              RelativePath="appsettings.json"
                              CopyToPublishDirectory="PreserveNewest" />
-      <ResolvedFileToPublish Include="$(IntermediateOutputPath)CK.AppHost.published"
-                             RelativePath="CK.AppHost.published"
+      <ResolvedFileToPublish Include="$(IntermediateOutputPath)CK.AppHost.Published.json"
+                             RelativePath="CK.AppHost.Published.json"
                              CopyToPublishDirectory="PreserveNewest" />
     </ItemGroup>
   </Target>

@@ -94,6 +94,7 @@ public static class CKomposableAppHost
         }
         var builder = Host.CreateApplicationBuilder( settings );
         ((IHostApplicationBuilder)builder).Properties[typeof( IActivityMonitor )] = monitor;
+        if( IsPublished() ) LogPublished( monitor, assembly );
         // The secrets of the development: the "#Dev/Secrets.json" of the solution (where the "#Dev/Store" is).
         if( builder.Environment.IsDevelopment() && !LocalDevSolution.SolutionFolder.IsEmptyPath )
         {
@@ -126,12 +127,37 @@ public static class CKomposableAppHost
     }
 
     /// <summary>
-    /// The marker file of a published host, next to its executable (written by the publication: the build targets of
-    /// this package). Its content root is its folder.
+    /// The file of a published host, next to its executable (written by the publication: the build targets of this
+    /// package): its content root is its folder. It holds the effective properties of the publication ("Publish") and,
+    /// for a host built for a deployment (CK.AppDeployment), its version and its deployment ("Deployment": the manifest).
     /// </summary>
-    public const string PublishedMarkerFileName = "CK.AppHost.published";
+    public const string PublishedFileName = "CK.AppHost.Published.json";
 
-    static bool IsPublished() => File.Exists( Path.Combine( AppContext.BaseDirectory, PublishedMarkerFileName ) );
+    static bool IsPublished() => File.Exists( Path.Combine( AppContext.BaseDirectory, PublishedFileName ) );
+
+    // The start line of a published host: its version (its InformationalVersion) and its deployment, if any.
+    static void LogPublished( IActivityMonitor monitor, Assembly assembly )
+    {
+        var version = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "?";
+        string? deployment = null;
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse( File.ReadAllText( Path.Combine( AppContext.BaseDirectory, PublishedFileName ) ) );
+            if( doc.RootElement.TryGetProperty( "Deployment", out var d )
+                && d.ValueKind == System.Text.Json.JsonValueKind.Object
+                && d.TryGetProperty( "Deployment", out var n ) )
+            {
+                deployment = n.GetString();
+            }
+        }
+        catch( Exception ex )
+        {
+            monitor.Warn( $"Unable to read '{PublishedFileName}'.", ex );
+        }
+        monitor.Info( deployment != null
+                        ? $"Published host '{assembly.GetName().Name}' {version}, deployment '{deployment}'."
+                        : $"Published host '{assembly.GetName().Name}' {version}." );
+    }
 
     /// <summary>
     /// Whether the content root of the host is given by its process: the command line ("--contentRoot") or the

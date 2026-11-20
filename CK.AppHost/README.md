@@ -142,7 +142,7 @@ The host runs as a Windows service or a systemd service when it is started as on
 `SystemdHostBuilderExtensions.AddSystemd` (Microsoft.Extensions.Hosting.Systemd) do nothing otherwise.
 
 **The content root** (the `appsettings.json`, the `Clients`) is the folder of the executable for a Windows service (it
-starts in `C:\Windows\System32`) and for any published host (`dotnet publish` writes a `CK.AppHost.published` marker
+starts in `C:\Windows\System32`) and for any published host (`dotnet publish` writes a `CK.AppHost.Published.json` file
 next to it): it can be started from any directory (a systemd unit needs no `WorkingDirectory`). The command line
 (`--contentRoot`) or the environment (`DOTNET_CONTENTROOT`, `ASPNETCORE_CONTENTROOT`) still chooses another one. A host run
 from its project (`dotnet run`, Visual Studio) has its project folder as its content root.
@@ -166,7 +166,10 @@ host):
 - **The host runs in its project folder** (`dotnet run`, Visual Studio): the package sets `RunWorkingDirectory`, so
   the content root is the project folder (its `appsettings.json`, its `Clients`).
 - **The `appsettings.json` is published with the host**, also by a host of the base SDK (`Microsoft.NET.Sdk`: a worker;
-  the Web SDK publishes it), with the `CK.AppHost.published` marker: the content root of a published host is its folder.
+  the Web SDK publishes it), with `CK.AppHost.Published.json`: the content root of a published host is its folder. This
+  file holds the effective properties of the publication (`"Publish"`: `RuntimeIdentifier`, `SelfContained`,
+  `PublishSingleFile`...) for the platform that receives the host; CK.AppDeployment adds the version and the deployment
+  (`"Deployment"`: its manifest). A published host logs its version and its deployment at start.
 - **The host is a party** of the `#Dev` folder of the development solution: the package sets `CKAppIdentityParty` to
   `true` (see [CK.AppIdentity.Hosting](https://github.com/signature-opensource/CK-AppIdentity/blob/stable/CK.AppIdentity.Hosting/README.md)).
 
