@@ -42,6 +42,18 @@ public class InstanceTests
     }
 
     [Test]
+    public void a_secret_handle_can_use_the_placeholders_of_the_instance()
+    {
+        var c = Create( ("InstanceCount", "2"), ("Instance", "2"),
+                        ("CK-AppIdentity:Local:Key:$SECRET", "Worker:{Name}:Key"),
+                        ("Secrets:Worker:1:Key", "one"),
+                        ("Secrets:Worker:2:Key", "two") );
+        CKomposableAppHost.ApplyInstance( TestHelper.Monitor, c, _host );
+        CKomposableAppHost.ApplySecrets( TestHelper.Monitor, c );
+        c["CK-AppIdentity:Local:Key"].ShouldBe( "two" );
+    }
+
+    [Test]
     public void the_instance_can_be_its_index()
     {
         var c = Create( ("InstanceCount", "3"), ("Instance", "2"), ("Path", "Logs/{Name}-{Index}") );
