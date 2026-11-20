@@ -19,4 +19,14 @@ public class EnvironmentTests
                      && string.IsNullOrEmpty( Environment.GetEnvironmentVariable( "ASPNETCORE_ENVIRONMENT" ) ) );
         CKomposableAppHost.HasEnvironmentName( [arg] ).ShouldBe( expected );
     }
+
+    [TestCase( "--contentRoot=C:/Somewhere", true )]
+    [TestCase( "--contentRoot", true )]
+    [TestCase( "--environment=Staging", false )]
+    public void the_command_line_gives_the_content_root_of_the_host( string arg, bool expected )
+    {
+        Assume.That( string.IsNullOrEmpty( Environment.GetEnvironmentVariable( "DOTNET_CONTENTROOT" ) )
+                     && string.IsNullOrEmpty( Environment.GetEnvironmentVariable( "ASPNETCORE_CONTENTROOT" ) ) );
+        CKomposableAppHost.HasContentRoot( [arg] ).ShouldBe( expected );
+    }
 }

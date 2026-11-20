@@ -4,6 +4,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Hosting.WindowsServices;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
@@ -73,7 +74,11 @@ public static class CKomposableAppHost
     {
         assembly ??= Assembly.GetEntryAssembly()
                      ?? Throw.InvalidOperationException<Assembly>( "No entry assembly: the assembly that contains the generated code must be specified." );
-        contentRoot ??= WindowsServiceHelpers.IsWindowsService() ? AppContext.BaseDirectory : null;
+        // A Windows service starts in "C:\Windows\System32"; a published host may be started from anywhere: their content
+        // root is their folder (unless the process gives one).
+        contentRoot ??= WindowsServiceHelpers.IsWindowsService() || (IsPublished() && !HasContentRoot( args ))
+                            ? AppContext.BaseDirectory
+                            : null;
         // The generated code is loaded first: a host built for a deployment has the environment of its party (its burnt
         // full name), that is the environment of the host when nothing else gives one. The monitor is the builder's one
         // (its logs are replayed once the monitoring is configured).
@@ -118,6 +123,25 @@ public static class CKomposableAppHost
         builder.Services.AddScoped( sp => sp.GetRequiredService<IActivityMonitor>().ParallelLogger );
         builder.Services.AddStObjMap( monitor, map );
         return builder.CKBuild();
+    }
+
+    /// <summary>
+    /// The marker file of a published host, next to its executable (written by the publication: the build targets of
+    /// this package). Its content root is its folder.
+    /// </summary>
+    public const string PublishedMarkerFileName = "CK.AppHost.published";
+
+    static bool IsPublished() => File.Exists( Path.Combine( AppContext.BaseDirectory, PublishedMarkerFileName ) );
+
+    /// <summary>
+    /// Whether the content root of the host is given by its process: the command line ("--contentRoot") or the
+    /// environment variables of .NET ("DOTNET_CONTENTROOT", "ASPNETCORE_CONTENTROOT").
+    /// </summary>
+    internal static bool HasContentRoot( string[] args )
+    {
+        return !string.IsNullOrEmpty( Environment.GetEnvironmentVariable( "DOTNET_CONTENTROOT" ) )
+               || !string.IsNullOrEmpty( Environment.GetEnvironmentVariable( "ASPNETCORE_CONTENTROOT" ) )
+               || args.Any( a => a.TrimStart( '-', '/' ).StartsWith( HostDefaults.ContentRootKey, StringComparison.OrdinalIgnoreCase ) );
     }
 
     /// <summary>

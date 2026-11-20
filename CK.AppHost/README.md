@@ -141,8 +141,11 @@ The host runs as a Windows service or a systemd service when it is started as on
 `WindowsServiceLifetimeHostBuilderExtensions.AddWindowsService` (Microsoft.Extensions.Hosting.WindowsServices) and
 `SystemdHostBuilderExtensions.AddSystemd` (Microsoft.Extensions.Hosting.Systemd) do nothing otherwise.
 
-A Windows service starts in `C:\Windows\System32`: its content root (the `appsettings.json`, the `Clients`) is the folder
-of the executable.
+**The content root** (the `appsettings.json`, the `Clients`) is the folder of the executable for a Windows service (it
+starts in `C:\Windows\System32`) and for any published host (`dotnet publish` writes a `CK.AppHost.published` marker
+next to it): it can be started from any directory (a systemd unit needs no `WorkingDirectory`). The command line
+(`--contentRoot`) or the environment (`DOTNET_CONTENTROOT`, `ASPNETCORE_CONTENTROOT`) still chooses another one. A host run
+from its project (`dotnet run`, Visual Studio) has its project folder as its content root.
 
 ## The host project
 
@@ -163,7 +166,7 @@ host):
 - **The host runs in its project folder** (`dotnet run`, Visual Studio): the package sets `RunWorkingDirectory`, so
   the content root is the project folder (its `appsettings.json`, its `Clients`).
 - **The `appsettings.json` is published with the host**, also by a host of the base SDK (`Microsoft.NET.Sdk`: a worker;
-  the Web SDK publishes it).
+  the Web SDK publishes it), with the `CK.AppHost.published` marker: the content root of a published host is its folder.
 - **The host is a party** of the `#Dev` folder of the development solution: the package sets `CKAppIdentityParty` to
   `true` (see [CK.AppIdentity.Hosting](https://github.com/signature-opensource/CK-AppIdentity/blob/stable/CK.AppIdentity.Hosting/README.md)).
 
