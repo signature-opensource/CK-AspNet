@@ -37,14 +37,43 @@ public static class CKomposableAppHost
     /// <summary>
     /// Builds the host of the entry assembly and runs it until it stops.
     /// See <see cref="Build(string[], Action{IActivityMonitor, HostApplicationBuilder, IStObjMap}?, string?, Assembly?)"/>.
+    /// <para>
+    /// A failure (a missing secret, an invalid configuration, a port already in use...) never escapes: it is written on the
+    /// standard error and logged, and the exit code of the process is 1. An unhandled exception would abort the process
+    /// (a core dump on Linux, an error report on Windows) for an ordinary configuration error.
+    /// </para>
     /// </summary>
     /// <param name="args">The command line arguments.</param>
     /// <param name="configure">Optional configuration of the builder, called right the creation of the builder and the successful load of the map.</param>
     /// <returns>The awaitable.</returns>
     public static async Task RunAsync( string[] args, Action<IActivityMonitor, HostApplicationBuilder, IStObjMap>? configure = null )
     {
-        using var host = Build( args, configure );
-        await host.RunAsync().ConfigureAwait( false );
+        try
+        {
+            using var host = Build( args, configure );
+            await host.RunAsync().ConfigureAwait( false );
+        }
+        catch( Exception ex )
+        {
+            ReportFailure( ex );
+            Environment.ExitCode = 1;
+        }
+    }
+
+    // The standard error always (the monitoring may not be configured yet, or already disposed with the host), and the
+    // monitoring when it is still active.
+    static void ReportFailure( Exception ex )
+    {
+        try
+        {
+            Console.Error.WriteLine( $"The host failed: {ex.Message}" );
+            Console.Error.WriteLine( ex );
+            if( CK.Monitoring.GrandOutput.Default != null ) ActivityMonitor.StaticLogger.Fatal( "The host failed.", ex );
+        }
+        catch
+        {
+            // Nothing more can be done: the exit code says it.
+        }
     }
 
     /// <summary>

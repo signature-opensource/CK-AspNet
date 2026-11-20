@@ -117,7 +117,9 @@ replaces each handle by the value of the configuration key `Secrets:<Name>`, thr
   ```json
   { "Google": { "ClientSecret": "..." } }
   ```
-- **A missing secret fails the start**, with all the missing names at once. A value is never logged.
+- **A missing secret fails the start**, with all the missing names at once. A value is never logged. Like any failure of
+  `RunAsync` (an invalid configuration, a port already in use), it is written on the standard error and logged, and the
+  process exits with the code 1: never an unhandled exception (an abort, a core dump on Linux).
 - **An optional handle**, `{ "$SECRET?": "<Name>" }`, names a secret that may be missing: its path is then absent (as if
   nothing were configured there) and the missing optional names are logged. A one-time enlistment ticket is given this
   way (`{ "$SECRET?": "Enlist:Worker2" }`: `Secrets__Enlist__Worker2` at the first start only), and so is a feature
