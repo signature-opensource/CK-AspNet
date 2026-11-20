@@ -203,7 +203,8 @@ public static class CKomposableAppHost
     {
         List<KeyValuePair<string, string?>>? resolved = null;
         SortedSet<string>? missing = null;
-        foreach( var (path, name) in configuration.AsEnumerable() )
+        // In the order of the paths: the reported spelling of a name doesn't depend on the order of the sources.
+        foreach( var (path, name) in configuration.AsEnumerable().OrderBy( kv => kv.Key, StringComparer.Ordinal ) )
         {
             if( name == null || !ConfigurationSecret.IsHandlePath( path, out var valuePath ) ) continue;
             if( !ConfigurationSecret.IsValidName( name ) )
