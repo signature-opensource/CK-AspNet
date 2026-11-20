@@ -13,6 +13,9 @@
       self-contained host (a deployment's "SelfContained") must not be refused because its builder is not (NETSDK1150).
     -->
     <ValidateExecutableReferencesMatchSelfContained Condition=" '$(ValidateExecutableReferencesMatchSelfContained)' == '' ">false</ValidateExecutableReferencesMatchSelfContained>
+    <!-- A published host doesn't need the XML documentation of its assemblies and packages. -->
+    <PublishDocumentationFiles Condition=" '$(PublishDocumentationFiles)' == '' ">false</PublishDocumentationFiles>
+    <PublishReferencesDocumentationFiles Condition=" '$(PublishReferencesDocumentationFiles)' == '' ">false</PublishReferencesDocumentationFiles>
   </PropertyGroup>
 
 </Project>

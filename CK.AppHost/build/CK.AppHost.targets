@@ -44,8 +44,12 @@
   -->
   <Target Name="CKAppHostPublish" AfterTargets="ComputeResolvedFilesToPublishList">
     <PropertyGroup>
+      <!-- The file to start: the native executable of the host (".exe" for a Windows target), or its dll without it. -->
+      <_CKAppHostExecutable>$(AssemblyName)$(_NativeExecutableExtension)</_CKAppHostExecutable>
+      <_CKAppHostExecutable Condition=" '$(UseAppHost)' == 'false' ">$(TargetFileName)</_CKAppHostExecutable>
       <_CKAppHostPublished>{
   "Publish": {
+    "Executable": "$(_CKAppHostExecutable)",
     "TargetFramework": "$(TargetFramework)",
     "RuntimeIdentifier": "$(RuntimeIdentifier)",
     "SelfContained": "$(SelfContained)",
