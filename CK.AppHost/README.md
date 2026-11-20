@@ -26,15 +26,26 @@ public static IHost Build( string[] args,
     assembly ??= Assembly.GetEntryAssembly()
                  ?? Throw.InvalidOperationException<Assembly>( "No entry assembly: the assembly that contains the generated code must be specified." );
     contentRoot ??= WindowsServiceHelpers.IsWindowsService() ? AppContext.BaseDirectory : null;
-    var builder = Host.CreateApplicationBuilder( new HostApplicationBuilderSettings { Args = args, ContentRootPath = contentRoot } );
-    var monitor = builder.GetBuilderMonitor();
+    // The generated code is loaded first: a host built for a deployment has the environment of its party (its burnt
+    // full name), that is the environment of the host when nothing else gives one. The monitor is the builder's one
+    // (its logs are replayed once the monitoring is configured).
+    var monitor = new ActivityMonitor( ActivityMonitorOptions.WithInitialReplay, nameof( IHostApplicationBuilder ) );
+    var map = StObjContextRoot.Load( assembly, monitor )
+              ?? Throw.InvalidOperationException<IStObjMap>( $"Unable to load the generated code of '{assembly.GetName().Name}': build its Builder." );
+    var settings = new HostApplicationBuilderSettings { Args = args, ContentRootPath = contentRoot };
+    var burntEnvironment = GetBurntEnvironmentName( map );
+    if( burntEnvironment != null && !HasEnvironmentName( args ) )
+    {
+        settings.EnvironmentName = burntEnvironment;
+        monitor.Info( $"The environment of the host is the one of its party: '{burntEnvironment}'." );
+    }
+    var builder = Host.CreateApplicationBuilder( settings );
+    ((IHostApplicationBuilder)builder).Properties[typeof( IActivityMonitor )] = monitor;
     // The secrets of the development: the "#Dev/Secrets.json" of the solution (where the "#Dev/Store" is).
     if( builder.Environment.IsDevelopment() && !LocalDevSolution.SolutionFolder.IsEmptyPath )
     {
         AddSecretsFile( monitor, builder.Configuration, LocalDevSolution.SolutionFolder.AppendPart( "#Dev" ).AppendPart( ConfigurationSecret.DevFileName ) );
     }
-    var map = StObjContextRoot.Load( assembly, monitor )
-              ?? Throw.InvalidOperationException<IStObjMap>( $"Unable to load the generated code of '{assembly.GetName().Name}': build its Builder." );
 
     configure?.Invoke( monitor, builder, map );
 
@@ -66,6 +77,12 @@ public static IHost Build( string[] args,
   `OnHostStartAsync` methods, the features of [CK.AppIdentity](https://github.com/signature-opensource/CK-AppIdentity/blob/stable/CK.AppIdentity/README.md),
   the web servers of [CK.AppIdentity.HttpEndpoint](../CK.AppIdentity.HttpEndpoint/README.md)), and in its configuration.
 - **The generated code** is loaded from the entry assembly (the host).
+- **The environment of the party is the reference:** a host built for a deployment (CK.AppDeployment) has the full name
+  of its party burnt in its generated code (`Sample/Auth3/$Front/#Production`): its environment (`Production`) is the
+  .NET environment of the host when neither the command line (`--environment`) nor the environment variables
+  (`DOTNET_ENVIRONMENT`, `ASPNETCORE_ENVIRONMENT`) give one. A development build burns nothing. CK.AppIdentity checks
+  them at start: a `#Dev` party in a host that is not in Development is a warning, another party in a host in
+  Development is an error.
 - **`CKomposableAppHost.RunAsync( args, configure? )`** builds the host and runs it until it stops.
 - **A fleet runs one of its instances:** when the configuration has `"InstanceCount"`, `"Instances"` or
   `"MaxInstanceCount"` at its root (a fleet App, projected from its builder's `ckonf.json`), the `"Instance"` key

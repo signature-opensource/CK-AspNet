@@ -74,15 +74,26 @@ public static class CKomposableAppHost
         assembly ??= Assembly.GetEntryAssembly()
                      ?? Throw.InvalidOperationException<Assembly>( "No entry assembly: the assembly that contains the generated code must be specified." );
         contentRoot ??= WindowsServiceHelpers.IsWindowsService() ? AppContext.BaseDirectory : null;
-        var builder = Host.CreateApplicationBuilder( new HostApplicationBuilderSettings { Args = args, ContentRootPath = contentRoot } );
-        var monitor = builder.GetBuilderMonitor();
+        // The generated code is loaded first: a host built for a deployment has the environment of its party (its burnt
+        // full name), that is the environment of the host when nothing else gives one. The monitor is the builder's one
+        // (its logs are replayed once the monitoring is configured).
+        var monitor = new ActivityMonitor( ActivityMonitorOptions.WithInitialReplay, nameof( IHostApplicationBuilder ) );
+        var map = StObjContextRoot.Load( assembly, monitor )
+                  ?? Throw.InvalidOperationException<IStObjMap>( $"Unable to load the generated code of '{assembly.GetName().Name}': build its Builder." );
+        var settings = new HostApplicationBuilderSettings { Args = args, ContentRootPath = contentRoot };
+        var burntEnvironment = GetBurntEnvironmentName( map );
+        if( burntEnvironment != null && !HasEnvironmentName( args ) )
+        {
+            settings.EnvironmentName = burntEnvironment;
+            monitor.Info( $"The environment of the host is the one of its party: '{burntEnvironment}'." );
+        }
+        var builder = Host.CreateApplicationBuilder( settings );
+        ((IHostApplicationBuilder)builder).Properties[typeof( IActivityMonitor )] = monitor;
         // The secrets of the development: the "#Dev/Secrets.json" of the solution (where the "#Dev/Store" is).
         if( builder.Environment.IsDevelopment() && !LocalDevSolution.SolutionFolder.IsEmptyPath )
         {
             AddSecretsFile( monitor, builder.Configuration, LocalDevSolution.SolutionFolder.AppendPart( "#Dev" ).AppendPart( ConfigurationSecret.DevFileName ) );
         }
-        var map = StObjContextRoot.Load( assembly, monitor )
-                  ?? Throw.InvalidOperationException<IStObjMap>( $"Unable to load the generated code of '{assembly.GetName().Name}': build its Builder." );
 
         configure?.Invoke( monitor, builder, map );
 
@@ -107,6 +118,33 @@ public static class CKomposableAppHost
         builder.Services.AddScoped( sp => sp.GetRequiredService<IActivityMonitor>().ParallelLogger );
         builder.Services.AddStObjMap( monitor, map );
         return builder.CKBuild();
+    }
+
+    /// <summary>
+    /// The .NET environment of a host built for a deployment: the environment of the full name of its party, burnt by its
+    /// build ("Sample/$Front/#Production" is "Production"). Null for a development build (nothing is burnt).
+    /// </summary>
+    internal static string? GetBurntEnvironmentName( IStObjMap map )
+    {
+        if( map.StObjs.Obtain( typeof( CK.AppIdentity.CompiledConfiguration ) ) is not CK.AppIdentity.CompiledConfiguration compiled
+            || !compiled.Values.TryGetValue( "CK-AppIdentity:FullName", out var fullName )
+            || fullName == null )
+        {
+            return null;
+        }
+        var environment = fullName.Split( '/' ).LastOrDefault( p => p.StartsWith( '#' ) );
+        return environment == null || environment == CoreApplicationIdentity.DefaultEnvironmentName ? null : environment[1..];
+    }
+
+    /// <summary>
+    /// Whether the environment of the host is given by its process: the command line ("--environment") or the environment
+    /// variables of .NET ("DOTNET_ENVIRONMENT", "ASPNETCORE_ENVIRONMENT"). It wins over the burnt one.
+    /// </summary>
+    internal static bool HasEnvironmentName( string[] args )
+    {
+        return !string.IsNullOrEmpty( Environment.GetEnvironmentVariable( "DOTNET_ENVIRONMENT" ) )
+               || !string.IsNullOrEmpty( Environment.GetEnvironmentVariable( "ASPNETCORE_ENVIRONMENT" ) )
+               || args.Any( a => a.TrimStart( '-', '/' ).StartsWith( HostDefaults.EnvironmentKey, StringComparison.OrdinalIgnoreCase ) );
     }
 
     /// <summary>
