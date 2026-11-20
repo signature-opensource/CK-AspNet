@@ -8,6 +8,11 @@
     <CKAppIdentityParty Condition=" '$(CKAppIdentityParty)' == '' ">true</CKAppIdentityParty>
     <!-- "dotnet run" and Visual Studio start the host in its project folder: its content root (appsettings.json, Clients). -->
     <RunWorkingDirectory Condition=" '$(RunWorkingDirectory)' == '' ">$(MSBuildProjectDirectory)</RunWorkingDirectory>
+    <!--
+      The host references its builder (an executable) only to order the builds (ReferenceOutputAssembly="false"): a
+      self-contained host (a deployment's "SelfContained") must not be refused because its builder is not (NETSDK1150).
+    -->
+    <ValidateExecutableReferencesMatchSelfContained Condition=" '$(ValidateExecutableReferencesMatchSelfContained)' == '' ">false</ValidateExecutableReferencesMatchSelfContained>
   </PropertyGroup>
 
 </Project>
