@@ -32,7 +32,7 @@ public static class AspNetServerTestHelperExtensions
     /// <para>
     /// The store of the party is the "TestStore" folder of the test project unless <paramref name="identity"/> configures
     /// its "StoreRootPath": a local party runs in one process at a time and the test projects of a solution run in parallel
-    /// processes, so each one has its own store (the repository ignores "/Tests/*/TestStore/").
+    /// processes, so each one has its own store (a store writes its own ".gitignore": git ignores it).
     /// </para>
     /// <para>
     /// This throws if anything goes wrong. Disposing the server stops and disposes the host.

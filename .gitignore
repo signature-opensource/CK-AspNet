@@ -261,5 +261,3 @@ CodeCakeBuilder/UnitTestsDone.*.txt
 $StObjGen/
 CodeCakeBuilder/[Rr]elease/
 CodeCakeBuilder/[Rr]eleases/
-# The AppIdentity stores of the tests.
-/Tests/*/TestStore/
