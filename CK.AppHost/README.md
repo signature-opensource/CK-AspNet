@@ -46,6 +46,9 @@ public static IHost Build( string[] args,
     {
         AddSecretsFile( monitor, builder.Configuration, LocalDevSolution.SolutionFolder.AppendPart( "#Dev" ).AppendPart( ConfigurationSecret.DevFileName ) );
     }
+    // The secrets given as files: the credentials of a systemd service, a mounted secret volume. Before the configure
+    // action: a vault it adds wins.
+    AddSecretsDirectories( monitor, builder.Configuration, Environment.GetEnvironmentVariable );
 
     configure?.Invoke( monitor, builder, map );
 
@@ -107,8 +110,26 @@ replaces each handle by the value of the configuration key `Secrets:<Name>`, thr
 "Oidc": { "Google": { "ClientId": "...", "ClientSecret": { "$SECRET": "Google:ClientSecret" } } }
 ```
 
-- **The value comes from any source of the host:** an environment variable (`Secrets__Google__ClientSecret`), a file
-  mounted by a container, a vault provider added by the `configure` action.
+- **The value comes from any source of the host:** an environment variable (`Secrets__Google__ClientSecret`), a file of
+  a folder of secrets (below), a vault provider added by the `configure` action (it wins over the files, which win over
+  the environment variables).
+- **A folder of secrets:** each file is a secret named after it, `__` separating the segments of the name (as in an
+  environment variable: the file `Google__ClientSecret` is the secret `Google:ClientSecret`); its value is its content
+  without one final line break. Two folders are read, the second wins:
+  - `$CREDENTIALS_DIRECTORY` (`CKomposableAppHost.CredentialsDirectoryVariable`): systemd sets it for a service that
+    declares credentials. A credential encrypted by `systemd-creds` is bound to the machine (its TPM, or its host key) and
+    decrypted by systemd at start, into a folder of the service only:
+
+    ```
+    systemd-creds encrypt --with-key=tpm2 --name=KeyRing key.txt /etc/credstore.encrypted/KeyRing
+    # In the unit of the service:
+    LoadCredentialEncrypted=KeyRing
+    ```
+  - `$CK_SECRETS_DIRECTORY` (`CKomposableAppHost.SecretsDirectoryVariable`): any folder, typically a mounted secret volume
+    of a container (its `..data` folder and the files whose name starts with a `.` are ignored, so are the sub folders).
+
+  A folder that doesn't exist, a file whose name is not a secret name, an empty value fail the start. The names read are
+  logged, never the values.
 - **In development** (the host environment is Development and the solution folder is found, like the `#Dev/Store` of
   [CK.AppIdentity](https://github.com/signature-opensource/CK-AppIdentity/blob/stable/CK.AppIdentity/README.md)), the
   `#Dev/Secrets.json` file of the solution is a source: its root is the content of the `Secrets` section, shared by the

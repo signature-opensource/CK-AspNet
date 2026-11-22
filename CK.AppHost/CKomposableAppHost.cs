@@ -129,6 +129,9 @@ public static class CKomposableAppHost
         {
             AddSecretsFile( monitor, builder.Configuration, LocalDevSolution.SolutionFolder.AppendPart( "#Dev" ).AppendPart( ConfigurationSecret.DevFileName ) );
         }
+        // The secrets given as files: the credentials of a systemd service, a mounted secret volume. Before the configure
+        // action: a vault it adds wins.
+        AddSecretsDirectories( monitor, builder.Configuration, Environment.GetEnvironmentVariable );
 
         configure?.Invoke( monitor, builder, map );
 
@@ -272,6 +275,63 @@ public static class CKomposableAppHost
     }
 
     /// <summary>
+    /// The environment variable that systemd sets for a service that declares credentials (<c>LoadCredential=</c>,
+    /// <c>LoadCredentialEncrypted=</c>, <c>SetCredential=</c>): the folder of its decrypted credentials, one file each.
+    /// See <see cref="AddSecretsDirectories"/>.
+    /// </summary>
+    public const string CredentialsDirectoryVariable = "CREDENTIALS_DIRECTORY";
+
+    /// <summary>
+    /// The environment variable that names a folder of secrets, one file each (a mounted secret volume of a container).
+    /// See <see cref="AddSecretsDirectories"/>.
+    /// </summary>
+    public const string SecretsDirectoryVariable = "CK_SECRETS_DIRECTORY";
+
+    /// <summary>
+    /// Adds the folders of secrets named by the environment variables <see cref="CredentialsDirectoryVariable"/> (systemd)
+    /// and <see cref="SecretsDirectoryVariable"/>, in this order (the second wins). See <see cref="AddSecretsDirectory"/>.
+    /// </summary>
+    internal static void AddSecretsDirectories( IActivityMonitor monitor, ConfigurationManager configuration, Func<string, string?> getEnvironmentVariable )
+    {
+        foreach( var variable in new[] { CredentialsDirectoryVariable, SecretsDirectoryVariable } )
+        {
+            var folder = getEnvironmentVariable( variable );
+            if( !string.IsNullOrWhiteSpace( folder ) ) AddSecretsDirectory( monitor, configuration, folder, variable );
+        }
+    }
+
+    /// <summary>
+    /// Adds a folder of secrets as a configuration source: each file is a secret named after it, "__" separating the
+    /// segments of the name (as in an environment variable: "Enlist__Worker2" is the secret "Enlist:Worker2"), its value
+    /// is its content without one final line break. The files whose name starts with a '.' are ignored (the "..data" of a
+    /// Kubernetes volume), so are the sub folders. A missing folder, an invalid name, an empty value throw. The names are
+    /// logged, never the values.
+    /// </summary>
+    internal static void AddSecretsDirectory( IActivityMonitor monitor, ConfigurationManager configuration, string folder, string source )
+    {
+        if( !Directory.Exists( folder ) ) Throw.InvalidOperationException( $"The folder of secrets '{folder}' ({source}) doesn't exist." );
+        var secrets = new List<KeyValuePair<string, string?>>();
+        foreach( var file in Directory.EnumerateFiles( folder ).Order( StringComparer.Ordinal ) )
+        {
+            var fileName = Path.GetFileName( file );
+            if( fileName.StartsWith( '.' ) ) continue;
+            var name = fileName.Replace( "__", ":" );
+            if( !ConfigurationSecret.IsValidName( name ) )
+            {
+                Throw.InvalidOperationException( $"Invalid secret file '{fileName}' in '{folder}' ({source}): its name is the name of the secret, segments separated by \"__\" made of letters, digits, '_' and '-'." );
+            }
+            var value = File.ReadAllText( file );
+            if( value.EndsWith( "\r\n", StringComparison.Ordinal ) ) value = value[..^2];
+            else if( value.EndsWith( '\n' ) ) value = value[..^1];
+            if( value.Length == 0 ) Throw.InvalidOperationException( $"The secret file '{fileName}' in '{folder}' ({source}) is empty." );
+            secrets.Add( new KeyValuePair<string, string?>( $"{ConfigurationSecret.SectionName}:{name}", value ) );
+        }
+        if( secrets.Count == 0 ) return;
+        configuration.AddInMemoryCollection( secrets );
+        monitor.Info( $"{secrets.Count} secret(s) read from '{folder}' ({source}): '{secrets.Select( kv => kv.Key[(ConfigurationSecret.SectionName.Length + 1)..] ).Concatenate( "', '" )}'." );
+    }
+
+    /// <summary>
     /// Resolves the secret handles (<c>{ "$SECRET": "&lt;Name&gt;" }</c>, see <see cref="ConfigurationSecret"/>): the value of
     /// "&lt;path&gt;:$SECRET" is the name of a secret whose value, the configuration key "Secrets:&lt;Name&gt;" (an environment
     /// variable "Secrets__Name", a vault added by the configure action, the "#Dev/Secrets.json" of the solution in
@@ -298,7 +358,7 @@ public static class CKomposableAppHost
         }
         if( missing != null )
         {
-            Throw.InvalidOperationException( $"Missing secret(s) '{missing.Concatenate( "', '" )}': the value of a secret is the configuration key \"{ConfigurationSecret.SectionName}:<Name>\" (an environment variable \"{ConfigurationSecret.SectionName}__Name\", a vault, or \"#Dev/{ConfigurationSecret.DevFileName}\" in development)." );
+            Throw.InvalidOperationException( $"Missing secret(s) '{missing.Concatenate( "', '" )}': the value of a secret is the configuration key \"{ConfigurationSecret.SectionName}:<Name>\" (an environment variable \"{ConfigurationSecret.SectionName}__Name\", a file of {CredentialsDirectoryVariable} or {SecretsDirectoryVariable}, a vault, or \"#Dev/{ConfigurationSecret.DevFileName}\" in development)." );
         }
         if( missingOptional != null )
         {
