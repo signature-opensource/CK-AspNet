@@ -42,6 +42,16 @@ public class InstanceTests
     }
 
     [Test]
+    public void a_key_that_a_section_cant_hold_is_ignored()
+    {
+        // The environment variable "__COMPAT_LAYER" (Windows sets it for a program started by its shell) is ":COMPAT_LAYER".
+        var c = Create( (":COMPAT_LAYER", "RunAsInvoker"), ("A::B", "x"), ("InstanceCount", "2"), ("Instance", "2"), ("Path", "Logs/{Name}") );
+        CKomposableAppHost.ApplyInstance( TestHelper.Monitor, c, _host );
+        c["Path"].ShouldBe( "Logs/2" );
+        c[":COMPAT_LAYER"].ShouldBe( "RunAsInvoker" );
+    }
+
+    [Test]
     public void a_secret_handle_can_use_the_placeholders_of_the_instance()
     {
         var c = Create( ("InstanceCount", "2"), ("Instance", "2"),

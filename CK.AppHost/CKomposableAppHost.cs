@@ -384,7 +384,9 @@ public static class CKomposableAppHost
     {
         const string root = "Host";
         var snapshot = new MutableConfigurationSection( root );
-        snapshot.Add( configuration.AsEnumerable().Where( kv => kv.Value != null ) );
+        // A key that a section can't hold is not a key of a fleet: an environment variable "__COMPAT_LAYER" (set by Windows
+        // for a program started by its shell) is the configuration key ":COMPAT_LAYER".
+        snapshot.Add( configuration.AsEnumerable().Where( kv => kv.Value != null && MutableConfigurationSection.IsValidPath( kv.Key ) ) );
         var section = new ImmutableConfigurationSection( snapshot );
         var appName = assembly.GetName().Name ?? "";
         if( appName.EndsWith( ".Host", StringComparison.OrdinalIgnoreCase ) ) appName = appName[..^5];
