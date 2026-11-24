@@ -13,9 +13,16 @@ namespace CK.AppIdentity;
 /// </summary>
 public sealed class RunningHttpEndpoint
 {
-    internal RunningHttpEndpoint( WebApplication application, bool configuredByUrls, string? defaultEndpointUrl )
+    internal RunningHttpEndpoint( WebApplication application, bool configuredByUrls, string? defaultEndpointUrl, string? serverUrl )
     {
         Application = application;
+        // An option provides the server (HttpEndpointOption.ServerUrl): its URL is the only one.
+        if( serverUrl != null )
+        {
+            Urls = [serverUrl];
+            DefaultUrl = serverUrl;
+            return;
+        }
         var addresses = application.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>();
         Urls = addresses != null ? [.. addresses.Addresses] : [];
         // Kestrel reports its URLs in their binding order: with "Urls", the first one is the first configured URL.

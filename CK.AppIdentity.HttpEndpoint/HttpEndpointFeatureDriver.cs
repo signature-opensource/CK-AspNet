@@ -21,7 +21,8 @@ namespace CK.AppIdentity;
 /// <para>
 /// A local party has one endpoint: one origin, one pipeline. "Local:HttpEndpoint" has either "Urls" (separated by ';')
 /// or a "Kestrel" section (Kestrel's own configuration: Endpoints, Certificates, Limits...): several listening addresses
-/// don't need several pipelines. The application configures the services and the pipeline of the endpoint with
+/// don't need several pipelines. Instead, an option can provide the server of the endpoint (an in-process one, see
+/// <see cref="HttpEndpointOption.ServerUrl"/>). The application configures the services and the pipeline of the endpoint with
 /// <see cref="HttpEndpointHostApplicationBuilderExtensions.ConfigureHttpEndpoint"/>.
 /// </para>
 /// <para>
@@ -64,7 +65,8 @@ public sealed class HttpEndpointFeatureDriver : ApplicationIdentityStaticFeature
     sealed record EndpointConfiguration( string[]? Urls,
                                          IConfigurationSection? Kestrel,
                                          string? DefaultEndpointUrl,
-                                         IReadOnlyList<HttpEndpointOption> Options );
+                                         IReadOnlyList<HttpEndpointOption> Options,
+                                         string? ServerUrl );
 
     /// <summary>
     /// Initializes a new <see cref="HttpEndpointFeatureDriver"/>.
@@ -174,9 +176,27 @@ public sealed class HttpEndpointFeatureDriver : ApplicationIdentityStaticFeature
         }
         var urls = ReadUrls( section );
         var kestrel = section.TryGetSection( "Kestrel" );
+        if( !TryCreateOptions( monitor, section, out var options ) ) return null;
+        // An option can provide the server of the endpoint (HttpEndpointOption.ServerUrl): then Kestrel is not used.
+        var servers = options.Where( o => o.ServerUrl != null ).ToList();
+        if( servers.Count > 1 )
+        {
+            monitor.Error( $"\"{path}\": only one option can provide the server of the endpoint ({servers.Select( o => $"'{o.GetType():C}'" ).Concatenate()})." );
+            return null;
+        }
+        if( servers.Count == 1 )
+        {
+            var server = servers[0];
+            if( urls != null || kestrel != null || !string.IsNullOrWhiteSpace( section["DefaultEndpoint"] ) )
+            {
+                monitor.Error( $"\"{path}\": the option '{server.GetType():C}' provides the server of the endpoint ({server.ServerUrl}): \"Urls\", \"Kestrel\" and \"DefaultEndpoint\" must be removed." );
+                return null;
+            }
+            return new EndpointConfiguration( null, null, null, options, server.ServerUrl );
+        }
         if( (urls == null) == (kestrel == null) )
         {
-            monitor.Error( $"\"{path}\" must have either \"Urls\" or a \"Kestrel\" section." );
+            monitor.Error( $"\"{path}\" must have either \"Urls\" or a \"Kestrel\" section (or an option that provides its server)." );
             // The endpoint level is gone: a named endpoint is moved into "Local:HttpEndpoint".
             foreach( var named in section.GetChildren().Where( c => c["Urls"] != null || c.TryGetSection( "Urls" ) != null || c.TryGetSection( "Kestrel" ) != null ) )
             {
@@ -184,10 +204,9 @@ public sealed class HttpEndpointFeatureDriver : ApplicationIdentityStaticFeature
             }
             return null;
         }
-        if( TryReadDefaultEndpoint( monitor, section, urls, kestrel, out var defaultEndpointUrl )
-            && TryCreateOptions( monitor, section, out var options ) )
+        if( TryReadDefaultEndpoint( monitor, section, urls, kestrel, out var defaultEndpointUrl ) )
         {
-            return new EndpointConfiguration( urls, kestrel, defaultEndpointUrl, options );
+            return new EndpointConfiguration( urls, kestrel, defaultEndpointUrl, options, null );
         }
         return null;
 
@@ -317,11 +336,15 @@ public sealed class HttpEndpointFeatureDriver : ApplicationIdentityStaticFeature
         builder.Configuration.Sources.Clear();
         var configuration = _services.GetService<IConfiguration>();
         if( configuration != null ) builder.Configuration.AddConfiguration( configuration );
-        builder.WebHost.UseKestrelHttpsConfiguration();
-        // The endpoint's Kestrel section replaces the binding of the root "Kestrel" section.
-        var kestrel = (IConfiguration?)c.Kestrel ?? _emptyConfiguration;
-        builder.WebHost.ConfigureKestrel( o => o.Configure( kestrel ) );
-        if( c.Urls != null ) builder.WebHost.UseUrls( c.Urls );
+        // When an option provides the server, its ConfigureServices registers it: Kestrel is not configured.
+        if( c.ServerUrl == null )
+        {
+            builder.WebHost.UseKestrelHttpsConfiguration();
+            // The endpoint's Kestrel section replaces the binding of the root "Kestrel" section.
+            var kestrel = (IConfiguration?)c.Kestrel ?? _emptyConfiguration;
+            builder.WebHost.ConfigureKestrel( o => o.Configure( kestrel ) );
+            if( c.Urls != null ) builder.WebHost.UseUrls( c.Urls );
+        }
         // The host handles the console (Ctrl+C) and the process lifetime, not the web application.
         builder.Services.Replace( ServiceDescriptor.Singleton<IHostLifetime, NoHostLifetime>() );
         HostServiceForwarder.Forward( monitor, _host.HostServices!, _services, builder.Services );
@@ -341,7 +364,7 @@ public sealed class HttpEndpointFeatureDriver : ApplicationIdentityStaticFeature
         // A party lives and dies with its endpoint: a web application that stops by itself stops the host.
         app.Lifetime.ApplicationStopping.Register( OnApplicationStopping );
         await app.StartAsync( cancel ).ConfigureAwait( false );
-        return new RunningHttpEndpoint( app, configuredByUrls: c.Urls != null, c.DefaultEndpointUrl );
+        return new RunningHttpEndpoint( app, configuredByUrls: c.Urls != null, c.DefaultEndpointUrl, c.ServerUrl );
     }
 
     void OnApplicationStopping()

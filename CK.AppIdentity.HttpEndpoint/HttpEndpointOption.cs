@@ -36,4 +36,16 @@ public abstract class HttpEndpointOption : IPartyComponentOption<HttpEndpointFea
     public virtual void ConfigurePipeline( IApplicationBuilder app )
     {
     }
+
+    /// <summary>
+    /// Gets the URL of the server that this option provides, or null (the default) when the endpoint keeps its Kestrel
+    /// server.
+    /// <para>
+    /// An option that replaces the server of the endpoint (its <see cref="ConfigureServices"/> registers another
+    /// <c>IServer</c>, like an in-process one) returns its URL: the endpoint then has no "Urls" nor "Kestrel" (having them
+    /// is an error, as is a second option that provides a server), and this URL is its <see cref="RunningHttpEndpoint.Urls"/>
+    /// and its <see cref="RunningHttpEndpoint.DefaultUrl"/>.
+    /// </para>
+    /// </summary>
+    public virtual string? ServerUrl => null;
 }

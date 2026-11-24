@@ -15,7 +15,8 @@ It builds on [CK.AspNet](../CK.AspNet/README.md) (`CKBuild` builds the web appli
 The feature is opt-in: the root party declares it by its `Local:HttpEndpoint` section, that has either `Urls`
 (separated by `;`, or an array) or a `Kestrel` section (Kestrel's own configuration: `Endpoints`, `Certificates`,
 `Limits`...): several listening addresses don't need several pipelines. With a `Kestrel` section, the optional `DefaultEndpoint`
-names the Kestrel endpoint whose URL is the default one (see `RunningHttpEndpoint.DefaultUrl` below).
+names the Kestrel endpoint whose URL is the default one (see `RunningHttpEndpoint.DefaultUrl` below). Instead of
+`Urls` and `Kestrel`, an option can provide the server of the endpoint (see [the server of an option](#the-server-of-an-option)).
 
 ```json
 "CK-AppIdentity": {
@@ -27,7 +28,8 @@ names the Kestrel endpoint whose URL is the default one (see `RunningHttpEndpoin
 ```
 
 These are errors that fail the initialization of the party (nothing listens):
-- no `Local:HttpEndpoint` section, or one with both or none of `Urls` and `Kestrel` (a child section that has `Urls` or
+- an option that provides the server with `Urls`, `Kestrel` or `DefaultEndpoint`, or two such options;
+- no `Local:HttpEndpoint` section, or one with both or none of `Urls` and `Kestrel` without such an option (a child section that has `Urls` or
   `Kestrel` is reported as a named endpoint: there is no endpoint level, its content goes in `Local:HttpEndpoint`);
 - a `DefaultEndpoint` with `Urls` (the first URL is the default one), or one that names no `Kestrel:Endpoints:<Name>:Url`;
 - a key of `Local:HttpEndpoint` that is neither `Urls`, `Kestrel`, `DefaultEndpoint` nor one of its [options](#the-options-of-the-endpoint),
@@ -93,6 +95,8 @@ attribute: `true` or a section enables it, `false` disables it, and its activati
 - `HttpEndpointOption.ConfigurePipeline` adds its middlewares: the options' middlewares are the first ones of the
   pipeline, before the CKMiddleware, in the order of the options (their topology attributes order them).
 
+- `HttpEndpointOption.ServerUrl` is null, unless the option provides the server of the endpoint (see below).
+
 The options are known by the engine (CK.AppIdentity.Engine), not discovered at runtime: a BinPath with this feature
 needs the `CK.AppIdentity.Engine` package.
 
@@ -119,6 +123,14 @@ of the cookies, the comparison with the `Origin` of a browser).
 It fails closed: the proxies are trusted explicitly, never by default (not even the loopback). `"ForwardedHeaders": true`,
 a section without `KnownProxies` nor `KnownNetworks`, an invalid address or network and an unknown key are errors.
 
+### The server of an option
+
+An option can replace Kestrel: its `ConfigureServices` registers another server (an `IServer`) and its
+`HttpEndpointOption.ServerUrl` returns the URL of that server. The endpoint then has no `Urls`, `Kestrel` nor
+`DefaultEndpoint`, and this URL is its `RunningHttpEndpoint.Urls` and its `RunningHttpEndpoint.DefaultUrl`. The
+"InProcess" option of [CK.AppIdentity.HttpEndpoint.InProcess](../CK.AppIdentity.HttpEndpoint.InProcess/README.md) runs the
+endpoint on an in-memory server, without any port (for an example of this contract in a concrete package).
+
 ## Lifetime
 
 - **Start:** after the initialization of the party (all its features are set up), outside the agent's loop
@@ -129,6 +141,7 @@ a section without `KnownProxies` nor `KnownNetworks`, an invalid address or netw
       (put https first if it is the one to use).
     - **With a `Kestrel` section,** whose endpoints the configuration sorts by name, it is the URL of the endpoint named
       by `DefaultEndpoint`, otherwise the first https URL, otherwise the first one.
+    - **With an option that provides the server,** it is its `HttpEndpointOption.ServerUrl`.
   - **A wildcard host** (`*`, `+`, `0.0.0.0`, `[::]`) is replaced by `localhost`.
   - **It is the bound URL:** behind a reverse proxy or in a container, the public URL differs.
 - **Stop:** before the party stops (`ApplicationIdentityStaticFeatureDriver.OnHostStoppingAsync`): the requests in

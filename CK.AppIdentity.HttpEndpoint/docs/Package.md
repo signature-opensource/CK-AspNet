@@ -6,7 +6,8 @@ one origin, one pipeline. The application configures the services and the pipeli
 `ConfigureHttpEndpoint` (on the host builder).
 
 The endpoint is configured further by its options (`HttpEndpointOption`), like the forwarded headers behind a reverse
-proxy (`ForwardedHeadersOption`).
+proxy (`ForwardedHeadersOption`). An option can also provide the server of the endpoint instead of Kestrel
+(`HttpEndpointOption.ServerUrl`).
 
 Main types: `HttpEndpointFeatureDriver` (its `Endpoint`), `RunningHttpEndpoint`, `HttpEndpointHostApplicationBuilderExtensions.ConfigureHttpEndpoint`, `HttpEndpointOption`.
 
