@@ -1,7 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
-    <Description>Provides IStObjMap.CreateRunningAspNetServerAsync() (a party with its HttpEndpoint) and WebApplicationBuilder.CreateRunningAspNetServerAsync() (a standalone web application) that return a RunningAspNetServer with a Client to interact with it.</Description>
   </PropertyGroup>
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />

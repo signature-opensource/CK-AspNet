@@ -2,7 +2,6 @@
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
-    <Description>The bootstrap of a CKomposable application host (CKomposableAppHost.RunAsync), the same for every party: the generated code, the monitoring, the application identity, the Windows service and systemd support, and the MSBuild conventions of the host project.</Description>
   </PropertyGroup>
 
   <ItemGroup>
