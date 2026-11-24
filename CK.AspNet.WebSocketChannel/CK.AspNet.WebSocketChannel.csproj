@@ -5,8 +5,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="CK.Abstractions" Version="32.0.0-0.uc.2.ci.34" />
-    <PackageReference Include="CK.PerfectEvent" Version="30.0.0-0.uc.0.ci.14" />
+    <PackageReference Include="CK.Abstractions" Version="32.0.0-0.uc.3" />
+    <PackageReference Include="CK.PerfectEvent" Version="30.0.0-0.uc.1" />
   </ItemGroup>
 
   <ItemGroup>
