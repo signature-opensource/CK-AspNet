@@ -26,8 +26,8 @@ namespace CK.AppIdentity;
 /// <see cref="HttpEndpointHostApplicationBuilderExtensions.ConfigureHttpEndpoint"/>.
 /// </para>
 /// <para>
-/// The other keys of "Local:HttpEndpoint" are its options (<see cref="HttpEndpointOption"/>, like the
-/// <see cref="ForwardedHeadersOption"/>): any other key is an error.
+/// Its configuration model is <see cref="HttpEndpointConfiguration"/>; the other keys of "Local:HttpEndpoint" are its
+/// options (<see cref="HttpEndpointOption"/>, like the <see cref="ForwardedHeadersOption"/>): any other key is an error.
 /// </para>
 /// <para>
 /// This is a static feature: only the root party can have an endpoint (a tenant domain that allows it is an error).
@@ -39,6 +39,7 @@ namespace CK.AppIdentity;
 /// </para>
 /// </summary>
 [PartyFeature( "HttpEndpoint", TypeActivation.Optional )]
+[Configuration<HttpEndpointConfiguration>]
 // The URLs are the ones of a deployment: each one writes its own.
 [ConfigurationPerDeployment( "Party:Urls" )]
 public sealed class HttpEndpointFeatureDriver : ApplicationIdentityStaticFeatureDriver, IDevRunningStatusContributor
@@ -52,7 +53,6 @@ public sealed class HttpEndpointFeatureDriver : ApplicationIdentityStaticFeature
 
     readonly HttpEndpointHost _host;
     readonly IServiceProvider _services;
-    readonly PartyComponentOptionDirectory _optionDirectory;
     EndpointConfiguration? _configuration;
     // The started endpoint (stopped by the teardown if OnHostStoppingAsync has not been called).
     RunningHttpEndpoint? _endpoint;
@@ -63,7 +63,7 @@ public sealed class HttpEndpointFeatureDriver : ApplicationIdentityStaticFeature
     // DefaultEndpointUrl: the configured "Url" of the Kestrel endpoint named by "DefaultEndpoint".
     // Options: the enabled options of the endpoint, initialized, in their order.
     sealed record EndpointConfiguration( string[]? Urls,
-                                         IConfigurationSection? Kestrel,
+                                         IConfiguration? Kestrel,
                                          string? DefaultEndpointUrl,
                                          IReadOnlyList<HttpEndpointOption> Options,
                                          string? ServerUrl );
@@ -74,16 +74,13 @@ public sealed class HttpEndpointFeatureDriver : ApplicationIdentityStaticFeature
     /// <param name="s">The application identity service.</param>
     /// <param name="host">The application's configuration of the endpoint and the services of the host.</param>
     /// <param name="services">The services of the host.</param>
-    /// <param name="optionDirectory">The options of the party components (the options of the endpoint).</param>
     public HttpEndpointFeatureDriver( ApplicationIdentityService s,
                                       HttpEndpointHost host,
-                                      IServiceProvider services,
-                                      PartyComponentOptionDirectory optionDirectory )
+                                      IServiceProvider services )
         : base( s )
     {
         _host = host;
         _services = services;
-        _optionDirectory = optionDirectory;
     }
 
     /// <summary>
@@ -168,15 +165,10 @@ public sealed class HttpEndpointFeatureDriver : ApplicationIdentityStaticFeature
     EndpointConfiguration? ReadConfiguration( IActivityMonitor monitor )
     {
         const string path = $"Local:{ConfigurationKey}";
-        var section = ApplicationIdentityService.LocalConfiguration.Configuration.TryGetSection( ConfigurationKey );
-        if( section == null )
-        {
-            monitor.Error( $"The '{FeatureName}' feature is allowed but there is no \"{path}\" section." );
-            return null;
-        }
-        var urls = ReadUrls( section );
-        var kestrel = section.TryGetSection( "Kestrel" );
-        if( !TryCreateOptions( monitor, section, out var options ) ) return null;
+        // The model is read (and checked: an unknown key, the exclusive Urls and Kestrel...) before the setup.
+        var m = GetModel<HttpEndpointConfiguration>( ApplicationIdentityService );
+        var urls = m.EffectiveUrls;
+        if( !TryGetOptions( monitor, out var options ) ) return null;
         // An option can provide the server of the endpoint (HttpEndpointOption.ServerUrl): then Kestrel is not used.
         var servers = options.Where( o => o.ServerUrl != null ).ToList();
         if( servers.Count > 1 )
@@ -187,80 +179,27 @@ public sealed class HttpEndpointFeatureDriver : ApplicationIdentityStaticFeature
         if( servers.Count == 1 )
         {
             var server = servers[0];
-            if( urls != null || kestrel != null || !string.IsNullOrWhiteSpace( section["DefaultEndpoint"] ) )
+            if( urls != null || m.Kestrel != null || !string.IsNullOrWhiteSpace( m.DefaultEndpoint ) )
             {
                 monitor.Error( $"\"{path}\": the option '{server.GetType():C}' provides the server of the endpoint ({server.ServerUrl}): \"Urls\", \"Kestrel\" and \"DefaultEndpoint\" must be removed." );
                 return null;
             }
             return new EndpointConfiguration( null, null, null, options, server.ServerUrl );
         }
-        if( (urls == null) == (kestrel == null) )
+        if( urls == null && m.Kestrel == null )
         {
             monitor.Error( $"\"{path}\" must have either \"Urls\" or a \"Kestrel\" section (or an option that provides its server)." );
-            // The endpoint level is gone: a named endpoint is moved into "Local:HttpEndpoint".
-            foreach( var named in section.GetChildren().Where( c => c["Urls"] != null || c.TryGetSection( "Urls" ) != null || c.TryGetSection( "Kestrel" ) != null ) )
-            {
-                monitor.Error( $"\"{named.Path}\" looks like a named endpoint: a local party has one endpoint, the endpoint level is removed. Move its content into \"{path}\"." );
-            }
             return null;
         }
-        if( TryReadDefaultEndpoint( monitor, section, urls, kestrel, out var defaultEndpointUrl ) )
-        {
-            return new EndpointConfiguration( urls, kestrel, defaultEndpointUrl, options, null );
-        }
-        return null;
-
-        // "DefaultEndpoint" names the Kestrel endpoint whose URL is the RunningHttpEndpoint.DefaultUrl. With "Urls", the
-        // first one is the default one: "DefaultEndpoint" would say it twice.
-        static bool TryReadDefaultEndpoint( IActivityMonitor monitor,
-                                            ImmutableConfigurationSection c,
-                                            string[]? urls,
-                                            ImmutableConfigurationSection? kestrel,
-                                            out string? defaultEndpointUrl )
-        {
-            defaultEndpointUrl = null;
-            var name = c["DefaultEndpoint"];
-            if( string.IsNullOrWhiteSpace( name ) ) return true;
-            if( urls != null )
-            {
-                monitor.Error( $"\"{path}:DefaultEndpoint\" is only for a \"Kestrel\" section: with \"Urls\", the first one is the default one." );
-                return false;
-            }
-            defaultEndpointUrl = kestrel?.TryGetSection( "Endpoints" )?.TryGetSection( name )?["Url"];
-            if( string.IsNullOrWhiteSpace( defaultEndpointUrl ) )
-            {
-                monitor.Error( $"\"{path}:DefaultEndpoint\" is '{name}': there is no \"{path}:Kestrel:Endpoints:{name}:Url\"." );
-                return false;
-            }
-            return true;
-        }
-
-        static string[]? ReadUrls( ImmutableConfigurationSection c )
-        {
-            var value = c["Urls"];
-            var urls = value != null
-                        ? value.Split( ';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries )
-                        : c.TryGetSection( "Urls" )?.GetChildren().Select( u => u.Value ).Where( u => !string.IsNullOrWhiteSpace( u ) ).Select( u => u!.Trim() ).ToArray();
-            return urls is { Length: > 0 } ? urls : null;
-        }
+        var defaultEndpointUrl = string.IsNullOrWhiteSpace( m.DefaultEndpoint ) ? null : m.Kestrel?[$"Endpoints:{m.DefaultEndpoint}:Url"];
+        return new EndpointConfiguration( urls, m.Kestrel, defaultEndpointUrl, options, null );
     }
 
-    // The options enabled by the "Local:HttpEndpoint" section (created before the setup, see GetOptions). A key that is
-    // neither a key of the endpoint nor an option is an error.
-    bool TryCreateOptions( IActivityMonitor monitor, ImmutableConfigurationSection section, out IReadOnlyList<HttpEndpointOption> options )
+    // The options of the endpoint (created before the setup, see GetOptions): an option specializes HttpEndpointOption.
+    bool TryGetOptions( IActivityMonitor monitor, out IReadOnlyList<HttpEndpointOption> options )
     {
         options = [];
-        var ownerType = typeof( HttpEndpointFeatureDriver );
         bool success = true;
-        foreach( var k in section.GetChildren() )
-        {
-            if( k.Key is not ("Urls" or "Kestrel" or "DefaultEndpoint") && !_optionDirectory.IsOptionName( ownerType, k.Key ) )
-            {
-                var names = _optionDirectory.GetOptions( ownerType ).Select( o => o.Name ).Concatenate();
-                monitor.Error( $"Unknown \"{k.Path}\": the keys of \"Local:{ConfigurationKey}\" are Urls, Kestrel, DefaultEndpoint and its options ({(names.Length > 0 ? names : "none")})." );
-                success = false;
-            }
-        }
         var result = new List<HttpEndpointOption>();
         foreach( var option in GetOptions( ApplicationIdentityService ) )
         {

@@ -1,7 +1,6 @@
 using CK.Core;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.HttpOverrides;
-using Microsoft.Extensions.Configuration;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -25,79 +24,27 @@ namespace CK.AppIdentity;
 ///   "ForwardLimit": 1                     // The default: the number of proxies to go through.
 /// }
 /// </code>
-/// An invalid configuration throws (the proxies are never trusted by default: a section with "KnownProxies" or
-/// "KnownNetworks" is required).
+/// An invalid configuration is an error (the proxies are never trusted by default: "KnownProxies" or "KnownNetworks" is
+/// required): its model is <see cref="ForwardedHeadersOptionConfiguration"/>.
 /// </summary>
 [PartyFeatureOption( "ForwardedHeaders", TypeActivation.Optional )]
+[Configuration<ForwardedHeadersOptionConfiguration>]
 public sealed class ForwardedHeadersOption : HttpEndpointOption
 {
-    static readonly string[] _keys = ["KnownProxies", "KnownNetworks", "Headers", "ForwardLimit"];
-
     /// <summary>
-    /// Initializes a new <see cref="ForwardedHeadersOption"/> from its configuration.
+    /// Initializes a new <see cref="ForwardedHeadersOption"/> from its (checked) configuration.
     /// </summary>
-    /// <param name="configuration">The "ForwardedHeaders" section of the endpoint.</param>
-    public ForwardedHeadersOption( IConfiguration? configuration )
+    /// <param name="configuration">The configuration of the option.</param>
+    public ForwardedHeadersOption( ForwardedHeadersOptionConfiguration configuration )
     {
-        if( configuration == null )
-        {
-            Throw.CKException( "It must be a section with \"KnownProxies\" or \"KnownNetworks\": the proxies are never trusted by default." );
-        }
-        foreach( var c in configuration.GetChildren() )
-        {
-            if( !_keys.Contains( c.Key ) )
-            {
-                Throw.CKException( $"Unknown \"{c.Key}\": the keys are {_keys.Concatenate()}." );
-            }
-        }
-        var options = new ForwardedHeadersOptions
-        {
-            ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost
-        };
+        var options = new ForwardedHeadersOptions { ForwardedHeaders = configuration.EffectiveHeaders };
         // Nothing is trusted by default: the configured proxies replace the loopback.
         options.KnownProxies.Clear();
         options.KnownIPNetworks.Clear();
-        foreach( var p in ReadList( configuration, "KnownProxies" ) )
-        {
-            if( !IPAddress.TryParse( p, out var a ) ) Throw.CKException( $"Invalid \"KnownProxies\": '{p}' is not an IP address." );
-            options.KnownProxies.Add( a );
-        }
-        foreach( var n in ReadList( configuration, "KnownNetworks" ) )
-        {
-            if( !System.Net.IPNetwork.TryParse( n, out var net ) ) Throw.CKException( $"Invalid \"KnownNetworks\": '{n}' is not a CIDR network (like '10.0.0.0/8')." );
-            options.KnownIPNetworks.Add( net );
-        }
-        if( options.KnownProxies.Count == 0 && options.KnownIPNetworks.Count == 0 )
-        {
-            Throw.CKException( "It must have \"KnownProxies\" or \"KnownNetworks\": the proxies are never trusted by default." );
-        }
-        var headers = configuration["Headers"];
-        if( headers != null )
-        {
-            if( !Enum.TryParse<ForwardedHeaders>( headers, ignoreCase: true, out var h ) || h == ForwardedHeaders.None )
-            {
-                Throw.CKException( $"Invalid \"Headers\": '{headers}'. Expected a combination of XForwardedFor, XForwardedHost, XForwardedProto and XForwardedPrefix." );
-            }
-            options.ForwardedHeaders = h;
-        }
-        var limit = configuration["ForwardLimit"];
-        if( limit != null )
-        {
-            if( !int.TryParse( limit, out var l ) || l <= 0 ) Throw.CKException( $"Invalid \"ForwardLimit\": '{limit}' (a positive number is expected)." );
-            options.ForwardLimit = l;
-        }
+        foreach( var p in ForwardedHeadersOptionConfiguration.Split( configuration.KnownProxies ) ) options.KnownProxies.Add( IPAddress.Parse( p ) );
+        foreach( var n in ForwardedHeadersOptionConfiguration.Split( configuration.KnownNetworks ) ) options.KnownIPNetworks.Add( System.Net.IPNetwork.Parse( n ) );
+        if( configuration.ForwardLimit != null ) options.ForwardLimit = configuration.ForwardLimit;
         Options = options;
-
-        static IEnumerable<string> ReadList( IConfiguration c, string key )
-        {
-            var value = c[key];
-            return value != null
-                    ? value.Split( ';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries )
-                    : c.GetSection( key ).GetChildren()
-                                         .Select( v => v.Value )
-                                         .Where( v => !string.IsNullOrWhiteSpace( v ) )
-                                         .Select( v => v!.Trim() );
-        }
     }
 
     /// <summary>
@@ -107,4 +54,74 @@ public sealed class ForwardedHeadersOption : HttpEndpointOption
 
     /// <inheritdoc />
     public override void ConfigurePipeline( IApplicationBuilder app ) => app.UseForwardedHeaders( Options );
+}
+
+/// <summary>
+/// The configuration of the <see cref="ForwardedHeadersOption"/>.
+/// </summary>
+[ConfigurationModel]
+public sealed class ForwardedHeadersOptionConfiguration : IConfigurationModel
+{
+    /// <summary>
+    /// Gets the IP addresses of the trusted proxies (an entry may hold several addresses separated by ';').
+    /// </summary>
+    public IReadOnlyList<string>? KnownProxies { get; init; }
+
+    /// <summary>
+    /// Gets the CIDR networks of the trusted proxies, like "10.0.0.0/8" (an entry may hold several networks separated by ';').
+    /// </summary>
+    public IReadOnlyList<string>? KnownNetworks { get; init; }
+
+    /// <summary>
+    /// Gets the forwarded headers: a combination of XForwardedFor, XForwardedHost, XForwardedProto and XForwardedPrefix
+    /// (separated by ','). Defaults to "XForwardedFor, XForwardedProto, XForwardedHost".
+    /// </summary>
+    public string? Headers { get; init; }
+
+    /// <summary>
+    /// Gets the number of proxies to go through (defaults to 1, the default of ASP.NET).
+    /// </summary>
+    public int? ForwardLimit { get; init; }
+
+    /// <summary>
+    /// Gets the headers to process.
+    /// </summary>
+    public ForwardedHeaders EffectiveHeaders => Headers != null && Enum.TryParse<ForwardedHeaders>( Headers, ignoreCase: true, out var h )
+                                                    ? h
+                                                    : ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost;
+
+    /// <summary>
+    /// Splits the entries of a list on their ';'.
+    /// </summary>
+    /// <param name="entries">The entries.</param>
+    /// <returns>The values.</returns>
+    public static IEnumerable<string> Split( IReadOnlyList<string>? entries )
+        => entries?.SelectMany( e => e.Split( ';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries ) ) ?? [];
+
+    /// <inheritdoc />
+    public void Validate( IConfigurationValidationContext context )
+    {
+        var proxies = Split( KnownProxies ).ToList();
+        var networks = Split( KnownNetworks ).ToList();
+        foreach( var p in proxies.Where( p => !IPAddress.TryParse( p, out _ ) ) )
+        {
+            context.Error( $"'{context.Path}:KnownProxies': '{p}' is not an IP address." );
+        }
+        foreach( var n in networks.Where( n => !System.Net.IPNetwork.TryParse( n, out _ ) ) )
+        {
+            context.Error( $"'{context.Path}:KnownNetworks': '{n}' is not a CIDR network (like '10.0.0.0/8')." );
+        }
+        if( proxies.Count == 0 && networks.Count == 0 )
+        {
+            context.Error( $"'{context.Path}' must have \"KnownProxies\" or \"KnownNetworks\": the proxies are never trusted by default." );
+        }
+        if( Headers != null && (!Enum.TryParse<ForwardedHeaders>( Headers, ignoreCase: true, out var h ) || h == ForwardedHeaders.None) )
+        {
+            context.Error( $"'{context.Path}:Headers' is '{Headers}': a combination of XForwardedFor, XForwardedHost, XForwardedProto and XForwardedPrefix is expected." );
+        }
+        if( ForwardLimit is <= 0 )
+        {
+            context.Error( $"'{context.Path}:ForwardLimit' is {ForwardLimit}: a positive number is expected." );
+        }
+    }
 }

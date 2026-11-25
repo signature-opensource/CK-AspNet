@@ -19,6 +19,7 @@ namespace CK.AppIdentity;
 /// scheme and host of its requests).
 /// </summary>
 [PartyFeatureOption( "InProcess", TypeActivation.Optional )]
+[Configuration<InProcessHttpEndpointOptionConfiguration>]
 public sealed class InProcessHttpEndpointOption : HttpEndpointOption
 {
     /// <summary>
@@ -31,26 +32,10 @@ public sealed class InProcessHttpEndpointOption : HttpEndpointOption
     /// <summary>
     /// Initializes a new <see cref="InProcessHttpEndpointOption"/> from its configuration.
     /// </summary>
-    /// <param name="configuration">The "InProcess" section of the endpoint (null for <c>true</c>).</param>
-    public InProcessHttpEndpointOption( IConfiguration? configuration )
+    /// <param name="configuration">The configuration of the option (its "Url" checked).</param>
+    public InProcessHttpEndpointOption( InProcessHttpEndpointOptionConfiguration configuration )
     {
-        string? url = null;
-        if( configuration != null )
-        {
-            foreach( var c in configuration.GetChildren() )
-            {
-                if( c.Key.Equals( "Url", StringComparison.OrdinalIgnoreCase ) ) url = c.Value;
-                else Throw.CKException( $"Unknown \"{c.Key}\": the only key is Url." );
-            }
-        }
-        url ??= DefaultUrl;
-        if( !Uri.TryCreate( url, UriKind.Absolute, out var uri )
-            || uri.AbsolutePath != "/"
-            || uri.Query.Length > 0
-            || uri.Fragment.Length > 0 )
-        {
-            Throw.CKException( $"Invalid \"Url\": '{url}' must be an absolute URL without path (like \"{DefaultUrl}\")." );
-        }
+        var uri = new Uri( configuration.Url );
         BaseAddress = uri;
         _serverUrl = uri.GetLeftPart( UriPartial.Authority );
     }
@@ -72,5 +57,31 @@ public sealed class InProcessHttpEndpointOption : HttpEndpointOption
     public override void ConfigureServices( WebApplicationBuilder builder )
     {
         builder.WebHost.UseTestServer( o => o.BaseAddress = BaseAddress );
+    }
+}
+
+/// <summary>
+/// The configuration of the <see cref="InProcessHttpEndpointOption"/>: <c>"InProcess": true</c> or
+/// <c>"InProcess": { "Url": "app://localhost" }</c>.
+/// </summary>
+[ConfigurationModel]
+public sealed class InProcessHttpEndpointOptionConfiguration : IConfigurationModel
+{
+    /// <summary>
+    /// Gets the URL of the in-process server: an absolute URL without path, its scheme and host are the ones of the
+    /// requests of the endpoint.
+    /// </summary>
+    public string Url { get; init; } = InProcessHttpEndpointOption.DefaultUrl;
+
+    /// <inheritdoc />
+    public void Validate( IConfigurationValidationContext context )
+    {
+        if( !Uri.TryCreate( Url, UriKind.Absolute, out var uri )
+            || uri.AbsolutePath != "/"
+            || uri.Query.Length > 0
+            || uri.Fragment.Length > 0 )
+        {
+            context.Error( $"'{context.Path}:Url' is '{Url}': an absolute URL without path is expected (like \"{InProcessHttpEndpointOption.DefaultUrl}\")." );
+        }
     }
 }

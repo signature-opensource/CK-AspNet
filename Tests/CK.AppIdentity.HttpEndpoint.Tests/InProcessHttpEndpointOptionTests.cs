@@ -100,8 +100,8 @@ public class InProcessHttpEndpointOptionTests
     }
 
     [TestCase( "WithUrls", "InProcessHttpEndpointOption' provides the server of the endpoint (app://localhost): \"Urls\", \"Kestrel\" and \"DefaultEndpoint\" must be removed." )]
-    [TestCase( "InvalidUrl", "Invalid \"Url\": 'app://localhost/path' must be an absolute URL without path" )]
-    [TestCase( "UnknownKey", "Unknown \"Port\": the only key is Url." )]
+    [TestCase( "InvalidUrl", "Url' is 'app://localhost/path': an absolute URL without path is expected" )]
+    [TestCase( "UnknownKey", "Unknown key 'CK-AppIdentity:Local:HttpEndpoint:InProcess:Port'" )]
     [CancelAfter( 20000 )]
     public async Task configuration_errors_fail_the_start_Async( string error, string expected, CancellationToken cancel )
     {
