@@ -107,7 +107,7 @@ replaces each handle by the value of the configuration key `Secrets:<Name>`, thr
 
 ```jsonc
 // appsettings.json (projected by the builder)
-"Oidc": { "Google": { "ClientId": "...", "ClientSecret": { "$SECRET": "Google:ClientSecret" } } }
+"Oidc": { "Schemes": { "Google": { "ClientId": "...", "ClientSecret": { "$SECRET": "Google:ClientSecret" } } } }
 ```
 
 - **The value comes from any source of the host:** an environment variable (`Secrets__Google__ClientSecret`), a file of
