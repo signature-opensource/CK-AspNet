@@ -7,7 +7,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Threading.Tasks;
 
 namespace CK.Core;
 
@@ -22,7 +21,7 @@ namespace CK.Core;
 ///     <item>
 ///     The application is the executable project "XXX.Host" that references this package and whose Program.cs is:
 ///     <code>
-///     await CK.Core.CKomposableAppHost.RunAsync( args );
+///     return CK.Core.CKomposableAppHost.Run( args );
 ///     </code>
 ///     </item>
 /// </list>
@@ -35,8 +34,13 @@ namespace CK.Core;
 public static class CKomposableAppHost
 {
     /// <summary>
-    /// Builds the host of the entry assembly and runs it until it stops.
+    /// Builds the host of the entry assembly and runs it until it stops, on the calling thread (the main thread of the
+    /// process: a runner may need it, a desktop window on macOS for instance).
     /// See <see cref="Build(string[], Action{IActivityMonitor, HostApplicationBuilder, IStObjMap}?, string?, Assembly?)"/>.
+    /// <para>
+    /// The <see cref="IAppHostRunner"/> of the generated code, if any, runs the host (and configures its builder);
+    /// otherwise the host runs until it stops.
+    /// </para>
     /// <para>
     /// A failure (a missing secret, an invalid configuration, a port already in use...) never escapes: it is written on the
     /// standard error and logged, and the exit code of the process is 1. An unhandled exception would abort the process
@@ -44,21 +48,72 @@ public static class CKomposableAppHost
     /// </para>
     /// </summary>
     /// <param name="args">The command line arguments.</param>
-    /// <param name="configure">Optional configuration of the builder, called right the creation of the builder and the successful load of the map.</param>
-    /// <returns>The awaitable.</returns>
-    public static async Task RunAsync( string[] args, Action<IActivityMonitor, HostApplicationBuilder, IStObjMap>? configure = null )
+    /// <returns>The exit code of the process: 0 on success, 1 on failure (or the one of the runner).</returns>
+    public static int Run( string[] args )
     {
+        IAppHostRunner? runner = null;
+        IHost host;
         try
         {
-            using var host = Build( args, configure );
-            await host.RunAsync().ConfigureAwait( false );
+            var assembly = GetEntryAssembly();
+            var monitor = CreateBuilderMonitor();
+            var map = LoadMap( assembly, monitor );
+            runner = FindRunner( map );
+            host = Build( args,
+                          runner != null ? ( m, b, _ ) => runner.ConfigureHost( m, b ) : null,
+                          null,
+                          assembly,
+                          monitor,
+                          map );
         }
         catch( Exception ex )
         {
             ReportFailure( ex );
-            Environment.ExitCode = 1;
+            if( runner != null )
+            {
+                try
+                {
+                    runner.OnBuildFailure( ex );
+                }
+                catch( Exception e )
+                {
+                    ReportFailure( e );
+                }
+            }
+            return 1;
+        }
+        using( host )
+        {
+            try
+            {
+                if( runner != null ) return runner.Run( host );
+                host.Run();
+                return 0;
+            }
+            catch( Exception ex )
+            {
+                ReportFailure( ex );
+                return 1;
+            }
         }
     }
+
+    /// <summary>
+    /// Gets the <see cref="IAppHostRunner"/> of a map, null when it has none.
+    /// </summary>
+    /// <param name="map">The generated code.</param>
+    /// <returns>The runner or null.</returns>
+    internal static IAppHostRunner? FindRunner( IStObjMap map ) => map.StObjs.Obtain( typeof( IAppHostRunner ) ) as IAppHostRunner;
+
+    static Assembly GetEntryAssembly() => Assembly.GetEntryAssembly()
+                                          ?? Throw.InvalidOperationException<Assembly>( "No entry assembly: the assembly that contains the generated code must be specified." );
+
+    // The monitor of the builder: its logs are replayed once the monitoring is configured.
+    static ActivityMonitor CreateBuilderMonitor() => new ActivityMonitor( ActivityMonitorOptions.WithInitialReplay, nameof( IHostApplicationBuilder ) );
+
+    static IStObjMap LoadMap( Assembly assembly, IActivityMonitor monitor )
+        => StObjContextRoot.Load( assembly, monitor )
+           ?? Throw.InvalidOperationException<IStObjMap>( $"Unable to load the generated code of '{assembly.GetName().Name}': build its Builder." );
 
     // The standard error always (the monitoring may not be configured yet, or already disposed with the host), and the
     // monitoring when it is still active.
@@ -77,8 +132,8 @@ public static class CKomposableAppHost
     }
 
     /// <summary>
-    /// Builds the host, not started: <see cref="RunAsync(string[], Action{IActivityMonitor, HostApplicationBuilder, IStObjMap}?)"/> uses it, and the tests
-    /// use it to start and stop the host themselves.
+    /// Builds the host, not started: <see cref="Run(string[])"/> uses it, and the tests use it to start and stop the host
+    /// themselves.
     /// </summary>
     /// <param name="args">The command line arguments.</param>
     /// <param name="configure">
@@ -101,19 +156,25 @@ public static class CKomposableAppHost
                                string? contentRoot = null,
                                Assembly? assembly = null )
     {
-        assembly ??= Assembly.GetEntryAssembly()
-                     ?? Throw.InvalidOperationException<Assembly>( "No entry assembly: the assembly that contains the generated code must be specified." );
+        assembly ??= GetEntryAssembly();
+        // The generated code is loaded first: a host built for a deployment has the environment of its party (its burnt
+        // full name), that is the environment of the host when nothing else gives one.
+        var monitor = CreateBuilderMonitor();
+        return Build( args, configure, contentRoot, assembly, monitor, LoadMap( assembly, monitor ) );
+    }
+
+    static IHost Build( string[] args,
+                        Action<IActivityMonitor, HostApplicationBuilder, IStObjMap>? configure,
+                        string? contentRoot,
+                        Assembly assembly,
+                        ActivityMonitor monitor,
+                        IStObjMap map )
+    {
         // A Windows service starts in "C:\Windows\System32"; a published host may be started from anywhere: their content
         // root is their folder (unless the process gives one).
         contentRoot ??= WindowsServiceHelpers.IsWindowsService() || (IsPublished() && !HasContentRoot( args ))
                             ? AppContext.BaseDirectory
                             : null;
-        // The generated code is loaded first: a host built for a deployment has the environment of its party (its burnt
-        // full name), that is the environment of the host when nothing else gives one. The monitor is the builder's one
-        // (its logs are replayed once the monitoring is configured).
-        var monitor = new ActivityMonitor( ActivityMonitorOptions.WithInitialReplay, nameof( IHostApplicationBuilder ) );
-        var map = StObjContextRoot.Load( assembly, monitor )
-                  ?? Throw.InvalidOperationException<IStObjMap>( $"Unable to load the generated code of '{assembly.GetName().Name}': build its Builder." );
         var settings = new HostApplicationBuilderSettings { Args = args, ContentRootPath = contentRoot };
         var burntEnvironment = GetBurntEnvironmentName( map );
         if( burntEnvironment != null && !HasEnvironmentName( args ) )

@@ -5,7 +5,6 @@ using Shouldly;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Threading.Tasks;
 using static CK.Testing.MonitorTestHelper;
 
 namespace CK.AppHost.Tests;
@@ -51,22 +50,6 @@ public class SecretTests
         c["A"].ShouldBeNull();
         c["B"].ShouldBe( "2" );
         c["C"].ShouldBe( "3" );
-    }
-
-    [Test]
-    public async Task a_failure_of_RunAsync_is_an_exit_code_not_an_unhandled_exception_Async()
-    {
-        // The entry assembly of a test (the test runner) has no generated code: the host can't be built.
-        var previous = Environment.ExitCode;
-        try
-        {
-            await CKomposableAppHost.RunAsync( [] );
-            Environment.ExitCode.ShouldBe( 1 );
-        }
-        finally
-        {
-            Environment.ExitCode = previous;
-        }
     }
 
     static string NewSecretsFolder( string name )

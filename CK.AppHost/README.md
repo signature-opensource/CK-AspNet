@@ -8,30 +8,29 @@ It mirrors `CKomposableAppBuilder` (CK.AppBuilder) on the host side: the builder
 `return await CKomposableAppBuilder.RunAsync();`, the host's is:
 
 ```csharp
-await CK.Core.CKomposableAppHost.RunAsync( args );
+return CK.Core.CKomposableAppHost.Run( args );
 ```
 
 Only the host project references this package.
 
 ## What the bootstrap does
 
-`CKomposableAppHost.Build` is the whole bootstrap:
+`CKomposableAppHost.Build` loads the generated code of the entry assembly (`StObjContextRoot.Load`), then builds the
+host with it:
 
 ```csharp
-public static IHost Build( string[] args,
-                           Action<IActivityMonitor,HostApplicationBuilder, IStObjMap>? configure = null,
-                           string? contentRoot = null,
-                           Assembly? assembly = null )
+static IHost Build( string[] args,
+                    Action<IActivityMonitor, HostApplicationBuilder, IStObjMap>? configure,
+                    string? contentRoot,
+                    Assembly assembly,
+                    ActivityMonitor monitor,
+                    IStObjMap map )
 {
-    assembly ??= Assembly.GetEntryAssembly()
-                 ?? Throw.InvalidOperationException<Assembly>( "No entry assembly: the assembly that contains the generated code must be specified." );
-    contentRoot ??= WindowsServiceHelpers.IsWindowsService() ? AppContext.BaseDirectory : null;
-    // The generated code is loaded first: a host built for a deployment has the environment of its party (its burnt
-    // full name), that is the environment of the host when nothing else gives one. The monitor is the builder's one
-    // (its logs are replayed once the monitoring is configured).
-    var monitor = new ActivityMonitor( ActivityMonitorOptions.WithInitialReplay, nameof( IHostApplicationBuilder ) );
-    var map = StObjContextRoot.Load( assembly, monitor )
-              ?? Throw.InvalidOperationException<IStObjMap>( $"Unable to load the generated code of '{assembly.GetName().Name}': build its Builder." );
+    // A Windows service starts in "C:\Windows\System32"; a published host may be started from anywhere: their content
+    // root is their folder (unless the process gives one).
+    contentRoot ??= WindowsServiceHelpers.IsWindowsService() || (IsPublished() && !HasContentRoot( args ))
+                        ? AppContext.BaseDirectory
+                        : null;
     var settings = new HostApplicationBuilderSettings { Args = args, ContentRootPath = contentRoot };
     var burntEnvironment = GetBurntEnvironmentName( map );
     if( burntEnvironment != null && !HasEnvironmentName( args ) )
@@ -41,6 +40,7 @@ public static IHost Build( string[] args,
     }
     var builder = Host.CreateApplicationBuilder( settings );
     ((IHostApplicationBuilder)builder).Properties[typeof( IActivityMonitor )] = monitor;
+    if( IsPublished() ) LogPublished( monitor, assembly );
     // The secrets of the development: the "#Dev/Secrets.json" of the solution (where the "#Dev/Store" is).
     if( builder.Environment.IsDevelopment() && !LocalDevSolution.SolutionFolder.IsEmptyPath )
     {
@@ -86,7 +86,9 @@ public static IHost Build( string[] args,
   (`DOTNET_ENVIRONMENT`, `ASPNETCORE_ENVIRONMENT`) give one. A development build burns nothing. CK.AppIdentity checks
   them at start: a `#Dev` party in a host that is not in Development is a warning, another party in a host in
   Development is an error.
-- **`CKomposableAppHost.RunAsync( args, configure? )`** builds the host and runs it until it stops.
+- **`CKomposableAppHost.Run( args )`** builds the host and runs it until it stops, on the calling thread (the main
+  thread of the process), and returns the exit code of the process. An `IAppHostRunner` of the generated code, if
+  any, runs the host instead (see below).
 - **A fleet runs one of its instances:** when the configuration has `"InstanceCount"`, `"Instances"` or
   `"MaxInstanceCount"` at its root (a fleet App, projected from its builder's `ckonf.json`), the `"Instance"` key
   (`--Instance=Red` on the command line, an index or a name) chooses the instance, and a last configuration source holds
@@ -98,6 +100,30 @@ public static IHost Build( string[] args,
   level) are added as a source after the others: a configured value that differs, or that a lock covers, is ignored with
   a warning. The values are never logged.
 - **The secrets are resolved last** (see the next section).
+
+## A runner: a package that runs the host
+
+A package that changes how the process runs (a desktop window that shows a client application of the party, for
+instance) implements `IAppHostRunner`. It is a real object, so the generated code has it before the host is built:
+
+```csharp
+public interface IAppHostRunner : IRealObject
+{
+    void ConfigureHost( IActivityMonitor monitor, HostApplicationBuilder builder ) { }
+    int Run( IHost host );
+    void OnBuildFailure( Exception ex ) { }
+}
+```
+
+- `IAppHostRunner.ConfigureHost` is called while the host is built, right after the creation of the builder (before
+  the monitoring and the application identity are configured).
+- `IAppHostRunner.Run` runs the host (built, not started) on the main thread of the process and returns the exit code.
+  An exception that escapes it is reported and the exit code is 1.
+- `IAppHostRunner.OnBuildFailure` is called when the host fails to build, after the failure is reported: a desktop
+  application has no console to show it.
+
+An App has at most one runner: the engine refuses two implementations. The `Program.cs` of the host doesn't change: the
+packages of the App decide how it runs.
 
 ## The secrets
 
@@ -139,7 +165,7 @@ replaces each handle by the value of the configuration key `Secrets:<Name>`, thr
   { "Google": { "ClientSecret": "..." } }
   ```
 - **A missing secret fails the start**, with all the missing names at once. A value is never logged. Like any failure of
-  `RunAsync` (an invalid configuration, a port already in use), it is written on the standard error and logged, and the
+  `CKomposableAppHost.Run` (an invalid configuration, a port already in use), it is written on the standard error and logged, and the
   process exits with the code 1: never an unhandled exception (an abort, a core dump on Linux).
 - **An optional handle**, `{ "$SECRET?": "<Name>" }`, names a secret that may be missing: its path is then absent (as if
   nothing were configured there) and the missing optional names are logged. A one-time enlistment ticket is given this
