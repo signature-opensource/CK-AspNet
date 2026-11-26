@@ -111,7 +111,7 @@ public class HostProjectTargetsTests
 
     [Test]
     [CancelAfter( 180000 )]
-    public async Task the_builder_is_named_after_the_host_or_by_CKAppHostBuilder_Async()
+    public async Task the_host_references_the_Builder_of_its_AppContext_or_the_one_of_CKAppHostBuilder_Async()
     {
         var root = CreateRoot();
         try
@@ -120,17 +120,19 @@ public class HostProjectTargetsTests
             var host = CreateHost( root, "Demo.Host", builderName: null );
             var (exitCode, output) = await BuildAsync( host );
             exitCode.ShouldNotBe( 0 );
-            output.ShouldContain( "'Demo.Host' must reference its builder" );
+            output.ShouldContain( "'Demo.Host' must reference the Builder of its AppContext" );
 
+            // The Builder is named after the AppContext, not after the host: any "*.Builder" project.
             CreateBuilder( root, "Other.Builder", "Server" );
             var server = CreateHost( root, "Server", "Other.Builder" );
             (exitCode, output) = await BuildAsync( server );
-            exitCode.ShouldNotBe( 0 );
-            output.ShouldContain( "doesn't end with '.Host'" );
-
-            server = CreateHost( root, "Server", "Other.Builder", extraProperties: "<CKAppHostBuilder>Other.Builder</CKAppHostBuilder>" );
-            (exitCode, output) = await BuildAsync( server );
             exitCode.ShouldBe( 0, output );
+
+            // CKAppHostBuilder names it.
+            server = CreateHost( root, "Server", "Other.Builder", extraProperties: "<CKAppHostBuilder>Demo.Builder</CKAppHostBuilder>" );
+            (exitCode, output) = await BuildAsync( server );
+            exitCode.ShouldNotBe( 0 );
+            output.ShouldContain( "'Server' must reference its Builder 'Demo.Builder'" );
         }
         finally
         {

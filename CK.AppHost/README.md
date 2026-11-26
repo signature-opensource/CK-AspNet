@@ -180,13 +180,14 @@ The package's `build` files apply to the project that references the package (no
 host):
 
 - **The host is an executable**: the build fails otherwise.
-- **The host references its builder**: the build fails otherwise. This reference only orders the builds: the builder runs
-  after its own build and writes the generated code in the `$StObjGen` folder of the host (CK.AppBuilder).
+- **The host references the Builder of its AppContext**: the build fails otherwise. This reference only orders the
+  builds: the Builder runs after its own build and writes the generated code in the `$StObjGen` folder of the host
+  (CK.AppBuilder).
   ```xml
-  <ProjectReference Include="..\XXX.Builder\XXX.Builder.csproj" ReferenceOutputAssembly="false" Private="false" />
+  <ProjectReference Include="..\Front.Builder\Front.Builder.csproj" ReferenceOutputAssembly="false" Private="false" />
   ```
-  The builder of "XXX.Host" is "XXX.Builder". A host whose project name doesn't end with `.Host` names its builder with
-  the `CKAppHostBuilder` property (a project name).
+  The Builder is named after its AppContext (`{AppContext}.Builder`), not after the host: any referenced `*.Builder`
+  project is it, unless the `CKAppHostBuilder` property names it (a project name).
 - **The generated code is compiled**: it is included just before the compilation (on a clean build, the default glob of
   the source files is evaluated before the builder writes it).
 - **The `Clients` folder is not part of the project**: the client applications are built by their own tool chain.
