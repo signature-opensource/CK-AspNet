@@ -219,8 +219,8 @@ host):
 - **The `Clients` folder is not part of the project**: the client applications are built by their own tool chain.
 - **The host runs in its project folder** (`dotnet run`, Visual Studio): the package sets `RunWorkingDirectory`, so
   the content root is the project folder (its `appsettings.json`, its `Clients`).
-- **The `appsettings.json` is published with the host**, also by a host of the base SDK (`Microsoft.NET.Sdk`: a worker;
-  the Web SDK publishes it), with `CK.AppHost.Published.json`: the content root of a published host is its folder. This
+- **The `appsettings.json` is published with the host** (the base SDK doesn't publish it), with
+  `CK.AppHost.Published.json`: the content root of a published host is its folder. This
   file holds the effective properties of the publication (`"Publish"`: the `Executable` to start, `RuntimeIdentifier`,
   `SelfContained`, `PublishSingleFile`...) for the platform that receives the host; CK.AppDeployment adds the version and the deployment
   (`"Deployment"`: its manifest). A published host logs its version and its deployment at start.
@@ -229,12 +229,17 @@ host):
 - **The host is a party** of the `#Dev` folder of the development solution: the package sets `CKAppIdentityParty` to
   `true` (see [CK.AppIdentity.Hosting](https://github.com/signature-opensource/CK-AppIdentity/blob/stable/CK.AppIdentity.Hosting/README.md)).
 
-A host project:
+- **A host marks itself** with `CKIsAppHost` (`true`): a package of its App can depend on it (CK.AppHost.Desktop makes
+  the host a `WinExe`, a Builder that references the same App is not a host).
+
+A host project is a plain executable of the base SDK, whatever it runs (a web server is a feature of its App: the
+"HttpEndpoint" of CK.AppIdentity.HttpEndpoint):
 
 ```xml
-<Project Sdk="Microsoft.NET.Sdk.Web">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="CK.AppHost" Version="..." />
