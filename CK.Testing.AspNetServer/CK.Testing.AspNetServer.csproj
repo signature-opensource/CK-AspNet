@@ -7,9 +7,9 @@
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="CK.Testing" Version="18.0.0-0.linux.0.ci.14" />
+    <PackageReference Include="CK.Testing" Version="18.0.0-0.linux.0.ci.16" />
     <!-- The engine of CK.AppIdentity: a BinPath with the HttpEndpoint feature has the PartyComponentOptionDirectory. -->
-    <PackageReference Include="CK.AppIdentity.Engine" Version="3.0.0-0.linux.0.ci.69" />
+    <PackageReference Include="CK.AppIdentity.Engine" Version="3.0.0-0.linux.0.ci.71" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\CK.AppIdentity.HttpEndpoint\CK.AppIdentity.HttpEndpoint.csproj" />
