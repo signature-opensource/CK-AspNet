@@ -125,6 +125,10 @@ public class ForwardedHeadersOptionTests
         const string p = "CK-AppIdentity:Local:HttpEndpoint:";
         using var host = BuildHost( c =>
         {
+            // Strict mode: a configuration problem fails the start (in the "#Dev" environment, it is a warning), with a store
+            // that only the current user can write.
+            c["CK-AppIdentity:StrictConfigurationMode"] = "true";
+            c["CK-AppIdentity:StoreRootPath"] = System.IO.Path.Combine( System.IO.Path.GetTempPath(), "CK-AspNet-HttpEndpoint-Tests-Strict" );
             switch( error )
             {
                 case "true": c[p + "ForwardedHeaders"] = "true"; break;
